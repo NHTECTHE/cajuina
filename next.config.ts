@@ -1,27 +1,17 @@
 import type { NextConfig } from "next";
 
+const devOrigins = process.env.NEXT_PUBLIC_DEV_ORIGINS?.split(",").map(s => s.trim()) ?? [];
+
 const nextConfig: NextConfig = {
-  devIndicators: false,
-  // @ts-ignore - allowedDevOrigins is recognized by Next.js Dev Server
-  allowedDevOrigins: [
-    "localhost:3000",
-    "127.0.0.1:3000",
-    "10.0.10.12",
-    "10.0.10.12:3000"
-  ],
   experimental: {
     serverActions: {
       allowedOrigins: [
         "localhost:3000",
         "127.0.0.1:3000",
-        "10.0.10.12",
-        "10.0.10.12:3000",
-        "*.ngrok-free.app",
-        "*.ngrok.io",
-        "*.loca.lt"
-      ]
-    }
-  }
+        ...devOrigins,
+      ],
+    },
+  },
 };
 
 export default nextConfig;

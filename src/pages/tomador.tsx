@@ -9,15 +9,11 @@ import {
   Edit,
   ArrowLeft,
   PlusCircle,
-  X,
-  AlertCircle,
   Users,
   MapPin,
   FileText,
   UserCheck,
   Building,
-  CheckCircle,
-  HelpCircle
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -29,7 +25,6 @@ import { NativeSelect } from "@/components/ui/native-select"
 import { toast } from "sonner"
 import { lookupCnpj } from "@/services/api"
 
-// Mock initial data based on legacy screenshot
 interface ContactRow {
   nome: string;
   telefone: string;
@@ -73,141 +68,8 @@ interface Tomador {
   socios: SocioRow[];
 }
 
-const INITIAL_TOMADORES: Tomador[] = [
-  {
-    cnpj: "07.137.727/0001-64",
-    nome: "ARCON CONSTRUCOES E CONSULTORIA LTDA",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "TERESINA",
-    uf: "PI",
-    contato: "TOINHO/RICHARD",
-    celular: "(86) 98831-4840",
-    email: "arcon@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  },
-  {
-    cnpj: "04.234.143/0001-19",
-    nome: "ARTCONSTRUÇÕES",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "TIMON",
-    uf: "MA",
-    contato: "SAMUEL/IRLENE",
-    celular: "(99) 8110-1521",
-    email: "artconstrucoes@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  },
-  {
-    cnpj: "00.739.568/0001-29",
-    nome: "BM ENGENHARIA LTDA",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "TERESINA",
-    uf: "PI",
-    contato: "JOSÉ CARLOS",
-    celular: "(86) 9982-5178",
-    email: "bm@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  },
-  {
-    cnpj: "05.366.234/0001-70",
-    nome: "CARVALHO ENGENHARIA LTDA",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "TERESINA",
-    uf: "PI",
-    contato: "ANDRÉ CARVALHO",
-    celular: "(86) 9989-7111",
-    email: "carvalho@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  },
-  {
-    cnpj: "06.226.439/0001-13",
-    nome: "CONSTRUTORA CAXE LTDA",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "TERESINA",
-    uf: "PI",
-    contato: "CAROLINA",
-    celular: "(86) 94155-637",
-    email: "caxe@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  },
-  {
-    cnpj: "14.443.174/0001-33",
-    nome: "MATRINXA SERVICOS DE CONSTRUCOES LTDA",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "TERESINA",
-    uf: "PI",
-    contato: "CAROLINA",
-    celular: "(86) 9415-5637",
-    email: "matrinxa@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  },
-  {
-    cnpj: "00.524.443/0001-81",
-    nome: "C M A ENGENHARIA E SERVICOS LTDA",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "TERESINA",
-    uf: "PI",
-    contato: "RUFINO",
-    celular: "(86) 99440-3504",
-    email: "cma@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  },
-  {
-    cnpj: "09.103.378/0001-95",
-    nome: "CONSERVE",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "TERESINA",
-    uf: "PI",
-    contato: "JUVENAL",
-    celular: "(86) 9982-2815",
-    email: "conserve@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  },
-  {
-    cnpj: "05.898.998/0001-07",
-    nome: "CONSTRUGOMES LTDA",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "TERESINA",
-    uf: "PI",
-    contato: "ROBERT",
-    celular: "",
-    email: "construgomes@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  },
-  {
-    cnpj: "07.561.615/0001-36",
-    nome: "CONSTRUTORA BARRETO LTDA",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "FRONTEIRAS",
-    uf: "PI",
-    contato: "ALISSON",
-    celular: "(86) 98852-2828",
-    email: "barreto@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  }
-];
-
 export default function TomadorPage() {
-  const [tomadores, setTomadores] = useState<Tomador[]>(INITIAL_TOMADORES)
+  const [tomadores, setTomadores] = useState<Tomador[]>([])
   const [view, setView] = useState<"list" | "form">("list")
   const [currentTab, setCurrentTab] = useState<"dados" | "endereco" | "contatos" | "socios">("dados")
 
