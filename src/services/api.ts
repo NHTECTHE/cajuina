@@ -1,17 +1,129 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 const BASE_URL = API_URL.split("/api/")[0];
 
-export async function lookupCnpj(cnpj: string): Promise<Record<string, unknown>> {
-  const cleanCnpj = cnpj.replace(/\D/g, "");
-  const response = await fetch(`${BASE_URL}/integracoes/cnpj/${cleanCnpj}/`);
+// Requests to /api/* go through Next.js Route Handlers which attach the httpOnly cookie token.
+async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`/api${path}`, {
+    ...options,
+    headers: { "Content-Type": "application/json", ...options?.headers },
+  });
 
   if (!response.ok) {
-    throw new Error("Erro ao buscar CNPJ");
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body?.detail ?? `Erro ${response.status}`);
   }
 
-  const result: { data?: Record<string, unknown> } = await response.json();
+  if (response.status === 204) return undefined as T;
 
-  if (!result.data || typeof result.data !== "object") {
+  const result: { data?: T } = await response.json();
+  if (result.data === undefined) throw new Error("Resposta inválida da API");
+  return result.data;
+}
+
+// ─── Tomadores ───────────────────────────────────────────────────────────────
+
+export interface ContatoAdicional {
+  id?: number;
+  nome: string;
+  telefone: string;
+  email: string;
+}
+
+export interface Socio {
+  id?: number;
+  nome: string;
+  cpf: string;
+  nascimento: string;
+  qualificacao: string;
+}
+
+export interface TomadorPayload {
+  cnpj: string;
+  nome: string;
+  nome_fantasia?: string;
+  produtor: string;
+  corretora: string;
+  contato?: string;
+  email?: string;
+  habilitar_email?: boolean;
+  telefone?: string;
+  celular?: string;
+  cep?: string;
+  endereco?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  uf?: string;
+  ativar_cotacao?: boolean;
+  observacoes?: string;
+  contatos_adicionais?: ContatoAdicional[];
+  socios?: Socio[];
+}
+
+export interface TomadorResponse extends TomadorPayload {
+  id: number;
+  criado_em: string;
+  atualizado_em: string;
+  contatos_adicionais: ContatoAdicional[];
+  socios: Socio[];
+}
+
+export const tomadoresApi = {
+  list: (params?: { search?: string; uf?: string; tipo?: string }) => {
+    const qs = new URLSearchParams(
+      Object.entries(params ?? {}).filter(([, v]) => Boolean(v)) as [string, string][]
+    ).toString();
+    return apiRequest<TomadorResponse[]>(`/tomadores${qs ? `?${qs}` : ""}`);
+  },
+
+  get: (id: number) => apiRequest<TomadorResponse>(`/tomadores/${id}`),
+
+  create: (data: TomadorPayload) =>
+    apiRequest<TomadorResponse>("/tomadores", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: number, data: Partial<TomadorPayload>) =>
+    apiRequest<TomadorResponse>(`/tomadores/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  remove: (id: number) =>
+    apiRequest<void>(`/tomadores/${id}`, { method: "DELETE" }),
+};
+
+// ─── CNPJ lookup ─────────────────────────────────────────────────────────────
+
+export interface CnpjData {
+  razao_social: string;
+  nome_fantasia: string;
+  email: string;
+  telefone: string;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  municipio: string;
+  uf: string;
+  socios: Array<{ nome: string; cpf: string; qualificacao: string }>;
+}
+
+export async function lookupCnpj(cnpj: string): Promise<CnpjData> {
+  const digits = cnpj.replace(/\D/g, "");
+  const response = await fetch(`/api/cnpj/${digits}`);
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body?.error ?? "Erro ao buscar CNPJ");
+  }
+
+  const result: { data?: CnpjData } = await response.json();
+
+  if (!result.data) {
     throw new Error("Resposta inválida ao buscar CNPJ");
   }
 
