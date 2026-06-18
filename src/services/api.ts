@@ -7,7 +7,17 @@ async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(body?.detail ?? `Erro ${response.status}`);
+    let errorMessage = body?.detail;
+    if (!errorMessage && typeof body === 'object') {
+      const errors = Object.entries(body)
+        .map(([field, msgs]) => {
+          const msgStr = Array.isArray(msgs) ? msgs[0] : msgs;
+          return `${field}: ${msgStr}`;
+        })
+        .join(', ');
+      errorMessage = errors || `Erro ${response.status}`;
+    }
+    throw new Error(errorMessage || `Erro ${response.status}`);
   }
 
   if (response.status === 204) return undefined as T;
