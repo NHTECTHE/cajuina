@@ -119,7 +119,7 @@ export default function TomadorPage() {
   const paginatedTomadores = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage
     return filteredTomadores.slice(startIndex, startIndex + itemsPerPage)
-  }, [filteredTomadores, currentPage])
+  }, [filteredTomadores, currentPage, itemsPerPage])
 
   const totalPages = Math.max(1, Math.ceil(filteredTomadores.length / itemsPerPage))
 

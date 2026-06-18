@@ -1,6 +1,3 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
-const BASE_URL = API_URL.split("/api/")[0];
-
 // Requests to /api/* go through Next.js Route Handlers which attach the httpOnly cookie token.
 async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, {
