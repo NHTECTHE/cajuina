@@ -12,6 +12,8 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+permissions: {}
+
 jobs:
   deploy:
     name: Deploy to VPS
