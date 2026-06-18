@@ -74,7 +74,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col lg:flex-row bg-white font-sans selection:bg-brand-red/20 selection:text-brand-red">
-      <Toaster position="top-right" richColors />
+      <Toaster position="top-right" richColors duration={5000} />
 
       {/* ───── LEFT: Hero Image Panel ───── */}
       <div className="hidden lg:flex lg:w-[38%] relative overflow-hidden rounded-r-3xl">
