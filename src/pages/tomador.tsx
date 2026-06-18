@@ -9,15 +9,11 @@ import {
   Edit,
   ArrowLeft,
   PlusCircle,
-  X,
-  AlertCircle,
   Users,
   MapPin,
   FileText,
   UserCheck,
   Building,
-  CheckCircle,
-  HelpCircle
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -27,9 +23,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { NativeSelect } from "@/components/ui/native-select"
 import { toast } from "sonner"
-import { lookupCnpj } from "@/services/api"
+import { lookupCnpj, tomadoresApi, type TomadorResponse } from "@/services/api"
 
-// Mock initial data based on legacy screenshot
 interface ContactRow {
   nome: string;
   telefone: string;
@@ -43,176 +38,15 @@ interface SocioRow {
   qualificacao: string;
 }
 
-interface Tomador {
-  cnpj: string;
-  nome: string;
-  produtor: string;
-  corretora: string;
-  cidade: string;
-  uf: string;
-  contato: string;
-  celular: string;
-
-  // Detail fields
-  nomeFantasia?: string;
-  email?: string;
-  habilitarEmail?: boolean;
-  telefone?: string;
-  observacoes?: string;
-  ativarCotacao?: boolean;
-
-  // Address fields
-  endereco?: string;
-  bairro?: string;
-  numero?: string;
-  complemento?: string;
-  cep?: string;
-
-  // Dynamic lists
-  contatosAdicionais: ContactRow[];
-  socios: SocioRow[];
-}
-
-const INITIAL_TOMADORES: Tomador[] = [
-  {
-    cnpj: "07.137.727/0001-64",
-    nome: "ARCON CONSTRUCOES E CONSULTORIA LTDA",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "TERESINA",
-    uf: "PI",
-    contato: "TOINHO/RICHARD",
-    celular: "(86) 98831-4840",
-    email: "arcon@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  },
-  {
-    cnpj: "04.234.143/0001-19",
-    nome: "ARTCONSTRUÇÕES",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "TIMON",
-    uf: "MA",
-    contato: "SAMUEL/IRLENE",
-    celular: "(99) 8110-1521",
-    email: "artconstrucoes@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  },
-  {
-    cnpj: "00.739.568/0001-29",
-    nome: "BM ENGENHARIA LTDA",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "TERESINA",
-    uf: "PI",
-    contato: "JOSÉ CARLOS",
-    celular: "(86) 9982-5178",
-    email: "bm@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  },
-  {
-    cnpj: "05.366.234/0001-70",
-    nome: "CARVALHO ENGENHARIA LTDA",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "TERESINA",
-    uf: "PI",
-    contato: "ANDRÉ CARVALHO",
-    celular: "(86) 9989-7111",
-    email: "carvalho@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  },
-  {
-    cnpj: "06.226.439/0001-13",
-    nome: "CONSTRUTORA CAXE LTDA",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "TERESINA",
-    uf: "PI",
-    contato: "CAROLINA",
-    celular: "(86) 94155-637",
-    email: "caxe@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  },
-  {
-    cnpj: "14.443.174/0001-33",
-    nome: "MATRINXA SERVICOS DE CONSTRUCOES LTDA",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "TERESINA",
-    uf: "PI",
-    contato: "CAROLINA",
-    celular: "(86) 9415-5637",
-    email: "matrinxa@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  },
-  {
-    cnpj: "00.524.443/0001-81",
-    nome: "C M A ENGENHARIA E SERVICOS LTDA",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "TERESINA",
-    uf: "PI",
-    contato: "RUFINO",
-    celular: "(86) 99440-3504",
-    email: "cma@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  },
-  {
-    cnpj: "09.103.378/0001-95",
-    nome: "CONSERVE",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "TERESINA",
-    uf: "PI",
-    contato: "JUVENAL",
-    celular: "(86) 9982-2815",
-    email: "conserve@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  },
-  {
-    cnpj: "05.898.998/0001-07",
-    nome: "CONSTRUGOMES LTDA",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "TERESINA",
-    uf: "PI",
-    contato: "ROBERT",
-    celular: "",
-    email: "construgomes@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  },
-  {
-    cnpj: "07.561.615/0001-36",
-    nome: "CONSTRUTORA BARRETO LTDA",
-    produtor: "CAJUÍNA SEGUROS",
-    corretora: "CAJUINA",
-    cidade: "FRONTEIRAS",
-    uf: "PI",
-    contato: "ALISSON",
-    celular: "(86) 98852-2828",
-    email: "barreto@placeholder.local",
-    contatosAdicionais: [],
-    socios: []
-  }
-];
-
 export default function TomadorPage() {
-  const [tomadores, setTomadores] = useState<Tomador[]>(INITIAL_TOMADORES)
+  const [tomadores, setTomadores] = useState<TomadorResponse[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [view, setView] = useState<"list" | "form">("list")
   const [currentTab, setCurrentTab] = useState<"dados" | "endereco" | "contatos" | "socios">("dados")
 
-  // Editing state
-  const [editingIndex, setEditingIndex] = useState<number | null>(null)
+  // Editing state — stores the backend id of the record being edited
+  const [editingId, setEditingId] = useState<number | null>(null)
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("")
@@ -252,18 +86,20 @@ export default function TomadorPage() {
   const [newContact, setNewContact] = useState<ContactRow>({ nome: "", telefone: "", email: "" })
   const [newSocio, setNewSocio] = useState<SocioRow>({ nome: "", cpf: "", nascimento: "", qualificacao: "" })
 
-  // Derived filter options
-  const producers = useMemo(() => {
-    const unique = new Set(tomadores.map(t => t.produtor))
-    return ["Todos", ...Array.from(unique)]
-  }, [tomadores])
+  // Load tomadores from API on mount
+  React.useEffect(() => {
+    tomadoresApi.list()
+      .then(setTomadores)
+      .catch(() => toast.error("Erro ao carregar tomadores."))
+      .finally(() => setLoading(false))
+  }, [])
 
   const ufs = useMemo(() => {
     const unique = new Set(tomadores.map(t => t.uf).filter(Boolean))
     return ["Todos", ...Array.from(unique)]
   }, [tomadores])
 
-  // Filtered list
+  // Filtered list (client-side, complements server-side search)
   const filteredTomadores = useMemo(() => {
     return tomadores.filter(t => {
       const matchesSearch =
@@ -271,7 +107,7 @@ export default function TomadorPage() {
         t.cnpj.includes(searchQuery) ||
         (t.contato && t.contato.toLowerCase().includes(searchQuery.toLowerCase()))
 
-      const isCnpj = t.cnpj.length > 14 || t.cnpj.includes("/")
+      const isCnpj = t.cnpj.includes("/")
       const matchesTipo = selectedTipo === "Todos" || (selectedTipo === "CNPJ" ? isCnpj : !isCnpj)
       const matchesUf = selectedUf === "Todos" || t.uf === selectedUf
 
@@ -283,7 +119,7 @@ export default function TomadorPage() {
   const paginatedTomadores = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage
     return filteredTomadores.slice(startIndex, startIndex + itemsPerPage)
-  }, [filteredTomadores, currentPage])
+  }, [filteredTomadores, currentPage, itemsPerPage])
 
   const totalPages = Math.max(1, Math.ceil(filteredTomadores.length / itemsPerPage))
 
@@ -297,49 +133,59 @@ export default function TomadorPage() {
   }
 
   // Edit action
-  const handleEditClick = (index: number) => {
-    const realIndex = tomadores.findIndex(t => t.cnpj === paginatedTomadores[index].cnpj)
-    if (realIndex !== -1) {
-      const tomador = tomadores[realIndex]
-      setFormData({
-        cnpj: tomador.cnpj,
-        nome: tomador.nome,
-        produtor: tomador.produtor,
-        corretora: tomador.corretora || "CAJUINA",
-        cidade: tomador.cidade,
-        uf: tomador.uf,
-        contato: tomador.contato || "",
-        celular: tomador.celular || "",
-        nomeFantasia: tomador.nomeFantasia || "",
-        email: tomador.email || "",
-        habilitarEmail: tomador.habilitarEmail || false,
-        telefone: tomador.telefone || "",
-        observacoes: tomador.observacoes || "",
-        ativarCotacao: tomador.ativarCotacao || false,
-        endereco: tomador.endereco || "",
-        bairro: tomador.bairro || "",
-        numero: tomador.numero || "",
-        complemento: tomador.complemento || "",
-        cep: tomador.cep || "",
-        contatosAdicionais: [...(tomador.contatosAdicionais || [])],
-        socios: [...(tomador.socios || [])]
-      })
-      setEditingIndex(realIndex)
-      setView("form")
-      setCurrentTab("dados")
-    }
+  const handleEditClick = (id: number) => {
+    const tomador = tomadores.find(t => t.id === id)
+    if (!tomador) return
+    setFormData({
+      cnpj: tomador.cnpj,
+      nome: tomador.nome,
+      produtor: tomador.produtor,
+      corretora: tomador.corretora || "CAJUINA",
+      cidade: tomador.cidade || "",
+      uf: tomador.uf || "",
+      contato: tomador.contato || "",
+      celular: tomador.celular || "",
+      nomeFantasia: tomador.nome_fantasia || "",
+      email: tomador.email || "",
+      habilitarEmail: tomador.habilitar_email || false,
+      telefone: tomador.telefone || "",
+      observacoes: tomador.observacoes || "",
+      ativarCotacao: tomador.ativar_cotacao || false,
+      endereco: tomador.endereco || "",
+      bairro: tomador.bairro || "",
+      numero: tomador.numero || "",
+      complemento: tomador.complemento || "",
+      cep: tomador.cep || "",
+      contatosAdicionais: tomador.contatos_adicionais.map(c => ({
+        nome: c.nome,
+        telefone: c.telefone,
+        email: c.email,
+      })),
+      socios: tomador.socios.map(s => ({
+        nome: s.nome,
+        cpf: s.cpf,
+        nascimento: s.nascimento,
+        qualificacao: s.qualificacao,
+      })),
+    })
+    setEditingId(tomador.id)
+    setView("form")
+    setCurrentTab("dados")
   }
 
   // Delete action
-  const handleDeleteClick = (cnpj: string) => {
-    if (confirm("Deseja realmente excluir este tomador?")) {
-      setTomadores(prev => prev.filter(t => t.cnpj !== cnpj))
-      toast.success("Tomador excluído com sucesso!")
-    }
+  const handleDeleteClick = (id: number) => {
+    if (!confirm("Deseja realmente excluir este tomador?")) return
+    tomadoresApi.remove(id)
+      .then(() => {
+        setTomadores(prev => prev.filter(t => t.id !== id))
+        toast.success("Tomador excluído com sucesso!")
+      })
+      .catch((err: Error) => toast.error(err.message || "Erro ao excluir tomador."))
   }
 
   // Handle Save
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!formData.cnpj || !formData.nome) {
@@ -347,49 +193,49 @@ export default function TomadorPage() {
       return
     }
 
-    const savedTomador: Tomador = {
+    const payload = {
       cnpj: formData.cnpj,
       nome: formData.nome.toUpperCase(),
+      nome_fantasia: formData.nomeFantasia.toUpperCase(),
       produtor: formData.produtor,
       corretora: formData.corretora,
       cidade: formData.cidade.toUpperCase(),
       uf: formData.uf.toUpperCase(),
       contato: formData.contato.toUpperCase(),
       celular: formData.celular,
-      nomeFantasia: formData.nomeFantasia.toUpperCase(),
       email: formData.email,
-      habilitarEmail: formData.habilitarEmail,
+      habilitar_email: formData.habilitarEmail,
       telefone: formData.telefone,
       observacoes: formData.observacoes,
-      ativarCotacao: formData.ativarCotacao,
+      ativar_cotacao: formData.ativarCotacao,
       endereco: formData.endereco.toUpperCase(),
       bairro: formData.bairro.toUpperCase(),
       numero: formData.numero,
       complemento: formData.complemento.toUpperCase(),
       cep: formData.cep,
-      contatosAdicionais: formData.contatosAdicionais,
-      socios: formData.socios
+      contatos_adicionais: formData.contatosAdicionais,
+      socios: formData.socios,
     }
 
-    if (editingIndex !== null) {
-      // Edit mode
-      const updated = [...tomadores]
-      updated[editingIndex] = savedTomador
-      setTomadores(updated)
-      toast.success("Cadastro atualizado com sucesso!")
-    } else {
-      // Create mode
-      if (tomadores.some(t => t.cnpj === formData.cnpj)) {
-        toast.error("Um tomador com este CNPJ já está cadastrado.")
-        return
+    setSaving(true)
+    try {
+      if (editingId !== null) {
+        const updated = await tomadoresApi.update(editingId, payload)
+        setTomadores(prev => prev.map(t => t.id === editingId ? updated : t))
+        toast.success("Cadastro atualizado com sucesso!")
+      } else {
+        const created = await tomadoresApi.create(payload)
+        setTomadores(prev => [created, ...prev])
+        toast.success("Tomador cadastrado com sucesso!")
       }
-      setTomadores(prev => [savedTomador, ...prev])
-      toast.success("Tomador cadastrado com sucesso!")
+      setView("list")
+      setFormData(initialFormState)
+      setEditingId(null)
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar tomador.")
+    } finally {
+      setSaving(false)
     }
-
-    setView("list")
-    setFormData(initialFormState)
-    setEditingIndex(null)
   }
 
   // Dynamic Addition Helpers
@@ -433,100 +279,44 @@ export default function TomadorPage() {
     }))
   }
 
+  const [cnpjLoading, setCnpjLoading] = React.useState(false)
+
   const fetchCompanyByCnpj = async (rawValue: string) => {
     const digits = rawValue.replace(/\D/g, '').slice(0, 14);
+    if (digits.length !== 14) return;
 
-    if (digits.length === 14) {
-      try {
-        const data = await lookupCnpj(digits);
-
-        const root = data || {};
-        const company = (root.company || {}) as Record<string, unknown>;
-        const office = ((root.office as Record<string, unknown>) || root) as Record<string, unknown>;
-        const address =
-          ((office.address as Record<string, unknown>) ||
-            (root.address as Record<string, unknown>) ||
-            {}) as Record<string, unknown>;
-
-        const phones = (office.phones || root.phones || []) as Array<Record<string, unknown>>;
-        let firstPhone =
-          Array.isArray(phones) && phones.length > 0
-            ? String(
-              phones[0]?.number ||
-              phones[0]?.full ||
-              (phones[0]?.area && phones[0]?.number ? `${phones[0]?.area}${phones[0]?.number}` : '') ||
-              '',
-            )
-            : '';
-
-        if (!firstPhone && (root.ddd_telefone_1 || root.telefone)) {
-          const rawPhone = String(root.ddd_telefone_1 || root.telefone || '');
-          if (rawPhone.length >= 10) {
-            firstPhone = `(${rawPhone.slice(0, 2)}) ${rawPhone.slice(2, 7)}-${rawPhone.slice(7)}`;
-          } else {
-            firstPhone = rawPhone;
-          }
-        }
-
-        const emails = (office.emails || root.emails || []) as Array<Record<string, unknown> | string>;
-        const firstEmail =
-          Array.isArray(emails) && emails.length > 0
-            ? String(
-              (typeof emails[0] === 'string'
-                ? emails[0]
-                : (emails[0] as Record<string, unknown>)?.address ||
-                (emails[0] as Record<string, unknown>)?.email) || '',
-            )
-            : String(root.email || office.email || '');
-
-        const cepRaw = String(address.zip || address.zipCode || office.cep || root.cep || '');
-
-        setFormData(prev => ({
-          ...prev,
-          nome: String(
-            company.name ||
-            office.alias ||
-            office.tradeName ||
-            root.razao_social ||
-            root.nome_fantasia ||
-            prev.nome,
-          ),
-          nomeFantasia: String(
-            root.nome_fantasia ||
-            office.tradeName ||
-            company.name ||
-            root.razao_social ||
-            prev.nomeFantasia,
-          ),
-          cep: cepRaw || prev.cep,
-          endereco: String(address.street || address.logradouro || office.logradouro || root.logradouro || prev.endereco),
-          bairro: String(address.district || address.bairro || office.bairro || root.bairro || prev.bairro),
-          cidade: String(
-            address.city ||
-            address.municipality ||
-            address.localidade ||
-            office.cidade ||
-            root.municipio ||
-            prev.cidade,
-          ),
-          uf: String(address.state || address.uf || office.uf || root.uf || prev.uf),
-          numero: String(address.number || address.numero || office.numero || root.numero || prev.numero),
-          complemento: String(
-            address.details ||
-            address.complement ||
-            address.complemento ||
-            office.complemento ||
-            root.complemento ||
-            prev.complemento ||
-            '',
-          ),
-          email: firstEmail ? firstEmail.toLowerCase().trim() : prev.email,
-          telefone: firstPhone || prev.telefone,
-          celular: firstPhone || prev.celular,
-        }));
-      } catch (error) {
-        console.error(error);
-      }
+    setCnpjLoading(true);
+    try {
+      const data = await lookupCnpj(digits);
+      setFormData(prev => ({
+        ...prev,
+        nome: data.razao_social || prev.nome,
+        nomeFantasia: data.nome_fantasia || prev.nomeFantasia,
+        email: data.email ? data.email.toLowerCase().trim() : prev.email,
+        telefone: data.telefone || prev.telefone,
+        celular: data.telefone || prev.celular,
+        cep: data.cep || prev.cep,
+        endereco: data.logradouro || prev.endereco,
+        numero: data.numero || prev.numero,
+        complemento: data.complemento || prev.complemento,
+        bairro: data.bairro || prev.bairro,
+        cidade: data.municipio || prev.cidade,
+        uf: data.uf || prev.uf,
+        socios: data.socios?.length
+          ? data.socios.map(s => ({
+              nome: s.nome,
+              cpf: s.cpf,
+              nascimento: "",
+              qualificacao: s.qualificacao,
+            }))
+          : prev.socios,
+      }));
+      toast.success("Dados do CNPJ preenchidos automaticamente.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro ao buscar CNPJ";
+      toast.error(msg);
+    } finally {
+      setCnpjLoading(false);
     }
   };
 
@@ -539,7 +329,7 @@ export default function TomadorPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-inherit">
-            {view === "list" ? "Lista de Tomadores" : editingIndex !== null ? "Editar Tomador" : "Cadastrar Tomador"}
+            {view === "list" ? "Lista de Tomadores" : editingId !== null ? "Editar Tomador" : "Cadastrar Tomador"}
           </h1>
           <p className="text-xs opacity-60 mt-0.5">
             {view === "list"
@@ -552,7 +342,7 @@ export default function TomadorPage() {
           <Button
             onClick={() => {
               setFormData(initialFormState)
-              setEditingIndex(null)
+              setEditingId(null)
               setView("form")
               setCurrentTab("dados")
             }}
@@ -566,7 +356,7 @@ export default function TomadorPage() {
             variant="outline"
             onClick={() => {
               setView("list")
-              setEditingIndex(null)
+              setEditingId(null)
             }}
             className="border-zinc-200 dark:border-zinc-800/80 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-xl flex items-center gap-2 cursor-pointer transition-all duration-200"
           >
@@ -672,12 +462,15 @@ export default function TomadorPage() {
             </div>
 
             {/* List Rows */}
-            {paginatedTomadores.length > 0 ? (
-              paginatedTomadores.map((t, idx) => {
-                const isCnpj = t.cnpj.length > 14 || t.cnpj.includes("/");
+            {loading ? (
+              <div className="flex items-center justify-center py-16 opacity-50">
+                <div className="w-5 h-5 border-2 border-brand-red border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : paginatedTomadores.length > 0 ? (
+              paginatedTomadores.map((t) => {
                 return (
                   <div
-                    key={t.cnpj}
+                    key={t.id}
                     className="group grid grid-cols-12 gap-4 items-center bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl p-3.5 md:py-3.5 md:px-5 hover:border-brand-red/40 dark:hover:border-brand-red/40 hover:shadow-md transition-all duration-200 relative"
                   >
                     {/* Tomador */}
@@ -716,14 +509,14 @@ export default function TomadorPage() {
                       {/* Action buttons on the right */}
                       <div className="flex items-center gap-1 opacity-80 md:opacity-0 md:group-hover:opacity-100 hover:opacity-100 transition-opacity">
                         <button
-                          onClick={() => handleEditClick(idx)}
+                          onClick={() => handleEditClick(t.id)}
                           title="Editar Tomador"
                           className="w-7 h-7 rounded-md flex items-center justify-center border border-zinc-200 dark:border-zinc-850 hover:bg-zinc-150 dark:hover:bg-zinc-900 text-zinc-650 dark:text-zinc-400 hover:text-brand-red dark:hover:text-brand-red transition-all cursor-pointer"
                         >
                           <Edit className="size-3" />
                         </button>
                         <button
-                          onClick={() => handleDeleteClick(t.cnpj)}
+                          onClick={() => handleDeleteClick(t.id)}
                           title="Excluir Tomador"
                           className="w-7 h-7 rounded-md flex items-center justify-center border border-zinc-200 dark:border-zinc-850 hover:bg-zinc-150 dark:hover:bg-zinc-900 text-zinc-650 dark:text-zinc-400 hover:text-red-500 transition-all cursor-pointer"
                         >
@@ -885,8 +678,6 @@ export default function TomadorPage() {
                         className="w-full h-10 [&>select]:h-10 [&>select]:rounded-xl [&>select]:border-zinc-200/80 dark:[&>select]:border-zinc-800/80"
                       >
                         <option value="CAJUINA SEGUROS">CAJUINA SEGUROS</option>
-                        <option value="MENDES & ASSOC">MENDES & ASSOC</option>
-                        <option value="SOUZA PARCEIROS">SOUZA PARCEIROS</option>
                       </NativeSelect>
                     </div>
 
@@ -900,13 +691,20 @@ export default function TomadorPage() {
                         className="w-full h-10 [&>select]:h-10 [&>select]:rounded-xl [&>select]:border-zinc-200/80 dark:[&>select]:border-zinc-800/80"
                       >
                         <option value="CAJUINA">CAJUINA</option>
-                        <option value="OUTRA CORRETORA">OUTRA CORRETORA</option>
                       </NativeSelect>
                     </div>
 
                     {/* CNPJ */}
                     <div className="space-y-2">
-                      <Label htmlFor="form-cnpj" className="text-xs font-bold">CNPJ *</Label>
+                      <Label htmlFor="form-cnpj" className="text-xs font-bold flex items-center gap-2">
+                        CNPJ *
+                        {cnpjLoading && (
+                          <span className="flex items-center gap-1 text-[10px] font-normal text-brand-red opacity-80">
+                            <span className="w-2.5 h-2.5 border border-brand-red border-t-transparent rounded-full animate-spin" />
+                            Buscando...
+                          </span>
+                        )}
+                      </Label>
                       <Input
                         id="form-cnpj"
                         placeholder="00.000.000/0000-00"
@@ -1389,16 +1187,19 @@ export default function TomadorPage() {
           <div className="flex items-center gap-3 border-t border-zinc-200/50 dark:border-zinc-800/50 pt-5 shrink-0">
             <Button
               type="submit"
-              className="bg-brand-red text-white hover:bg-brand-red/90 font-bold px-6 py-2.5 h-10.5 rounded-xl cursor-pointer shadow-md shadow-brand-red/10 transition-all active:scale-[0.98]"
+              disabled={saving}
+              className="bg-brand-red text-white hover:bg-brand-red/90 font-bold px-6 py-2.5 h-10.5 rounded-xl cursor-pointer shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              <span>Salvar Cadastro</span>
+              {saving && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+              <span>{saving ? "Salvando..." : "Salvar Cadastro"}</span>
             </Button>
             <Button
               type="button"
               variant="outline"
+              disabled={saving}
               onClick={() => {
                 setView("list")
-                setEditingIndex(null)
+                setEditingId(null)
               }}
               className="border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold px-6 py-2.5 h-10.5 rounded-xl cursor-pointer transition-all"
             >

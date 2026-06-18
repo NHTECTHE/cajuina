@@ -53,7 +53,7 @@ export async function loginAction(formData: FormData) {
     }
 
     return { success: true }
-  } catch (error) {
+  } catch {
     return { error: 'Ocorreu um erro ao conectar com o servidor.' }
   }
 }

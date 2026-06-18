@@ -59,9 +59,6 @@ export default function LoginPage() {
       if (result?.error) {
         toast.error(result.error)
       } else if (result?.success) {
-        toast.success("Login efetuado com sucesso!", {
-          description: `Bem-vindo de volta, ${username}!`,
-        })
         isSuccess = true;
       }
     } catch (err) {
@@ -77,7 +74,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col lg:flex-row bg-white font-sans selection:bg-brand-red/20 selection:text-brand-red">
-      <Toaster position="top-right" closeButton richColors />
+      <Toaster position="top-right" richColors duration={5000} />
 
       {/* ───── LEFT: Hero Image Panel ───── */}
       <div className="hidden lg:flex lg:w-[38%] relative overflow-hidden rounded-r-3xl">

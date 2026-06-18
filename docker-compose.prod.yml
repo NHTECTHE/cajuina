@@ -1,0 +1,19 @@
+services:
+  web:
+    build:
+      context: .
+      args:
+        # NEXT_PUBLIC_* é embutido no build — definido no .env da VPS.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - cajuina-net
+
+networks:
+  cajuina-net:
+    external: true

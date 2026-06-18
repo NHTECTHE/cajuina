@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+.git
+.github
+npm-debug.log*
+.env*
+README.md
+DEPLOY.md
+vitest.config.ts
+vitest.setup.ts
+coverage
+*.tsbuildinfo
+.DS_Store
