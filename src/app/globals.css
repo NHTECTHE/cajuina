@@ -93,8 +93,50 @@
   }
 }
 
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), sans-serif;
 }
+
+/* Custom theme overrides for Tomador filters & pagination */
+.custom-filters-card {
+  background-color: #ffffff !important;
+}
+.dark .custom-filters-card {
+  background-color: #0f1424 !important;
+}
+
+.custom-filter-input {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+.dark .custom-filter-input {
+  background-color: #0b0e17 !important;
+  color: #ffffff !important;
+}
+
+.custom-filter-select select {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+.dark .custom-filter-select select {
+  background-color: #0b0e17 !important;
+  color: #ffffff !important;
+}
+
+.custom-select-exibir {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+.dark .custom-select-exibir {
+  background-color: #0b0e17 !important;
+  color: #ffffff !important;
+}
+
