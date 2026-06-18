@@ -2,11 +2,9 @@
 
 import * as React from "react"
 import { usePathname, useRouter } from "next/navigation"
-import Image from "next/image"
-import { 
-  Bell, 
-  User, 
-  LogOut, 
+import {
+  Bell,
+  LogOut,
   Settings, 
   UserRound, 
   Check, 
@@ -51,7 +49,7 @@ interface NotificationItem {
   read: boolean
 }
 
-export default function Topbar({ theme, setTheme, onMenuToggle, isCollapsed, onSidebarToggle }: TopbarProps) {
+export default function Topbar({ theme, setTheme, onMenuToggle, onSidebarToggle }: TopbarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = React.useState(false)

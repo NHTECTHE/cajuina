@@ -7,7 +7,6 @@ import {
   MessageSquare,
   ArrowRight,
   ShieldCheck,
-  TrendingUp,
   FileSpreadsheet,
   FileCheck,
   CreditCard

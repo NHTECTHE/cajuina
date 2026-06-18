@@ -10,22 +10,23 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const [theme, setTheme] = React.useState<"light" | "dark">("light")
-  const [isCollapsed, setIsCollapsed] = React.useState(false)
+  const [theme, setTheme] = React.useState<"light" | "dark">(() => {
+    if (typeof window === "undefined") return "light"
+    try {
+      return (localStorage.getItem("cajuina_sidebar_theme") as "light" | "dark") || "light"
+    } catch { return "light" }
+  })
+  const [isCollapsed, setIsCollapsed] = React.useState(() => {
+    if (typeof window === "undefined") return false
+    try {
+      return localStorage.getItem("cajuina_sidebar_collapsed") === "true"
+    } catch { return false }
+  })
   const [isMobileOpen, setIsMobileOpen] = React.useState(false)
   const [mounted, setMounted] = React.useState(false)
 
-  React.useEffect(() => {
-    try {
-      const savedTheme = localStorage.getItem("cajuina_sidebar_theme") as "light" | "dark"
-      const savedCollapsed = localStorage.getItem("cajuina_sidebar_collapsed") === "true"
-      
-      if (savedTheme) setTheme(savedTheme)
-      setIsCollapsed(savedCollapsed)
-    } catch (e) {
-      console.warn("localStorage is not available:", e)
-    }
-    setMounted(true)
+  React.useLayoutEffect(() => {
+    setMounted(true) // eslint-disable-line react-hooks/set-state-in-effect
   }, [])
 
   React.useEffect(() => {
