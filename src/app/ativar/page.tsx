@@ -10,7 +10,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1
 
 function ActivationContent() {
   const searchParams = useSearchParams()
-  const token = searchParams.get("token")
+  const token = searchParams?.get("token")
   
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
   const [message, setMessage] = useState("Validando seu token de ativação...")
