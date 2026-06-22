@@ -4,6 +4,7 @@ import * as React from "react"
 import { useState } from "react"
 import { loginAction } from "./actions/auth"
 import Image from "next/image"
+import Link from "next/link"
 import {
   Eye,
   EyeOff,
@@ -264,16 +265,12 @@ export default function LoginPage() {
             {/* ── Register CTA ── */}
             <p className="text-[14px] text-zinc-500 text-center">
               Não possui uma conta?{" "}
-              <a
-                href="#register"
-                onClick={(e) => {
-                  e.preventDefault()
-                  toast.info("A criação de novas contas está sob controle da administração.")
-                }}
+              <Link
+                href="/cadastrar"
                 className="font-bold text-brand-red hover:text-brand-red-hover hover:underline underline-offset-2 transition-all"
               >
                 Cadastre-se
-              </a>
+              </Link>
             </p>
           </div>
         </div>

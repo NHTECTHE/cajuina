@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { logoutAction } from "@/app/actions/auth"
+import { getUserAction } from "@/app/actions/user"
 
 interface SidebarNavProps {
   theme: "light" | "dark"
@@ -35,6 +36,19 @@ export default function SidebarNav({
   const pathname = usePathname()
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = React.useState(false)
+
+  // User state
+  const [userData, setUserData] = React.useState<{first_name?: string; email?: string; is_superuser?: boolean} | null>(null)
+
+  React.useEffect(() => {
+    async function loadUser() {
+      const response = await getUserAction()
+      if (response && response.data) {
+        setUserData(response.data)
+      }
+    }
+    loadUser()
+  }, [])
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
@@ -218,8 +232,8 @@ export default function SidebarNav({
       {/* ──── USER PROFILE / LOGOUT (BOTTOM) ──── */}
       <div className={cn("p-4 pb-8 md:pb-4", profileBorderStyles[theme])}>
         <div className={cn("flex items-center gap-3", (isCollapsed && !isMobileOpen) ? "justify-center" : "")}>
-          <div className="w-9 h-9 rounded-full bg-brand-red flex items-center justify-center font-bold text-white text-xs shrink-0 border border-white/10 shadow-sm">
-            AD
+          <div className="w-9 h-9 rounded-full bg-brand-red flex items-center justify-center font-bold text-white text-xs shrink-0 border border-white/10 shadow-sm uppercase">
+            {userData?.first_name ? userData.first_name.substring(0, 2) : "US"}
           </div>
           {(!isCollapsed || isMobileOpen) && (
             <div className="flex-1 min-w-0">
@@ -227,10 +241,10 @@ export default function SidebarNav({
                 "text-[11.5px] font-bold truncate leading-tight",
                 theme === "dark" ? "text-zinc-200" : "text-zinc-900"
               )}>
-                Administrador
+                {userData?.first_name || "Carregando..."}
               </p>
               <p className="text-[9.5px] truncate mt-0.5 text-zinc-400">
-                admin@cajuina.com
+                {userData?.email || "..."}
               </p>
             </div>
           )}
