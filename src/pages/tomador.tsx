@@ -25,6 +25,31 @@ import { NativeSelect } from "@/components/ui/native-select"
 import { toast } from "sonner"
 import { lookupCnpj, tomadoresApi, type TomadorResponse } from "@/services/api"
 
+// Masks
+const maskCNPJ = (v: string) => {
+  v = v.replace(/\D/g, "").slice(0, 14);
+  v = v.replace(/^(\d{2})(\d)/, "$1.$2");
+  v = v.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
+  v = v.replace(/\.(\d{3})(\d)/, ".$1/$2");
+  v = v.replace(/(\d{4})(\d)/, "$1-$2");
+  return v;
+};
+
+const maskCPF = (v: string) => {
+  v = v.replace(/\D/g, "").slice(0, 11);
+  v = v.replace(/(\d{3})(\d)/, "$1.$2");
+  v = v.replace(/(\d{3})\.(\d{3})(\d)/, "$1.$2.$3");
+  v = v.replace(/(\d{3})\.(\d{3})\.(\d{3})(\d{1,2})$/, "$1.$2.$3-$4");
+  return v;
+};
+
+const maskTelefone = (v: string) => {
+  v = v.replace(/\D/g, "").slice(0, 11);
+  v = v.replace(/^(\d{2})(\d)/g, "($1) $2");
+  v = v.replace(/(\d)(\d{4})$/, "$1-$2");
+  return v;
+};
+
 interface ContactRow {
   nome: string;
   telefone: string;
@@ -293,8 +318,8 @@ export default function TomadorPage() {
         nome: data.razao_social || prev.nome,
         nomeFantasia: data.nome_fantasia || prev.nomeFantasia,
         email: data.email ? data.email.toLowerCase().trim() : prev.email,
-        telefone: data.telefone || prev.telefone,
-        celular: data.telefone || prev.celular,
+        telefone: data.telefone ? maskTelefone(data.telefone) : prev.telefone,
+        celular: data.telefone ? maskTelefone(data.telefone) : prev.celular,
         cep: data.cep || prev.cep,
         endereco: data.logradouro || prev.endereco,
         numero: data.numero || prev.numero,
@@ -302,14 +327,7 @@ export default function TomadorPage() {
         bairro: data.bairro || prev.bairro,
         cidade: data.municipio || prev.cidade,
         uf: data.uf || prev.uf,
-        socios: data.socios?.length
-          ? data.socios.map(s => ({
-              nome: s.nome,
-              cpf: s.cpf,
-              nascimento: "",
-              qualificacao: s.qualificacao,
-            }))
-          : prev.socios,
+        socios: prev.socios,
       }));
       toast.success("Dados do CNPJ preenchidos automaticamente.");
     } catch (err: unknown) {
@@ -710,8 +728,9 @@ export default function TomadorPage() {
                         placeholder="00.000.000/0000-00"
                         value={formData.cnpj}
                         onChange={(e) => {
-                          setFormData(prev => ({ ...prev, cnpj: e.target.value }));
-                          fetchCompanyByCnpj(e.target.value);
+                          const val = maskCNPJ(e.target.value);
+                          setFormData(prev => ({ ...prev, cnpj: val }));
+                          fetchCompanyByCnpj(val);
                         }}
                         className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
                         required
@@ -773,7 +792,7 @@ export default function TomadorPage() {
                         id="form-telefone"
                         placeholder="(00) 0000-0000"
                         value={formData.telefone}
-                        onChange={(e) => setFormData(prev => ({ ...prev, telefone: e.target.value }))}
+                        onChange={(e) => setFormData(prev => ({ ...prev, telefone: maskTelefone(e.target.value) }))}
                         className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
                       />
                     </div>
@@ -785,7 +804,7 @@ export default function TomadorPage() {
                         id="form-celular"
                         placeholder="(00) 90000-0000"
                         value={formData.celular}
-                        onChange={(e) => setFormData(prev => ({ ...prev, celular: e.target.value }))}
+                        onChange={(e) => setFormData(prev => ({ ...prev, celular: maskTelefone(e.target.value) }))}
                         className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
                       />
                     </div>
@@ -956,7 +975,7 @@ export default function TomadorPage() {
                         id="contact-tel"
                         placeholder="Telefone"
                         value={newContact.telefone}
-                        onChange={(e) => setNewContact(prev => ({ ...prev, telefone: e.target.value }))}
+                        onChange={(e) => setNewContact(prev => ({ ...prev, telefone: maskTelefone(e.target.value) }))}
                         className="h-9 rounded-xl border-zinc-200 dark:border-zinc-800"
                       />
                     </div>
@@ -1073,7 +1092,7 @@ export default function TomadorPage() {
                         id="socio-cpf"
                         placeholder="000.000.000-00"
                         value={newSocio.cpf}
-                        onChange={(e) => setNewSocio(prev => ({ ...prev, cpf: e.target.value }))}
+                        onChange={(e) => setNewSocio(prev => ({ ...prev, cpf: maskCPF(e.target.value) }))}
                         className="h-9 rounded-xl border-zinc-200 dark:border-zinc-800"
                       />
                     </div>

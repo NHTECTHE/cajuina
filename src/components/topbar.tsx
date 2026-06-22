@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { logoutAction } from "@/app/actions/auth"
+import { getUserAction } from "@/app/actions/user"
 
 import {
   DropdownMenu,
@@ -49,12 +50,25 @@ interface NotificationItem {
   read: boolean
 }
 
-export default function Topbar({ theme, setTheme, onMenuToggle, onSidebarToggle }: TopbarProps) {
+export default function Topbar({ theme, setTheme, onMenuToggle, isCollapsed, onSidebarToggle }: TopbarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = React.useState(false)
   const [notificationOpen, setNotificationOpen] = React.useState(false)
   
+  // User state
+  const [userData, setUserData] = React.useState<{first_name?: string; email?: string; is_superuser?: boolean} | null>(null)
+
+  React.useEffect(() => {
+    async function loadUser() {
+      const response = await getUserAction()
+      if (response && response.data) {
+        setUserData(response.data)
+      }
+    }
+    loadUser()
+  }, [])
+
   // Simulated initial notifications
   const [notifications, setNotifications] = React.useState<NotificationItem[]>([
     {
@@ -251,25 +265,25 @@ export default function Topbar({ theme, setTheme, onMenuToggle, onSidebarToggle 
                 : "border-zinc-800/80 hover:bg-zinc-900"
             )}>
               <Avatar size="sm" className="ring-1 ring-brand-red/25">
-                <AvatarFallback className="bg-brand-red text-white text-[10px] font-extrabold">
-                  AD
+                <AvatarFallback className="bg-brand-red text-white text-[10px] font-extrabold uppercase">
+                  {userData?.first_name ? userData.first_name.substring(0, 2) : "US"}
                 </AvatarFallback>
               </Avatar>
               <span className={cn(
                 "hidden sm:inline text-xs font-bold pr-1",
                 theme === "dark" ? "text-zinc-355" : "text-zinc-700"
               )}>
-                Admin
+                {userData?.first_name || "Carregando..."}
               </span>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className={cn("w-64 p-1.5 rounded-2xl border shadow-xl backdrop-blur-xl", dropdownStyles[theme])}>
             {/* Header profile info */}
             <div className="px-3 py-2.5 mb-1.5 border-b border-zinc-200/10 bg-black/5 dark:bg-white/[0.01] rounded-xl">
-              <p className="text-xs font-bold leading-tight">Administrador</p>
-              <p className="text-[10px] text-zinc-450 truncate mt-0.5">admin@cajuina.com</p>
+              <p className="text-xs font-bold leading-tight truncate">{userData?.first_name || "Usuário"}</p>
+              <p className="text-[10px] text-zinc-450 truncate mt-0.5">{userData?.email || "..."}</p>
               <Badge variant="secondary" className="mt-2 text-[9px] px-2 py-0.2 bg-brand-red/10 border-brand-red/10 text-brand-red font-bold">
-                Admin
+                {userData?.is_superuser ? "Administrador" : "Tomador"}
               </Badge>
             </div>
 
