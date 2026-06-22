@@ -318,8 +318,8 @@ export default function TomadorPage() {
         nome: data.razao_social || prev.nome,
         nomeFantasia: data.nome_fantasia || prev.nomeFantasia,
         email: data.email ? data.email.toLowerCase().trim() : prev.email,
-        telefone: data.telefone || prev.telefone,
-        celular: data.telefone || prev.celular,
+        telefone: data.telefone ? maskTelefone(data.telefone) : prev.telefone,
+        celular: data.telefone ? maskTelefone(data.telefone) : prev.celular,
         cep: data.cep || prev.cep,
         endereco: data.logradouro || prev.endereco,
         numero: data.numero || prev.numero,
@@ -327,14 +327,7 @@ export default function TomadorPage() {
         bairro: data.bairro || prev.bairro,
         cidade: data.municipio || prev.cidade,
         uf: data.uf || prev.uf,
-        socios: data.socios?.length
-          ? data.socios.map(s => ({
-              nome: s.nome,
-              cpf: s.cpf,
-              nascimento: "",
-              qualificacao: s.qualificacao,
-            }))
-          : prev.socios,
+        socios: prev.socios,
       }));
       toast.success("Dados do CNPJ preenchidos automaticamente.");
     } catch (err: unknown) {
