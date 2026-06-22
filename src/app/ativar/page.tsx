@@ -16,13 +16,13 @@ function ActivationContent() {
   const [message, setMessage] = useState("Validando seu token de ativação...")
 
   useEffect(() => {
-    if (!token) {
-      setStatus("error")
-      setMessage("Token de ativação não encontrado na URL.")
-      return
-    }
-
     const activateAccount = async () => {
+      if (!token) {
+        setStatus("error")
+        setMessage("Token de ativação não encontrado na URL.")
+        return
+      }
+
       try {
         const res = await fetch(`${API_URL}/users/activate/`, {
           method: "POST",
@@ -45,7 +45,7 @@ function ActivationContent() {
           else if (data.detail) setMessage(data.detail)
           else setMessage("Erro ao ativar conta.")
         }
-      } catch (err) {
+      } catch {
         setStatus("error")
         setMessage("Ocorreu um erro de conexão com o servidor.")
       }

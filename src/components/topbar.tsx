@@ -50,7 +50,7 @@ interface NotificationItem {
   read: boolean
 }
 
-export default function Topbar({ theme, setTheme, onMenuToggle, isCollapsed, onSidebarToggle }: TopbarProps) {
+export default function Topbar({ theme, setTheme, onMenuToggle, isCollapsed: _isCollapsed, onSidebarToggle }: TopbarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = React.useState(false)
