@@ -99,7 +99,7 @@ function SeguradoraModal({ seguradora, onClose, onSaved, onDelete }: ModalProps)
       valor_licitacao: form.valor_licitacao === "" ? null : form.valor_licitacao,
       valor_execucao: form.valor_execucao === "" ? null : form.valor_execucao,
       taxa_comissao: form.taxa_comissao === "" ? null : form.taxa_comissao,
-      dia_vencimento: form.dia_vencimento === "" || form.dia_vencimento === null ? null : Number(form.dia_vencimento),
+      dia_vencimento: form.dia_vencimento === null ? null : Number(form.dia_vencimento),
     }
 
     const res = isEdit
