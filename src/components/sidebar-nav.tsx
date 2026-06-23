@@ -14,7 +14,9 @@ import {
   BarChart3,
   Settings,
   LogOut,
-  X
+  X,
+  Briefcase,
+  UserCog,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -85,6 +87,13 @@ export default function SidebarNav({
       items: [
         { label: "Financeiro", href: "/dashboard/financeiro", icon: CreditCard },
         { label: "Relatórios", href: "/dashboard/relatorios", icon: BarChart3 },
+      ]
+    },
+    {
+      title: "Cadastros",
+      items: [
+        { label: "Corretores", href: "/dashboard/corretores", icon: Briefcase },
+        { label: "Produtores", href: "/dashboard/produtores", icon: UserCog },
       ]
     },
     {
