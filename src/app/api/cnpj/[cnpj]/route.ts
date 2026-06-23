@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Usa a BrasilAPI (pública, sem chave) como fonte primária,
-// com fallback para a ReceitaWS.
+// Fonte primária: BrasilAPI. Fallbacks: ReceitaWS → CNPJ.ws
 const BRASILAPI = "https://brasilapi.com.br/api/cnpj/v1";
 const RECEITAWS = "https://www.receitaws.com.br/v1/cnpj";
+const CNPJWS = "https://publica.cnpj.ws/cnpj";
 
 export async function GET(
   _req: NextRequest,
@@ -20,48 +20,56 @@ export async function GET(
   try {
     const res = await fetch(`${BRASILAPI}/${digits}`, {
       headers: { Accept: "application/json" },
-      next: { revalidate: 86400 }, // cache 24h — dados da Receita mudam raramente
+      next: { revalidate: 86400 },
     });
-
     if (res.ok) {
       const raw = await res.json();
       return NextResponse.json({ data: normalizeBrasilApi(raw) });
     }
   } catch {
-    // BrasilAPI indisponível, tenta fallback
+    // BrasilAPI indisponível
   }
 
-  // Fallback: ReceitaWS
+  // Fallback 1: ReceitaWS
   try {
     const res = await fetch(`${RECEITAWS}/${digits}`, {
       headers: { Accept: "application/json" },
     });
-
     if (res.ok) {
       const raw = await res.json();
-      if (raw.status === "ERROR") {
-        return NextResponse.json({ error: raw.message ?? "CNPJ não encontrado" }, { status: 404 });
+      if (raw.status !== "ERROR") {
+        return NextResponse.json({ data: normalizeReceitaWs(raw) });
       }
-      return NextResponse.json({ data: normalizeReceitaWs(raw) });
     }
   } catch {
-    // ambos falharam
+    // ReceitaWS indisponível
+  }
+
+  // Fallback 2: CNPJ.ws
+  try {
+    const res = await fetch(`${CNPJWS}/${digits}`, {
+      headers: { Accept: "application/json" },
+    });
+    if (res.ok) {
+      const raw = await res.json();
+      return NextResponse.json({ data: normalizeCnpjWs(raw) });
+    }
+  } catch {
+    // CNPJ.ws indisponível
   }
 
   return NextResponse.json({ error: "Não foi possível consultar o CNPJ" }, { status: 502 });
 }
 
-// Normaliza resposta da BrasilAPI para o shape que o front espera
 function normalizeBrasilApi(r: Record<string, unknown>) {
   const socios = (r.qsa as Array<Record<string, unknown>> | undefined) ?? [];
   return {
     razao_social: r.razao_social ?? "",
     nome_fantasia: r.nome_fantasia ?? "",
     email: r.email ?? "",
-    telefone: r.ddd_telefone_1
-      ? formatPhone(String(r.ddd_telefone_1))
-      : "",
+    telefone: r.ddd_telefone_1 ? formatPhone(String(r.ddd_telefone_1)) : "",
     cep: r.cep ? String(r.cep).replace(/\D/g, "").replace(/^(\d{5})(\d{3})$/, "$1-$2") : "",
+    natureza_juridica: r.natureza_juridica ? String(r.natureza_juridica) : "",
     logradouro: r.logradouro ?? "",
     numero: r.numero ?? "",
     complemento: r.complemento ?? "",
@@ -76,7 +84,6 @@ function normalizeBrasilApi(r: Record<string, unknown>) {
   };
 }
 
-// Normaliza resposta da ReceitaWS para o mesmo shape
 function normalizeReceitaWs(r: Record<string, unknown>) {
   const socios = (r.qsa as Array<Record<string, unknown>> | undefined) ?? [];
   return {
@@ -85,6 +92,7 @@ function normalizeReceitaWs(r: Record<string, unknown>) {
     email: r.email ?? "",
     telefone: r.telefone ? formatPhone(String(r.telefone)) : "",
     cep: r.cep ? String(r.cep).replace(/\D/g, "").replace(/^(\d{5})(\d{3})$/, "$1-$2") : "",
+    natureza_juridica: r.natureza_juridica ? String(r.natureza_juridica) : "",
     logradouro: r.logradouro ?? "",
     numero: r.numero ?? "",
     complemento: r.complemento ?? "",
@@ -95,6 +103,35 @@ function normalizeReceitaWs(r: Record<string, unknown>) {
       nome: s.nome ?? "",
       cpf: "",
       qualificacao: s.qual ?? "",
+    })),
+  };
+}
+
+function normalizeCnpjWs(r: Record<string, unknown>) {
+  const estabelecimento = (r.estabelecimento as Record<string, unknown> | undefined) ?? r;
+  const socios = (r.socios as Array<Record<string, unknown>> | undefined) ?? [];
+  const nat = r.natureza_juridica as Record<string, unknown> | undefined;
+  const end = estabelecimento;
+  const cepRaw = String(end.cep ?? "").replace(/\D/g, "");
+  return {
+    razao_social: r.razao_social ?? "",
+    nome_fantasia: estabelecimento.nome_fantasia ?? r.nome_fantasia ?? "",
+    email: estabelecimento.email ?? "",
+    telefone: estabelecimento.ddd1 && estabelecimento.telefone1
+      ? formatPhone(`${estabelecimento.ddd1}${estabelecimento.telefone1}`)
+      : "",
+    cep: cepRaw ? cepRaw.replace(/^(\d{5})(\d{3})$/, "$1-$2") : "",
+    natureza_juridica: nat ? `${nat.id ?? ""} - ${nat.descricao ?? ""}`.trim().replace(/^-\s*/, "") : "",
+    logradouro: estabelecimento.logradouro ?? "",
+    numero: estabelecimento.numero ?? "",
+    complemento: estabelecimento.complemento ?? "",
+    bairro: estabelecimento.bairro ?? "",
+    municipio: (estabelecimento.cidade as Record<string, unknown> | undefined)?.descricao ?? estabelecimento.municipio ?? "",
+    uf: (estabelecimento.estado as Record<string, unknown> | undefined)?.sigla ?? estabelecimento.uf ?? "",
+    socios: socios.map((s) => ({
+      nome: s.nome ?? "",
+      cpf: s.cpf_representante_legal ? String(s.cpf_representante_legal) : "",
+      qualificacao: (s.qualificacao_socio as Record<string, unknown> | undefined)?.descricao ?? "",
     })),
   };
 }

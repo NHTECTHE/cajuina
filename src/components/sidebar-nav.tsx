@@ -3,16 +3,17 @@
 import * as React from "react"
 import { usePathname, useRouter } from "next/navigation"
 import Image from "next/image"
-import { 
-  Home, 
-  Users, 
-  ShieldCheck, 
-  Coins, 
-  FileText, 
-  CreditCard, 
-  BarChart3, 
-  Settings, 
-  LogOut, 
+import {
+  Home,
+  Users,
+  UserCheck,
+  ShieldCheck,
+  Coins,
+  FileText,
+  CreditCard,
+  BarChart3,
+  Settings,
+  LogOut,
   X
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -73,6 +74,7 @@ export default function SidebarNav({
       title: "Operações",
       items: [
         { label: "Tomador", href: "/dashboard/tomador", icon: Users },
+        { label: "Segurados", href: "/dashboard/segurados", icon: UserCheck },
         { label: "Apólices", href: "/dashboard/apolices", icon: ShieldCheck },
         { label: "Cotações", href: "/dashboard/cotacoes", icon: Coins },
         { label: "Propostas", href: "/dashboard/propostas", icon: FileText },
