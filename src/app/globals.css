@@ -2,35 +2,36 @@
 @variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: oklch(0.99 0.005 28.14); /* Clean background with a tiny hint of red warmth */
+  --background: oklch(0.99 0.005 28.14);
+  /* Clean background with a tiny hint of red warmth */
   --foreground: oklch(0.15 0.01 20);
-  
+
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.15 0.01 20);
-  
+
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.15 0.01 20);
-  
+
   /* Cajuína Brand Crimson Red */
   --primary: oklch(0.55 0.21 24.5);
   --primary-foreground: oklch(0.99 0 0);
-  
+
   --secondary: oklch(0.96 0.005 24.5);
   --secondary-foreground: oklch(0.2 0.01 20);
-  
+
   --muted: oklch(0.95 0.005 24.5);
   --muted-foreground: oklch(0.45 0.01 20);
-  
+
   --accent: oklch(0.96 0.005 24.5);
   --accent-foreground: oklch(0.2 0.01 20);
-  
+
   --destructive: oklch(0.57 0.22 24.5);
   --destructive-foreground: oklch(0.99 0 0);
-  
+
   --border: oklch(0.9 0.01 20);
   --input: oklch(0.88 0.01 20);
   --ring: oklch(0.55 0.21 24.5);
-  
+
   --radius: 0.75rem;
 
   /* Raw brand red colors for general styling */
@@ -61,22 +62,25 @@
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
-  
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
-  --color-brand-red: var(--brand-red);
-  --color-brand-red-hover: var(--brand-red-hover);
+  --color-brand-red: #e53e3e;
+  --color-brand-red-hover: #e53e3e;
 
   --animate-pulse-slow: pulse-slow 8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   --animate-fade-in-up: fade-in-up 0.5s ease-out forwards;
 }
 
 @keyframes pulse-slow {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.15;
     transform: scale(1) translate(0px, 0px);
   }
+
   50% {
     opacity: 0.3;
     transform: scale(1.1) translate(10px, -15px);
@@ -88,6 +92,7 @@
     opacity: 0;
     transform: translateY(12px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -110,6 +115,7 @@ body {
 .custom-filters-card {
   background-color: #ffffff !important;
 }
+
 .dark .custom-filters-card {
   background-color: #0f1424 !important;
 }
@@ -118,6 +124,7 @@ body {
   background-color: #ffffff !important;
   color: #000000 !important;
 }
+
 .dark .custom-filter-input {
   background-color: #0b0e17 !important;
   color: #ffffff !important;
@@ -127,6 +134,7 @@ body {
   background-color: #ffffff !important;
   color: #000000 !important;
 }
+
 .dark .custom-filter-select select {
   background-color: #0b0e17 !important;
   color: #ffffff !important;
@@ -136,8 +144,23 @@ body {
   background-color: #ffffff !important;
   color: #000000 !important;
 }
+
 .dark .custom-select-exibir {
   background-color: #0b0e17 !important;
   color: #ffffff !important;
+}
+
+/* Animated Login/Signup Sliding Panels */
+.auth-wrapper-fs {
+  position: relative !important;
+  overflow: hidden !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  background-color: #ffffff !important;
+  border-radius: 0 !important;
+  max-width: none !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 

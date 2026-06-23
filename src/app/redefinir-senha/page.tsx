@@ -1,0 +1,274 @@
+"use client"
+
+import * as React from "react"
+import { useState, Suspense } from "react"
+import Image from "next/image"
+import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Loader2, Lock, Eye, EyeOff, ArrowRight } from "lucide-react"
+import { toast, Toaster } from "sonner"
+import { Button } from "@/components/ui/button"
+
+function ResetPasswordForm() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const uidb64 = searchParams.get('uid')
+  const token = searchParams.get('token')
+
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+
+  const [passwordFocused, setPasswordFocused] = useState(false)
+  const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!uidb64 || !token) {
+      toast.error("Link de recuperação inválido.")
+      return
+    }
+
+    if (!newPassword.trim() || !confirmPassword.trim()) {
+      toast.error("Por favor, preencha todos os campos.")
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("As senhas não coincidem.")
+      return
+    }
+
+    if (newPassword.length < 8) {
+      toast.error("A nova senha deve ter pelo menos 8 caracteres.")
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+      const res = await fetch(`${API_URL}/users/password-reset-confirm/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          uidb64,
+          token,
+          new_password: newPassword,
+          confirm_password: confirmPassword
+        }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        toast.success("Senha atualizada com sucesso! Redirecionando...")
+        setTimeout(() => {
+          router.push("/")
+        }, 3000)
+      } else {
+        if (data.error) {
+          toast.error(data.error)
+        } else if (data.confirm_password) {
+          toast.error(data.confirm_password[0] || "As senhas não coincidem.")
+        } else {
+          toast.error("Ocorreu um erro ao atualizar a senha. O link pode ter expirado.")
+        }
+      }
+    } catch (err) {
+      console.error("ERRO NO FRONTEND:", err)
+      toast.error("Ocorreu um erro inesperado ao conectar.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (!uidb64 || !token) {
+    return (
+      <div className="text-center">
+        <h2 className="text-xl font-bold text-red-600 mb-4">Link Inválido</h2>
+        <p className="text-zinc-600 mb-6">O link de recuperação de senha não está completo ou é inválido.</p>
+        <Link href="/" className="text-brand-red font-semibold hover:underline">
+          Voltar para a página de login
+        </Link>
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <div className="relative group">
+        <div className={`flex items-center gap-3 bg-zinc-50/80 rounded-2xl border transition-all duration-200 px-4 h-[56px] ${passwordFocused
+            ? "border-brand-red/30 bg-white shadow-sm shadow-brand-red/5 ring-4 ring-brand-red/[0.06]"
+            : "border-zinc-200/80 hover:border-zinc-300"
+          }`}>
+          <Lock className={`size-[18px] shrink-0 transition-colors duration-200 ${passwordFocused ? "text-brand-red" : "text-zinc-400"
+            }`} />
+          <div className="flex-1 relative">
+            <input
+              id="newPassword"
+              type={showPassword ? "text" : "password"}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              onFocus={() => setPasswordFocused(true)}
+              onBlur={() => setPasswordFocused(false)}
+              disabled={isLoading}
+              placeholder=" "
+              className="peer w-full bg-transparent pt-4 pb-0 text-sm text-zinc-800 outline-none placeholder-transparent disabled:opacity-50"
+            />
+            <label
+              htmlFor="newPassword"
+              className="absolute left-0 top-1/2 -translate-y-1/2 text-[13px] text-zinc-500 pointer-events-none transition-all duration-200 peer-focus:top-1.5 peer-focus:translate-y-0 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:text-brand-red peer-[:not(:placeholder-shown)]:top-1.5 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:font-semibold peer-[:not(:placeholder-shown)]:text-zinc-500"
+            >
+              Nova Senha
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            disabled={isLoading}
+            className={`shrink-0 p-1.5 rounded-lg transition-all duration-150 focus:outline-none hover:bg-zinc-100 ${showPassword ? "text-brand-red" : "text-zinc-400 hover:text-zinc-600"
+              }`}
+          >
+            {showPassword ? <EyeOff className="size-[16px]" /> : <Eye className="size-[16px]" />}
+          </button>
+        </div>
+      </div>
+
+      <div className="relative group">
+        <div className={`flex items-center gap-3 bg-zinc-50/80 rounded-2xl border transition-all duration-200 px-4 h-[56px] ${confirmPasswordFocused
+            ? "border-brand-red/30 bg-white shadow-sm shadow-brand-red/5 ring-4 ring-brand-red/[0.06]"
+            : "border-zinc-200/80 hover:border-zinc-300"
+          }`}>
+          <Lock className={`size-[18px] shrink-0 transition-colors duration-200 ${confirmPasswordFocused ? "text-brand-red" : "text-zinc-400"
+            }`} />
+          <div className="flex-1 relative">
+            <input
+              id="confirmPassword"
+              type={showConfirmPassword ? "text" : "password"}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              onFocus={() => setConfirmPasswordFocused(true)}
+              onBlur={() => setConfirmPasswordFocused(false)}
+              disabled={isLoading}
+              placeholder=" "
+              className="peer w-full bg-transparent pt-4 pb-0 text-sm text-zinc-800 outline-none placeholder-transparent disabled:opacity-50"
+            />
+            <label
+              htmlFor="confirmPassword"
+              className="absolute left-0 top-1/2 -translate-y-1/2 text-[13px] text-zinc-500 pointer-events-none transition-all duration-200 peer-focus:top-1.5 peer-focus:translate-y-0 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:text-brand-red peer-[:not(:placeholder-shown)]:top-1.5 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:font-semibold peer-[:not(:placeholder-shown)]:text-zinc-500"
+            >
+              Confirmar Nova Senha
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            disabled={isLoading}
+            className={`shrink-0 p-1.5 rounded-lg transition-all duration-150 focus:outline-none hover:bg-zinc-100 ${showConfirmPassword ? "text-brand-red" : "text-zinc-400 hover:text-zinc-600"
+              }`}
+          >
+            {showConfirmPassword ? <EyeOff className="size-[16px]" /> : <Eye className="size-[16px]" />}
+          </button>
+        </div>
+      </div>
+
+      <Button
+        type="submit"
+        disabled={isLoading}
+        className="w-full h-[52px] bg-brand-red hover:bg-brand-red-hover text-white text-[15px] font-bold rounded-2xl transition-all duration-200 shadow-lg shadow-brand-red/20 hover:shadow-xl hover:shadow-brand-red/30 active:scale-[0.98] cursor-pointer mt-4 group"
+      >
+        {isLoading ? (
+          <Loader2 className="size-5 animate-spin" />
+        ) : (
+          <span className="flex items-center justify-center gap-2">
+            Salvar Nova Senha
+            <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+          </span>
+        )}
+      </Button>
+    </form>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <div className="min-h-[100dvh] flex flex-col lg:flex-row bg-white font-sans selection:bg-brand-red/20 selection:text-brand-red">
+      <Toaster position="top-right" richColors duration={5000} />
+
+      {/* ───── LEFT: Hero Image Panel ───── */}
+      <div className="hidden lg:flex lg:w-[38%] relative overflow-hidden rounded-r-3xl">
+        <Image
+          src="/hero-login.png"
+          alt="Profissional usando a plataforma Cajuína"
+          fill
+          priority
+          className="object-cover object-center"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-black/20" />
+        <div className="absolute bottom-[-60px] left-0 right-0 z-10 flex justify-center px-4">
+          <Image
+            src="/5 - 5.png"
+            alt="Cajuína Corretora de Seguros"
+            width={1200}
+            height={400}
+            priority
+            className="w-auto h-[400px] max-w-full object-contain select-none drop-shadow-lg"
+          />
+        </div>
+      </div>
+
+      {/* ───── RIGHT: Form Panel ───── */}
+      <div className="flex-1 flex flex-col px-6 py-6 sm:px-12 lg:px-20 relative min-h-[100dvh] lg:min-h-0 bg-gradient-to-br from-white via-white to-red-50/40">
+        <div className="absolute top-0 right-0 w-[300px] h-[300px] md:w-[400px] md:h-[400px] bg-gradient-to-bl from-brand-red/[0.04] to-transparent rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+
+        <div className="flex-1 flex flex-col justify-center items-center w-full max-w-[420px] mx-auto animate-fade-in-up relative z-10">
+          <div className="lg:hidden mb-10 w-full flex justify-center px-4">
+            <Image
+              src="/2 - 1.png"
+              alt="Cajuína Corretora de Seguros"
+              width={400}
+              height={140}
+              priority
+              className="w-full max-w-[260px] sm:max-w-[320px] h-auto object-contain select-none"
+            />
+          </div>
+
+          <div className="w-full">
+            <div className="mb-8 text-center lg:text-left">
+              <h1 className="text-2xl sm:text-3xl lg:text-[2rem] font-extrabold text-zinc-900 tracking-tight leading-tight">
+                Criar Nova Senha
+              </h1>
+              <p className="text-[14px] sm:text-[15px] text-zinc-500 mt-2.5 leading-relaxed">
+                Digite sua nova senha abaixo para recuperar o acesso à sua conta.
+              </p>
+            </div>
+
+            <Suspense fallback={<div className="flex justify-center p-8"><Loader2 className="size-8 animate-spin text-brand-red" /></div>}>
+              <ResetPasswordForm />
+            </Suspense>
+
+            <div className="mt-6 text-center">
+              <Link href="/" className="text-sm font-semibold text-brand-red hover:underline transition-colors">
+                Voltar para o login
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <div className="w-full mt-auto pt-6 pb-2 flex justify-center">
+          <p className="text-[11px] text-zinc-400 select-none text-center tracking-wide">
+            Desenvolvido por{" "}
+            <span className="text-purple-600 font-semibold">Nhtec</span>{" "}
+            © 2021 – 2026
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
