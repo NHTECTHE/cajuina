@@ -4,14 +4,18 @@ import * as React from "react"
 import { useState } from "react"
 import { loginAction } from "./actions/auth"
 import Image from "next/image"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   Eye,
   EyeOff,
   Loader2,
   User,
   Lock,
+  Mail,
+  Phone,
+  Building2,
   ArrowRight,
+  CheckCircle2
 } from "lucide-react"
 import { toast, Toaster } from "sonner"
 
@@ -19,43 +23,64 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 
-import { useRouter } from "next/navigation"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
-export default function LoginPage() {
+const maskCNPJ = (value: string) => {
+  return value
+    .replace(/\D/g, "")
+    .replace(/^(\d{2})(\d)/, "$1.$2")
+    .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1/$2")
+    .replace(/(\d{4})(\d)/, "$1-$2")
+    .slice(0, 18);
+};
+
+const maskPhone = (value: string) => {
+  return value
+    .replace(/\D/g, "")
+    .replace(/^(\d{2})(\d)/g, "($1) $2")
+    .replace(/(\d)(\d{4})$/, "$1-$2")
+    .slice(0, 15);
+};
+
+export default function AuthPage() {
   const router = useRouter()
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [rememberMe, setRememberMe] = useState(true)
-  const [isLoading, setIsLoading] = useState(false)
-  const [usernameFocused, setUsernameFocused] = useState(false)
-  const [passwordFocused, setPasswordFocused] = useState(false)
+  
+  // State for Animation
+  const [isRightPanelActive, setIsRightPanelActive] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // -----------------------------------------
+  // LOGIN STATE & LOGIC
+  // -----------------------------------------
+  const [loginUsername, setLoginUsername] = useState("")
+  const [loginPassword, setLoginPassword] = useState("")
+  const [showLoginPassword, setShowLoginPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
+  const [isLoadingLogin, setIsLoadingLogin] = useState(false)
+  
+  const [loginUsernameFocused, setLoginUsernameFocused] = useState(false)
+  const [loginPasswordFocused, setLoginPasswordFocused] = useState(false)
+
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!username.trim()) {
-      toast.error("Por favor, preencha o campo de usuário.")
+    if (!loginUsername.trim() || !loginPassword.trim()) {
+      toast.error("Por favor, preencha usuário e senha.")
       return
     }
 
-    if (!password.trim()) {
-      toast.error("Por favor, informe a sua senha.")
-      return
-    }
-
-    setIsLoading(true)
+    setIsLoadingLogin(true)
 
     const formData = new FormData()
-    formData.append("username", username)
-    formData.append("password", password)
+    formData.append("username", loginUsername)
+    formData.append("password", loginPassword)
 
     let isSuccess = false;
 
     try {
       const result = await loginAction(formData)
 
-      setIsLoading(false)
+      setIsLoadingLogin(false)
 
       if (result?.error) {
         toast.error(result.error)
@@ -64,7 +89,7 @@ export default function LoginPage() {
       }
     } catch (err) {
       console.error("ERRO NO FRONTEND:", err)
-      setIsLoading(false)
+      setIsLoadingLogin(false)
       toast.error("Ocorreu um erro inesperado ao conectar.")
     }
 
@@ -73,216 +98,474 @@ export default function LoginPage() {
     }
   }
 
-  return (
-    <div className="min-h-[100dvh] flex flex-col lg:flex-row bg-white font-sans selection:bg-brand-red/20 selection:text-brand-red">
-      <Toaster position="top-right" richColors duration={5000} />
+  // -----------------------------------------
+  // REGISTER STATE & LOGIC
+  // -----------------------------------------
+  const [regData, setRegData] = useState({
+    cnpj: "",
+    nome: "",
+    email: "",
+    telefone: "",
+    senha: "",
+  })
+  const [showRegPassword, setShowRegPassword] = useState(false)
+  const [isLoadingReg, setIsLoadingReg] = useState(false)
+  const [isSuccessReg, setIsSuccessReg] = useState(false)
 
-      {/* ───── LEFT: Hero Image Panel ───── */}
-      <div className="hidden lg:flex lg:w-[38%] relative overflow-hidden rounded-r-3xl">
+  const handleRegChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    let newValue = value;
 
-        {/* Background hero image */}
-        <Image
-          src="/hero-login.png"
-          alt="Profissional usando a plataforma Cajuína"
-          fill
-          priority
-          className="object-cover object-center"
-        />
+    if (id === "cnpj") newValue = maskCNPJ(value);
+    if (id === "telefone") newValue = maskPhone(value);
 
-        {/* Dark overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-black/20" />
+    setRegData(prev => ({ ...prev, [id]: newValue }));
+  }
 
-        {/* Logo at bottom — large and centered */}
-        <div className="absolute bottom-[-60px] left-0 right-0 z-10 flex justify-center px-4">
-          <Image
-            src="/5 - 5.png"
-            alt="Cajuína Corretora de Seguros"
-            width={1200}
-            height={400}
-            priority
-            className="w-auto h-[400px] max-w-full object-contain select-none drop-shadow-lg"
-          />
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!regData.cnpj || !regData.nome || !regData.email || !regData.telefone || !regData.senha) {
+      toast.error("Por favor, preencha todos os campos obrigatórios.")
+      return
+    }
+
+    setIsLoadingReg(true)
+
+    try {
+      const res = await fetch(`${API_URL}/users/register/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cnpj: regData.cnpj.replace(/\D/g, ""),
+          first_name: regData.nome,
+          email: regData.email,
+          telefone: regData.telefone.replace(/\D/g, ""),
+          password: regData.senha,
+        }),
+      });
+
+      const data = await res.json();
+      setIsLoadingReg(false)
+
+      if (!res.ok) {
+        let erroMsg = "Erro ao realizar cadastro."
+        if (data.email) erroMsg = data.email[0];
+        else if (data.cnpj) erroMsg = data.cnpj[0];
+        else if (data.password) erroMsg = data.password[0];
+        else if (data.detail) erroMsg = data.detail;
+        else if (data.non_field_errors) erroMsg = data.non_field_errors[0];
+        
+        toast.error(erroMsg)
+      } else {
+        setIsSuccessReg(true)
+      }
+    } catch (err) {
+      console.error("ERRO:", err)
+      setIsLoadingReg(false)
+      toast.error("Ocorreu um erro inesperado ao conectar.")
+    }
+  }
+
+  if (isSuccessReg) {
+    return (
+      <div className="min-h-[100dvh] flex flex-col justify-center items-center bg-zinc-50 font-sans p-6">
+        <div className="bg-white p-8 md:p-12 rounded-3xl shadow-xl max-w-md w-full text-center flex flex-col items-center">
+          <CheckCircle2 className="size-20 text-green-500 mb-6" />
+          <h1 className="text-2xl font-bold text-zinc-900 mb-4">Cadastro Realizado!</h1>
+          <p className="text-zinc-500 mb-8 leading-relaxed">
+            Sua conta foi criada com sucesso, mas encontra-se inativa. 
+            <br/><br/>
+            Enviamos um e-mail para <strong>{regData.email}</strong> com as instruções para ativação da sua conta.
+          </p>
+          <Button 
+            onClick={() => {
+              setIsSuccessReg(false)
+              setIsRightPanelActive(false)
+            }}
+            className="w-full h-12 bg-brand-red hover:bg-brand-red-hover text-white text-[15px] font-bold rounded-2xl"
+          >
+            Voltar para o Login
+          </Button>
         </div>
       </div>
+    )
+  }
 
-      {/* ───── RIGHT: Login Form ───── */}
-      <div className="flex-1 flex flex-col px-6 py-6 sm:px-12 lg:px-20 relative min-h-[100dvh] lg:min-h-0 bg-gradient-to-br from-white via-white to-red-50/40">
+  return (
+    <div className="h-screen w-screen m-0 p-0 font-sans selection:bg-brand-red/20 selection:text-brand-red overflow-hidden bg-white flex flex-col fixed inset-0">
+      <Toaster position="top-right" richColors duration={5000} />
 
-        {/* Subtle decorative element */}
-        <div className="absolute top-0 right-0 w-[300px] h-[300px] md:w-[400px] md:h-[400px] bg-gradient-to-bl from-brand-red/[0.04] to-transparent rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-
-        {/* Main Form Area Centered */}
-        <div className="flex-1 flex flex-col justify-center items-center w-full max-w-[420px] mx-auto animate-fade-in-up relative z-10">
-          
-          {/* Mobile logo */}
-          <div className="lg:hidden mb-10 w-full flex justify-center px-4">
-            <Image
-              src="/2 - 1.png"
-              alt="Cajuína Corretora de Seguros"
-              width={400}
-              height={140}
-              priority
-              className="w-full max-w-[260px] sm:max-w-[320px] h-auto object-contain select-none"
-            />
-          </div>
-
-          <div className="w-full">
-            {/* Heading */}
-            <div className="mb-8 text-center lg:text-left">
-              <h1 className="text-2xl sm:text-3xl lg:text-[2rem] font-extrabold text-zinc-900 tracking-tight leading-tight">
-                Bem-vindo de volta
+      <div className={`auth-wrapper-fs flex-1 relative w-full h-full bg-white rounded-none shadow-none m-0 p-0 ${isRightPanelActive ? "right-panel-active" : ""}`}>
+        
+        {/* ==================================================== */}
+        {/* SIGN UP CONTAINER (LEFT INIT, SLIDES RIGHT IN CSS)   */}
+        {/* ==================================================== */}
+        <div className={`form-container sign-up-container absolute top-0 h-full w-[50vw] flex flex-col justify-center items-center px-6 lg:px-12 bg-white transition-all duration-[600ms] ease-in-out ${isRightPanelActive ? "left-[50vw] opacity-100 z-[5]" : "left-0 opacity-0 z-[1] pointer-events-none"}`}>
+          <form onSubmit={handleRegisterSubmit} className="flex flex-col gap-3 w-full max-w-[360px] animate-fade-in-up">
+            
+            <div className="mb-4 text-center">
+              <h1 className="text-2xl lg:text-3xl font-extrabold text-zinc-900 tracking-tight leading-tight mb-2">
+                Criar sua conta
               </h1>
-              <p className="text-[14px] sm:text-[15px] text-zinc-500 mt-2.5 leading-relaxed">
-                Acesse sua conta para gerenciar seus seguros com tranquilidade.
+              <p className="text-[13px] text-zinc-500">
+                Preencha os dados abaixo para se cadastrar.
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-
-              {/* ── Username ── */}
-              <div className="relative group">
-                <div className={`flex items-center gap-3 bg-zinc-50/80 rounded-2xl border transition-all duration-200 px-4 h-[56px] ${usernameFocused
-                    ? "border-brand-red/30 bg-white shadow-sm shadow-brand-red/5 ring-4 ring-brand-red/[0.06]"
-                    : "border-zinc-200/80 hover:border-zinc-300"
-                  }`}>
-                  <User className={`size-[18px] shrink-0 transition-colors duration-200 ${usernameFocused ? "text-brand-red" : "text-zinc-400"
-                    }`} />
-                  <div className="flex-1 relative">
-                    <input
-                      id="username"
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      onFocus={() => setUsernameFocused(true)}
-                      onBlur={() => setUsernameFocused(false)}
-                      disabled={isLoading}
-                      placeholder=" "
-                      className="peer w-full bg-transparent pt-4 pb-0 text-sm text-zinc-800 outline-none placeholder-transparent disabled:opacity-50"
-                    />
-                    <label
-                      htmlFor="username"
-                      className="absolute left-0 top-1/2 -translate-y-1/2 text-[13px] text-zinc-500 pointer-events-none transition-all duration-200 peer-focus:top-1.5 peer-focus:translate-y-0 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:text-brand-red peer-[:not(:placeholder-shown)]:top-1.5 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:font-semibold peer-[:not(:placeholder-shown)]:text-zinc-500"
-                    >
-                      Usuário
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Password ── */}
-              <div className="relative group">
-                <div className={`flex items-center gap-3 bg-zinc-50/80 rounded-2xl border transition-all duration-200 px-4 h-[56px] ${passwordFocused
-                    ? "border-brand-red/30 bg-white shadow-sm shadow-brand-red/5 ring-4 ring-brand-red/[0.06]"
-                    : "border-zinc-200/80 hover:border-zinc-300"
-                  }`}>
-                  <Lock className={`size-[18px] shrink-0 transition-colors duration-200 ${passwordFocused ? "text-brand-red" : "text-zinc-400"
-                    }`} />
-                  <div className="flex-1 relative">
-                    <input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      onFocus={() => setPasswordFocused(true)}
-                      onBlur={() => setPasswordFocused(false)}
-                      disabled={isLoading}
-                      placeholder=" "
-                      className="peer w-full bg-transparent pt-4 pb-0 text-sm text-zinc-800 outline-none placeholder-transparent disabled:opacity-50"
-                    />
-                    <label
-                      htmlFor="password"
-                      className="absolute left-0 top-1/2 -translate-y-1/2 text-[13px] text-zinc-500 pointer-events-none transition-all duration-200 peer-focus:top-1.5 peer-focus:translate-y-0 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:text-brand-red peer-[:not(:placeholder-shown)]:top-1.5 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:font-semibold peer-[:not(:placeholder-shown)]:text-zinc-500"
-                    >
-                      Senha
-                    </label>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    disabled={isLoading}
-                    className={`shrink-0 p-1.5 rounded-lg transition-all duration-150 focus:outline-none hover:bg-zinc-100 ${showPassword ? "text-brand-red" : "text-zinc-400 hover:text-zinc-600"
-                      }`}
-                    aria-label={showPassword ? "Ocultar senha" : "Exibir senha"}
-                  >
-                    {showPassword ? <EyeOff className="size-[16px]" /> : <Eye className="size-[16px]" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* ── Forgot + Remember row ── */}
-              <div className="flex items-center justify-between pt-1">
-                <div className="flex items-center gap-2.5">
-                  <Checkbox
-                    id="remember"
-                    checked={rememberMe}
-                    onCheckedChange={(c) => setRememberMe(c === true)}
-                    disabled={isLoading}
-                    className="data-[state=checked]:bg-brand-red data-[state=checked]:border-brand-red rounded-md"
+            <div className="relative group">
+              <div className="flex items-center gap-3 bg-zinc-50/80 rounded-2xl border border-zinc-200/80 hover:border-zinc-300 px-4 h-[50px] focus-within:border-brand-red/30 focus-within:bg-white focus-within:ring-4 focus-within:ring-brand-red/[0.06] transition-all duration-200">
+                <Building2 className="size-[16px] shrink-0 text-zinc-400 group-focus-within:text-brand-red transition-colors" />
+                <div className="flex-1 relative">
+                  <input
+                    id="cnpj"
+                    type="text"
+                    value={regData.cnpj}
+                    onChange={handleRegChange}
+                    disabled={isLoadingReg}
+                    placeholder=" "
+                    required
+                    className="peer w-full bg-transparent pt-3 pb-0 text-[13px] text-zinc-800 outline-none placeholder-transparent disabled:opacity-50"
                   />
-                  <Label
-                    htmlFor="remember"
-                    className="text-[13px] text-zinc-600 cursor-pointer select-none"
-                  >
-                    Lembrar-me
-                  </Label>
+                  <label className="absolute left-0 top-1/2 -translate-y-1/2 text-[12px] text-zinc-500 pointer-events-none transition-all duration-200 peer-focus:top-1 peer-focus:translate-y-0 peer-focus:text-[9px] peer-focus:font-semibold peer-focus:text-brand-red peer-[:not(:placeholder-shown)]:top-1 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-[9px] peer-[:not(:placeholder-shown)]:font-semibold peer-[:not(:placeholder-shown)]:text-zinc-500">
+                    CNPJ
+                  </label>
                 </div>
-                <a
-                  href="#forgot-password"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    toast.info("Para recuperar sua senha, contate o administrador do sistema.")
-                  }}
-                  className="text-[13px] font-semibold text-brand-red hover:text-brand-red-hover transition-colors"
-                >
-                  Esqueceu a senha?
-                </a>
               </div>
-
-              {/* ── Submit button ── */}
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="w-full h-[52px] bg-brand-red hover:bg-brand-red-hover text-white text-[15px] font-bold rounded-2xl transition-all duration-200 shadow-lg shadow-brand-red/20 hover:shadow-xl hover:shadow-brand-red/30 active:scale-[0.98] cursor-pointer mt-4 group"
-              >
-                {isLoading ? (
-                  <Loader2 className="size-5 animate-spin" />
-                ) : (
-                  <span className="flex items-center justify-center gap-2">
-                    Entrar
-                    <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-                  </span>
-                )}
-              </Button>
-            </form>
-
-            {/* ── Divider ── */}
-            <div className="flex items-center gap-4 my-7">
-              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-zinc-200 to-transparent" />
-              <span className="text-[11px] text-zinc-400 font-semibold uppercase tracking-[0.15em]">ou</span>
-              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-zinc-200 to-transparent" />
             </div>
 
-            {/* ── Register CTA ── */}
-            <p className="text-[14px] text-zinc-500 text-center">
-              Não possui uma conta?{" "}
-              <Link
-                href="/cadastrar"
-                className="font-bold text-brand-red hover:text-brand-red-hover hover:underline underline-offset-2 transition-all"
+            <div className="relative group">
+              <div className="flex items-center gap-3 bg-zinc-50/80 rounded-2xl border border-zinc-200/80 hover:border-zinc-300 px-4 h-[50px] focus-within:border-brand-red/30 focus-within:bg-white focus-within:ring-4 focus-within:ring-brand-red/[0.06] transition-all duration-200">
+                <User className="size-[16px] shrink-0 text-zinc-400 group-focus-within:text-brand-red transition-colors" />
+                <div className="flex-1 relative">
+                  <input
+                    id="nome"
+                    type="text"
+                    value={regData.nome}
+                    onChange={handleRegChange}
+                    disabled={isLoadingReg}
+                    placeholder=" "
+                    required
+                    className="peer w-full bg-transparent pt-3 pb-0 text-[13px] text-zinc-800 outline-none placeholder-transparent disabled:opacity-50"
+                  />
+                  <label className="absolute left-0 top-1/2 -translate-y-1/2 text-[12px] text-zinc-500 pointer-events-none transition-all duration-200 peer-focus:top-1 peer-focus:translate-y-0 peer-focus:text-[9px] peer-focus:font-semibold peer-focus:text-brand-red peer-[:not(:placeholder-shown)]:top-1 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-[9px] peer-[:not(:placeholder-shown)]:font-semibold peer-[:not(:placeholder-shown)]:text-zinc-500">
+                    Nome da Empresa / Usuário
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative group">
+              <div className="flex items-center gap-3 bg-zinc-50/80 rounded-2xl border border-zinc-200/80 hover:border-zinc-300 px-4 h-[50px] focus-within:border-brand-red/30 focus-within:bg-white focus-within:ring-4 focus-within:ring-brand-red/[0.06] transition-all duration-200">
+                <Mail className="size-[16px] shrink-0 text-zinc-400 group-focus-within:text-brand-red transition-colors" />
+                <div className="flex-1 relative">
+                  <input
+                    id="email"
+                    type="email"
+                    value={regData.email}
+                    onChange={handleRegChange}
+                    disabled={isLoadingReg}
+                    placeholder=" "
+                    required
+                    className="peer w-full bg-transparent pt-3 pb-0 text-[13px] text-zinc-800 outline-none placeholder-transparent disabled:opacity-50"
+                  />
+                  <label className="absolute left-0 top-1/2 -translate-y-1/2 text-[12px] text-zinc-500 pointer-events-none transition-all duration-200 peer-focus:top-1 peer-focus:translate-y-0 peer-focus:text-[9px] peer-focus:font-semibold peer-focus:text-brand-red peer-[:not(:placeholder-shown)]:top-1 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-[9px] peer-[:not(:placeholder-shown)]:font-semibold peer-[:not(:placeholder-shown)]:text-zinc-500">
+                    E-mail
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative group">
+              <div className="flex items-center gap-3 bg-zinc-50/80 rounded-2xl border border-zinc-200/80 hover:border-zinc-300 px-4 h-[50px] focus-within:border-brand-red/30 focus-within:bg-white focus-within:ring-4 focus-within:ring-brand-red/[0.06] transition-all duration-200">
+                <Phone className="size-[16px] shrink-0 text-zinc-400 group-focus-within:text-brand-red transition-colors" />
+                <div className="flex-1 relative">
+                  <input
+                    id="telefone"
+                    type="text"
+                    value={regData.telefone}
+                    onChange={handleRegChange}
+                    disabled={isLoadingReg}
+                    placeholder=" "
+                    required
+                    className="peer w-full bg-transparent pt-3 pb-0 text-[13px] text-zinc-800 outline-none placeholder-transparent disabled:opacity-50"
+                  />
+                  <label className="absolute left-0 top-1/2 -translate-y-1/2 text-[12px] text-zinc-500 pointer-events-none transition-all duration-200 peer-focus:top-1 peer-focus:translate-y-0 peer-focus:text-[9px] peer-focus:font-semibold peer-focus:text-brand-red peer-[:not(:placeholder-shown)]:top-1 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-[9px] peer-[:not(:placeholder-shown)]:font-semibold peer-[:not(:placeholder-shown)]:text-zinc-500">
+                    Telefone
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative group">
+              <div className="flex items-center gap-3 bg-zinc-50/80 rounded-2xl border border-zinc-200/80 hover:border-zinc-300 px-4 h-[50px] focus-within:border-brand-red/30 focus-within:bg-white focus-within:ring-4 focus-within:ring-brand-red/[0.06] transition-all duration-200">
+                <Lock className="size-[16px] shrink-0 text-zinc-400 group-focus-within:text-brand-red transition-colors" />
+                <div className="flex-1 relative">
+                  <input
+                    id="senha"
+                    type={showRegPassword ? "text" : "password"}
+                    value={regData.senha}
+                    onChange={handleRegChange}
+                    disabled={isLoadingReg}
+                    placeholder=" "
+                    required
+                    className="peer w-full bg-transparent pt-3 pb-0 text-[13px] text-zinc-800 outline-none placeholder-transparent disabled:opacity-50"
+                  />
+                  <label className="absolute left-0 top-1/2 -translate-y-1/2 text-[12px] text-zinc-500 pointer-events-none transition-all duration-200 peer-focus:top-1 peer-focus:translate-y-0 peer-focus:text-[9px] peer-focus:font-semibold peer-focus:text-brand-red peer-[:not(:placeholder-shown)]:top-1 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-[9px] peer-[:not(:placeholder-shown)]:font-semibold peer-[:not(:placeholder-shown)]:text-zinc-500">
+                    Senha
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowRegPassword(!showRegPassword)}
+                  disabled={isLoadingReg}
+                  className="shrink-0 p-1 rounded-lg transition-all focus:outline-none hover:bg-zinc-100 text-zinc-400 hover:text-zinc-600"
+                >
+                  {showRegPassword ? <EyeOff className="size-[14px]" /> : <Eye className="size-[14px]" />}
+                </button>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              disabled={isLoadingReg}
+              className="w-full h-[50px] bg-[#e53e3e] hover:bg-[#c53030] text-white text-[14px] font-bold rounded-2xl shadow-lg mt-2 transition-all hover:shadow-[#e53e3e]/30"
+            >
+              {isLoadingReg ? <Loader2 className="size-5 animate-spin" /> : "Finalizar Cadastro"}
+            </Button>
+            
+            {/* Mobile-only toggle */}
+            <div className="lg:hidden mt-4 text-center">
+              <p className="text-[13px] text-zinc-500">
+                Já tem uma conta?{" "}
+                <button 
+                  type="button" 
+                  onClick={() => setIsRightPanelActive(false)}
+                  className="font-bold text-[#e53e3e] hover:underline"
+                >
+                  Entrar
+                </button>
+              </p>
+            </div>
+          </form>
+        </div>
+
+        {/* ==================================================== */}
+        {/* SIGN IN CONTAINER (LEFT INIT, OPACITY SHOWS)         */}
+        {/* ==================================================== */}
+        <div className={`form-container sign-in-container absolute top-0 h-full w-[50vw] flex flex-col justify-center items-center px-6 lg:px-12 bg-white transition-all duration-[600ms] ease-in-out ${isRightPanelActive ? "left-[50vw] opacity-0 z-[1] pointer-events-none" : "left-0 opacity-100 z-[2]"}`}>
+          <form onSubmit={handleLoginSubmit} className="flex flex-col gap-4 w-full max-w-[360px] animate-fade-in-up">
+            
+            {/* Mobile logo (only shown if needed, but overlay is hidden on mobile so we might want a logo here) */}
+            <div className="lg:hidden mb-6 w-full flex justify-center px-4">
+              <Image
+                src="/2 - 1.png"
+                alt="Cajuína"
+                width={200}
+                height={70}
+                priority
+                className="w-auto h-auto object-contain select-none"
+              />
+            </div>
+
+            <div className="mb-6 text-center">
+              <h1 className="text-2xl lg:text-3xl font-extrabold text-zinc-900 tracking-tight leading-tight mb-2">
+                Bem-vindo de volta
+              </h1>
+              <p className="text-[13px] text-zinc-500">
+                Acesse sua conta para gerenciar seus seguros.
+              </p>
+            </div>
+
+            <div className="relative group">
+              <div className={`flex items-center gap-3 bg-zinc-50/80 rounded-2xl border transition-all duration-200 px-4 h-[56px] ${loginUsernameFocused
+                  ? "border-brand-red/30 bg-white shadow-sm ring-4 ring-brand-red/[0.06]"
+                  : "border-zinc-200/80 hover:border-zinc-300"
+                }`}>
+                <User className={`size-[18px] shrink-0 transition-colors duration-200 ${loginUsernameFocused ? "text-brand-red" : "text-zinc-400"}`} />
+                <div className="flex-1 relative">
+                  <input
+                    id="loginUsername"
+                    type="text"
+                    value={loginUsername}
+                    onChange={(e) => setLoginUsername(e.target.value)}
+                    onFocus={() => setLoginUsernameFocused(true)}
+                    onBlur={() => setLoginUsernameFocused(false)}
+                    disabled={isLoadingLogin}
+                    placeholder=" "
+                    className="peer w-full bg-transparent pt-4 pb-0 text-[14px] text-zinc-800 outline-none placeholder-transparent disabled:opacity-50"
+                  />
+                  <label className="absolute left-0 top-1/2 -translate-y-1/2 text-[13px] text-zinc-500 pointer-events-none transition-all duration-200 peer-focus:top-1.5 peer-focus:translate-y-0 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:text-brand-red peer-[:not(:placeholder-shown)]:top-1.5 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:font-semibold peer-[:not(:placeholder-shown)]:text-zinc-500">
+                    Usuário
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative group">
+              <div className={`flex items-center gap-3 bg-zinc-50/80 rounded-2xl border transition-all duration-200 px-4 h-[56px] ${loginPasswordFocused
+                  ? "border-brand-red/30 bg-white shadow-sm ring-4 ring-brand-red/[0.06]"
+                  : "border-zinc-200/80 hover:border-zinc-300"
+                }`}>
+                <Lock className={`size-[18px] shrink-0 transition-colors duration-200 ${loginPasswordFocused ? "text-brand-red" : "text-zinc-400"}`} />
+                <div className="flex-1 relative">
+                  <input
+                    id="loginPassword"
+                    type={showLoginPassword ? "text" : "password"}
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    onFocus={() => setLoginPasswordFocused(true)}
+                    onBlur={() => setLoginPasswordFocused(false)}
+                    disabled={isLoadingLogin}
+                    placeholder=" "
+                    className="peer w-full bg-transparent pt-4 pb-0 text-[14px] text-zinc-800 outline-none placeholder-transparent disabled:opacity-50"
+                  />
+                  <label className="absolute left-0 top-1/2 -translate-y-1/2 text-[13px] text-zinc-500 pointer-events-none transition-all duration-200 peer-focus:top-1.5 peer-focus:translate-y-0 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:text-brand-red peer-[:not(:placeholder-shown)]:top-1.5 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:font-semibold peer-[:not(:placeholder-shown)]:text-zinc-500">
+                    Senha
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword(!showLoginPassword)}
+                  disabled={isLoadingLogin}
+                  className="shrink-0 p-1.5 rounded-lg transition-all focus:outline-none hover:bg-zinc-100 text-zinc-400 hover:text-zinc-600"
+                >
+                  {showLoginPassword ? <EyeOff className="size-[16px]" /> : <Eye className="size-[16px]" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center gap-2.5">
+                <Checkbox
+                  id="remember"
+                  checked={rememberMe}
+                  onCheckedChange={(c) => setRememberMe(c === true)}
+                  disabled={isLoadingLogin}
+                  className="data-[state=checked]:bg-[#e53e3e] data-[state=checked]:border-[#e53e3e] rounded-md"
+                />
+                <Label htmlFor="remember" className="text-[13px] text-zinc-600 cursor-pointer select-none">
+                  Lembrar-me
+                </Label>
+              </div>
+              <a
+                href="#forgot-password"
+                onClick={(e) => {
+                  e.preventDefault();
+                  toast.info("Recuperação de senha não implementada nesta demo.");
+                }}
+                className="text-[13px] font-semibold text-[#e53e3e] hover:underline decoration-2 underline-offset-4"
               >
-                Cadastre-se
-              </Link>
-            </p>
+                Esqueceu a senha?
+              </a>
+            </div>
+
+            <Button
+              type="submit"
+              disabled={isLoadingLogin}
+              className="w-full h-[52px] bg-[#e53e3e] hover:bg-[#c53030] text-white text-[15px] font-bold rounded-2xl shadow-lg mt-3 group transition-all hover:shadow-[#e53e3e]/30"
+            >
+              {isLoadingLogin ? (
+                <Loader2 className="size-5 animate-spin" />
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  Entrar
+                  <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+                </span>
+              )}
+            </Button>
+
+            {/* Mobile-only toggle */}
+            <div className="lg:hidden mt-4 text-center">
+              <p className="text-[13px] text-zinc-500">
+                Não possui conta?{" "}
+                <button 
+                  type="button" 
+                  onClick={() => setIsRightPanelActive(true)}
+                  className="font-bold text-[#e53e3e] hover:underline"
+                >
+                  Cadastre-se
+                </button>
+              </p>
+            </div>
+          </form>
+        </div>
+
+        {/* ==================================================== */}
+        {/* OVERLAY CONTAINER                                    */}
+        {/* ==================================================== */}
+        <div className={`overlay-container absolute top-0 h-full w-[50vw] transition-all duration-[600ms] ease-in-out overflow-hidden z-[100] ${isRightPanelActive ? "left-0 rounded-r-[2.5rem] rounded-l-none" : "left-[50vw] rounded-l-[2.5rem] rounded-r-none"}`}>
+          <div className={`overlay absolute top-0 h-full w-[100vw] transition-all duration-[600ms] ease-in-out bg-cover bg-no-repeat text-white ${isRightPanelActive ? "left-0" : "left-[-50vw]"}`} style={{ background: "linear-gradient(135deg, #e53e3e 0%, #aa3232 100%)" }}>
+            
+            {/* OVERLAY LEFT (Appears when Sign Up is active, clicking "Entrar" switches to Sign In) */}
+            <div className={`overlay-panel overlay-left absolute top-0 h-full w-[50vw] flex flex-col justify-center items-center px-10 pb-12 text-center transition-all duration-[600ms] ease-in-out ${isRightPanelActive ? "left-0" : "left-[-20%]"}`}>
+              <Image
+                src="/6.png"
+                alt="Cajuína Corretora de Seguros"
+                width={1000}
+                height={400}
+                quality={100}
+                unoptimized={true}
+                priority
+                className="w-auto h-[380px] max-w-full object-contain select-none drop-shadow-md -mb-32 -mt-20 transition-all"
+              />
+              <p className="text-[12px] font-semibold uppercase tracking-[0.2em] mb-6 text-white/80 z-10 leading-relaxed px-4">
+                seguro garantia para licitação <br /> e contratos em minutos!
+              </p>
+              <h2 className="text-3xl font-extrabold text-white mb-4 z-10">Já é cliente?</h2>
+              <p className="text-[14px] font-medium text-white/90 mb-8 z-10 leading-relaxed px-4">
+                Acesse sua conta para continuar gerenciando <br /> suas garantias e contratos.
+              </p>
+              <Button
+                variant="outline"
+                className="relative z-20 bg-transparent text-white border-2 border-white hover:bg-white hover:text-[#e53e3e] font-bold rounded-full px-12 py-6 text-[15px] tracking-wide transition-all shadow-none hover:scale-105"
+                onClick={() => setIsRightPanelActive(false)}
+              >
+                ENTRAR
+              </Button>
+            </div>
+
+            {/* OVERLAY RIGHT (Appears when Sign In is active, clicking "Cadastrar" switches to Sign Up) */}
+            <div className={`overlay-panel overlay-right absolute top-0 h-full w-[50vw] flex flex-col justify-center items-center px-10 pb-12 text-center transition-all duration-[600ms] ease-in-out ${isRightPanelActive ? "right-[-20%]" : "right-0"}`}>
+              <Image
+                src="/6.png"
+                alt="Cajuína Corretora de Seguros"
+                width={1000}
+                height={400}
+                quality={100}
+                unoptimized={true}
+                priority
+                className="w-auto h-[380px] max-w-full object-contain select-none drop-shadow-md -mb-32 -mt-20 transition-all"
+              />
+              <p className="text-[12px] font-semibold uppercase tracking-[0.2em] mb-6 text-white/80 z-10 leading-relaxed px-4">
+                seguro garantia para licitação <br /> e contratos em minutos!
+              </p>
+              <h2 className="text-3xl font-extrabold text-white mb-4 z-10">Novo por aqui?</h2>
+              <p className="text-[14px] font-medium text-white/90 mb-8 z-10 leading-relaxed px-4">
+                Cadastre-se ou entre em contato conosco <br /> para se tornar um cliente.
+              </p>
+              <Button
+                variant="outline"
+                className="relative z-20 bg-transparent text-white border-2 border-white hover:bg-white hover:text-[#e53e3e] font-bold rounded-full px-12 py-6 text-[15px] tracking-wide transition-all shadow-none hover:scale-105"
+                onClick={() => setIsRightPanelActive(true)}
+              >
+                CADASTRAR
+              </Button>
+            </div>
+
           </div>
         </div>
 
-        {/* ── Footer ── */}
-        <div className="w-full mt-auto pt-6 pb-2 flex justify-center">
-          <p className="text-[11px] text-zinc-400 select-none text-center tracking-wide">
-            Desenvolvido por{" "}
-            <span className="text-purple-600 font-semibold">Nhtec</span>{" "}
-            © 2021 – 2026
-          </p>
-        </div>
+      </div>
+
+      <div className="absolute bottom-4 w-full flex justify-center z-0 lg:z-auto">
+        <p className="text-[11px] text-zinc-400 select-none text-center tracking-wide">
+          Desenvolvido por{" "}
+          <span className="text-purple-600 font-semibold">Nhtec</span>{" "}
+          © 2021 – 2026
+        </p>
       </div>
     </div>
   )
