@@ -430,7 +430,7 @@ export default function SeguradosPage() {
     setLoading(false)
   }
 
-  React.useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
 
   React.useEffect(() => {
     if (!toast) return
@@ -443,7 +443,7 @@ export default function SeguradosPage() {
     load(search)
   }
 
-  function handleSaved(s: Segurado) {
+  function handleSaved(_: Segurado) {
     setModal(null)
     setToast({ type: "success", message: modal === "create" ? "Segurado cadastrado!" : "Segurado atualizado!" })
     load()

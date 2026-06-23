@@ -345,7 +345,7 @@ export default function CorretoresPage() {
     setLoading(false)
   }
 
-  React.useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
 
   React.useEffect(() => {
     if (!toast) return
@@ -358,7 +358,7 @@ export default function CorretoresPage() {
     load(search)
   }
 
-  function handleSaved(c: Corretor) {
+  function handleSaved(_: Corretor) {
     setModal(null)
     setToast({ type: "success", message: modal === "create" ? "Corretor cadastrado!" : "Corretor atualizado!" })
     load()
