@@ -12,8 +12,8 @@ import { Button } from "@/components/ui/button"
 function ResetPasswordForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const uidb64 = searchParams.get('uid')
-  const token = searchParams.get('token')
+  const uidb64 = searchParams?.get('uid') ?? null
+  const token = searchParams?.get('token') ?? null
 
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
