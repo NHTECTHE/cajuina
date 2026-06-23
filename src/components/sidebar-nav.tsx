@@ -6,7 +6,6 @@ import Image from "next/image"
 import {
   Home,
   Users,
-  UserCheck,
   ShieldCheck,
   Coins,
   FileText,
@@ -15,8 +14,6 @@ import {
   Settings,
   LogOut,
   X,
-  Briefcase,
-  UserCog,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -76,7 +73,6 @@ export default function SidebarNav({
       title: "Operações",
       items: [
         { label: "Tomador", href: "/dashboard/tomador", icon: Users },
-        { label: "Segurados", href: "/dashboard/segurados", icon: UserCheck },
         { label: "Apólices", href: "/dashboard/apolices", icon: ShieldCheck },
         { label: "Cotações", href: "/dashboard/cotacoes", icon: Coins },
         { label: "Propostas", href: "/dashboard/propostas", icon: FileText },
@@ -87,13 +83,6 @@ export default function SidebarNav({
       items: [
         { label: "Financeiro", href: "/dashboard/financeiro", icon: CreditCard },
         { label: "Relatórios", href: "/dashboard/relatorios", icon: BarChart3 },
-      ]
-    },
-    {
-      title: "Cadastros",
-      items: [
-        { label: "Corretores", href: "/dashboard/corretores", icon: Briefcase },
-        { label: "Produtores", href: "/dashboard/produtores", icon: UserCog },
       ]
     },
     {
