@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@variant dark (&:where(.dark, .dark *));
 
 :root {
   --background: oklch(0.99 0.005 28.14); /* Clean background with a tiny hint of red warmth */

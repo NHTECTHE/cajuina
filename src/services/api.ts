@@ -110,6 +110,7 @@ export interface CnpjData {
   email: string;
   telefone: string;
   cep: string;
+  natureza_juridica: string;
   logradouro: string;
   numero: string;
   complemento: string;
