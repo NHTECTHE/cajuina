@@ -195,15 +195,15 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="h-screen w-screen m-0 p-0 font-sans selection:bg-brand-red/20 selection:text-brand-red overflow-hidden bg-white flex flex-col fixed inset-0">
+    <div className="min-h-[100dvh] lg:h-screen w-full m-0 p-0 font-sans selection:bg-brand-red/20 selection:text-brand-red overflow-x-hidden overflow-y-auto lg:overflow-hidden bg-white flex flex-col lg:fixed lg:inset-0">
       <Toaster position="top-right" richColors duration={5000} />
 
-      <div className={`auth-wrapper-fs flex-1 relative w-full h-full bg-white rounded-none shadow-none m-0 p-0 ${isRightPanelActive ? "right-panel-active" : ""}`}>
+      <div className={`auth-wrapper-fs flex-1 relative w-full lg:h-full bg-gradient-to-br from-white via-white to-red-50/40 lg:bg-none lg:bg-white rounded-none shadow-none m-0 p-0 ${isRightPanelActive ? "right-panel-active" : ""}`}>
         
         {/* ==================================================== */}
         {/* SIGN UP CONTAINER (LEFT INIT, SLIDES RIGHT IN CSS)   */}
         {/* ==================================================== */}
-        <div className={`form-container sign-up-container absolute top-0 h-full w-[50vw] flex flex-col justify-center items-center px-6 lg:px-12 bg-white transition-all duration-[600ms] ease-in-out ${isRightPanelActive ? "left-[50vw] opacity-100 z-[5]" : "left-0 opacity-0 z-[1] pointer-events-none"}`}>
+        <div className={`form-container sign-up-container ${isRightPanelActive ? "flex" : "hidden lg:flex"} min-h-[100dvh] lg:min-h-0 flex-col justify-center items-center px-6 py-12 lg:py-0 lg:px-12 bg-white transition-all duration-[600ms] ease-in-out lg:absolute lg:top-0 lg:h-full w-full lg:w-[50vw] ${isRightPanelActive ? "lg:left-[50vw] lg:opacity-100 lg:z-[5]" : "lg:left-0 lg:opacity-0 lg:z-[1] lg:pointer-events-none"}`}>
           <form onSubmit={handleRegisterSubmit} className="flex flex-col gap-3 w-full max-w-[360px] animate-fade-in-up">
             
             <div className="mb-4 text-center">
@@ -355,7 +355,7 @@ export default function AuthPage() {
         {/* ==================================================== */}
         {/* SIGN IN CONTAINER (LEFT INIT, OPACITY SHOWS)         */}
         {/* ==================================================== */}
-        <div className={`form-container sign-in-container absolute top-0 h-full w-[50vw] flex flex-col justify-center items-center px-6 lg:px-12 bg-white transition-all duration-[600ms] ease-in-out ${isRightPanelActive ? "left-[50vw] opacity-0 z-[1] pointer-events-none" : "left-0 opacity-100 z-[2]"}`}>
+        <div className={`form-container sign-in-container ${isRightPanelActive ? "hidden lg:flex" : "flex"} min-h-[100dvh] lg:min-h-0 flex-col justify-center items-center px-6 py-12 lg:py-0 lg:px-12 bg-white transition-all duration-[600ms] ease-in-out lg:absolute lg:top-0 lg:h-full w-full lg:w-[50vw] ${isRightPanelActive ? "lg:left-[50vw] lg:opacity-0 lg:z-[1] lg:pointer-events-none" : "lg:left-0 lg:opacity-100 lg:z-[2]"}`}>
           <form onSubmit={handleLoginSubmit} className="flex flex-col gap-4 w-full max-w-[360px] animate-fade-in-up">
             
             {/* Mobile logo (only shown if needed, but overlay is hidden on mobile so we might want a logo here) */}
@@ -496,7 +496,7 @@ export default function AuthPage() {
         {/* ==================================================== */}
         {/* OVERLAY CONTAINER                                    */}
         {/* ==================================================== */}
-        <div className={`overlay-container absolute top-0 h-full w-[50vw] transition-all duration-[600ms] ease-in-out overflow-hidden z-[100] ${isRightPanelActive ? "left-0 rounded-r-[2.5rem] rounded-l-none" : "left-[50vw] rounded-l-[2.5rem] rounded-r-none"}`}>
+        <div className={`overlay-container hidden lg:block absolute top-0 h-full w-[50vw] transition-all duration-[600ms] ease-in-out overflow-hidden z-[100] ${isRightPanelActive ? "left-0 rounded-r-[2.5rem] rounded-l-none" : "left-[50vw] rounded-l-[2.5rem] rounded-r-none"}`}>
           <div className={`overlay absolute top-0 h-full w-[100vw] transition-all duration-[600ms] ease-in-out bg-cover bg-no-repeat text-white ${isRightPanelActive ? "left-0" : "left-[-50vw]"}`} style={{ background: "linear-gradient(135deg, #e53e3e 0%, #aa3232 100%)" }}>
             
             {/* OVERLAY LEFT (Appears when Sign Up is active, clicking "Entrar" switches to Sign In) */}
