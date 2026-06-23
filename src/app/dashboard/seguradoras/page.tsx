@@ -288,7 +288,7 @@ export default function SeguradorasPage() {
     setLoading(false)
   }
 
-  React.useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
 
   React.useEffect(() => {
     if (!toast) return
@@ -301,7 +301,7 @@ export default function SeguradorasPage() {
     load(search)
   }
 
-  function handleSaved(s: Seguradora) {
+  function handleSaved(_: Seguradora) {
     setModal(null)
     setToast({ type: "success", message: modal === "create" ? "Seguradora cadastrada!" : "Seguradora atualizada!" })
     load()

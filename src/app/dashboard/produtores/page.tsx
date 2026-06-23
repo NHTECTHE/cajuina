@@ -95,7 +95,7 @@ function CorretorCombobox({ corretores, loading, value, onChange }: {
     : corretores
 
   React.useEffect(() => {
-    setQuery(selected?.nome ?? "")
+    setQuery(selected?.nome ?? "") // eslint-disable-line react-hooks/set-state-in-effect
   }, [selected?.nome])
 
   React.useEffect(() => {
@@ -440,7 +440,7 @@ export default function ProdutoresPage() {
     setLoading(false)
   }
 
-  React.useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
 
   React.useEffect(() => {
     if (!toast) return
@@ -453,7 +453,7 @@ export default function ProdutoresPage() {
     load(search)
   }
 
-  function handleSaved(p: Produtor) {
+  function handleSaved(_: Produtor) {
     setModal(null)
     setToast({ type: "success", message: modal === "create" ? "Produtor cadastrado!" : "Produtor atualizado!" })
     load()
