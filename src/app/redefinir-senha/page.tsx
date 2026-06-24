@@ -201,26 +201,34 @@ export default function ResetPasswordPage() {
     <div className="min-h-[100dvh] flex flex-col lg:flex-row bg-white font-sans selection:bg-brand-red/20 selection:text-brand-red">
       <Toaster position="top-right" richColors duration={5000} />
 
-      {/* ───── LEFT: Hero Image Panel ───── */}
-      <div className="hidden lg:flex lg:w-[38%] relative overflow-hidden rounded-r-3xl">
+      {/* ───── LEFT: Red Overlay Panel ───── */}
+      <div className="hidden lg:flex lg:w-[50vw] relative flex-col justify-center items-center px-10 pb-12 text-center text-white overflow-hidden rounded-r-[2.5rem]" style={{ background: "linear-gradient(135deg, #e53e3e 0%, #aa3232 100%)" }}>
         <Image
-          src="/hero-login.png"
-          alt="Profissional usando a plataforma Cajuína"
-          fill
+          src="/6.png"
+          alt="Cajuína Corretora de Seguros"
+          width={1000}
+          height={400}
+          quality={100}
+          unoptimized={true}
           priority
-          className="object-cover object-center"
+          className="w-auto h-[380px] max-w-full object-contain select-none drop-shadow-md -mb-32 -mt-20 transition-all"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-black/20" />
-        <div className="absolute bottom-[-60px] left-0 right-0 z-10 flex justify-center px-4">
-          <Image
-            src="/5 - 5.png"
-            alt="Cajuína Corretora de Seguros"
-            width={1200}
-            height={400}
-            priority
-            className="w-auto h-[400px] max-w-full object-contain select-none drop-shadow-lg"
-          />
-        </div>
+        <p className="text-[12px] font-semibold uppercase tracking-[0.2em] mb-6 text-white/80 z-10 leading-relaxed px-4">
+          seguro garantia para licitação <br /> e contratos em minutos!
+        </p>
+        <h2 className="text-3xl font-extrabold text-white mb-4 z-10">Lembrou da senha?</h2>
+        <p className="text-[14px] font-medium text-white/90 mb-8 z-10 leading-relaxed px-4">
+          Acesse sua conta para continuar gerenciando <br /> suas garantias e contratos.
+        </p>
+        <Link href="/">
+          <Button
+            type="button"
+            variant="outline"
+            className="relative z-20 bg-transparent text-white border-2 border-white hover:bg-white hover:text-[#e53e3e] font-bold rounded-full px-12 py-6 text-[15px] tracking-wide transition-all shadow-none hover:scale-105 cursor-pointer"
+          >
+            VOLTAR AO LOGIN
+          </Button>
+        </Link>
       </div>
 
       {/* ───── RIGHT: Form Panel ───── */}
@@ -252,12 +260,6 @@ export default function ResetPasswordPage() {
             <Suspense fallback={<div className="flex justify-center p-8"><Loader2 className="size-8 animate-spin text-brand-red" /></div>}>
               <ResetPasswordForm />
             </Suspense>
-
-            <div className="mt-6 text-center">
-              <Link href="/" className="text-sm font-semibold text-brand-red hover:underline transition-colors">
-                Voltar para o login
-              </Link>
-            </div>
           </div>
         </div>
 
