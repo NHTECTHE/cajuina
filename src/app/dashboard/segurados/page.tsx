@@ -1,8 +1,9 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import {
-  ShieldCheck, Plus, Search, Trash2,
+  ArrowLeft, ShieldCheck, Plus, Search, Trash2,
   Loader2, AlertCircle, CheckCircle2, X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -415,6 +416,7 @@ function DeleteConfirm({ nome, onConfirm, onClose, loading }: {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SeguradosPage() {
+  const router = useRouter()
   const [segurados, setSegurados] = React.useState<Segurado[]>([])
   const [loading, setLoading] = React.useState(true)
   const [search, setSearch] = React.useState("")
@@ -468,11 +470,16 @@ export default function SeguradosPage() {
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">Segurados</h1>
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-            {segurados.length} {segurados.length === 1 ? "segurado cadastrado" : "segurados cadastrados"}
-          </p>
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.back()} className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer shrink-0">
+            <ArrowLeft className="size-4" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">Segurados</h1>
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+              {segurados.length} {segurados.length === 1 ? "segurado cadastrado" : "segurados cadastrados"}
+            </p>
+          </div>
         </div>
         <button onClick={() => setModal("create")}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold bg-brand-red text-white hover:bg-brand-red/90 active:scale-[0.98] transition-all cursor-pointer shadow-sm shadow-brand-red/20 self-start sm:self-auto">

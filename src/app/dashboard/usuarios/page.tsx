@@ -1,8 +1,9 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import {
-  Users, Plus, Search, Trash2,
+  ArrowLeft, Users, Plus, Search, Trash2,
   Loader2, AlertCircle, CheckCircle2, X, ChevronDown,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -303,6 +304,7 @@ function DeleteConfirm({ nome, onConfirm, onClose, loading }: {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function UsuariosPage() {
+  const router = useRouter()
   const [usuarios, setUsuarios] = React.useState<Usuario[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -340,13 +342,18 @@ export default function UsuariosPage() {
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
-            Usuários
-          </h1>
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
-            Gerencie os usuários do sistema.
-          </p>
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.back()} className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer shrink-0">
+            <ArrowLeft className="size-4" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
+              Usuários
+            </h1>
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
+              Gerencie os usuários do sistema.
+            </p>
+          </div>
         </div>
         <button
           onClick={() => setModal({ open: true, usuario: null })}
