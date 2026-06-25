@@ -531,50 +531,87 @@ export default function ProdutoresPage() {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
-              <thead>
-                <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40">
-                  {["Nome", "Corretora", "E-mail", "Telefone", "Recebimento", "Percentual", "Meta"].map(h => (
-                    <th key={h} className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {produtores.map((p, i) => (
-                  <tr key={p.id}
-                    onClick={() => setModal(p)}
-                    className={cn(
-                      "border-b border-zinc-100 dark:border-zinc-800/60 transition-colors cursor-pointer",
-                      i % 2 === 0 ? "" : "bg-zinc-50/40 dark:bg-zinc-800/20",
-                      "hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
-                    )}>
-                    <td className="px-4 py-3 font-semibold text-zinc-900 dark:text-zinc-100">{p.nome}</td>
-                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{p.corretora_nome || "—"}</td>
-                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{p.email || "—"}</td>
-                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{p.telefone || "—"}</td>
-                    <td className="px-4 py-3">
-                      {p.recebimento ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 uppercase">
-                          {p.recebimento}
-                        </span>
-                      ) : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400 font-mono text-[12px]">
-                      {p.percentual != null ? `${p.percentual}%` : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400 font-mono text-[12px]">
-                      {p.meta != null
-                        ? Number(p.meta).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-                        : "—"}
-                    </td>
+          <>
+            {/* Mobile Cards */}
+            <div className="md:hidden flex flex-col p-4 gap-3">
+              {produtores.map((p) => (
+                <div key={p.id} onClick={() => setModal(p)}
+                  className="flex flex-col p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20 active:scale-[0.98] transition-all cursor-pointer shadow-sm gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[14px] text-zinc-900 dark:text-zinc-100">{p.nome}</span>
+                    {p.recebimento ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-zinc-200/60 dark:bg-zinc-700/60 text-zinc-700 dark:text-zinc-300 uppercase">
+                        {p.recebimento}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-col gap-1 text-[12px] text-zinc-500 dark:text-zinc-400">
+                    <p><span className="font-medium text-zinc-600 dark:text-zinc-300">Corretora:</span> {p.corretora_nome || "—"}</p>
+                    <p><span className="font-medium text-zinc-600 dark:text-zinc-300">E-mail:</span> {p.email || "—"}</p>
+                    <p><span className="font-medium text-zinc-600 dark:text-zinc-300">Telefone:</span> {p.telefone || "—"}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-zinc-200/60 dark:border-zinc-700/60 text-[12px]">
+                    <div>
+                      <span className="block font-medium text-[10px] uppercase tracking-wider text-zinc-400">Percentual</span>
+                      <span className="font-semibold text-zinc-700 dark:text-zinc-300">{p.percentual != null ? `${p.percentual}%` : "—"}</span>
+                    </div>
+                    <div>
+                      <span className="block font-medium text-[10px] uppercase tracking-wider text-zinc-400">Meta</span>
+                      <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                        {p.meta != null ? Number(p.meta).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40">
+                    {["Nome", "Corretora", "E-mail", "Telefone", "Recebimento", "Percentual", "Meta"].map(h => (
+                      <th key={h} className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {produtores.map((p, i) => (
+                    <tr key={p.id}
+                      onClick={() => setModal(p)}
+                      className={cn(
+                        "border-b border-zinc-100 dark:border-zinc-800/60 transition-colors cursor-pointer",
+                        i % 2 === 0 ? "" : "bg-zinc-50/40 dark:bg-zinc-800/20",
+                        "hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
+                      )}>
+                      <td className="px-4 py-3 font-semibold text-zinc-900 dark:text-zinc-100">{p.nome}</td>
+                      <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{p.corretora_nome || "—"}</td>
+                      <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{p.email || "—"}</td>
+                      <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{p.telefone || "—"}</td>
+                      <td className="px-4 py-3">
+                        {p.recebimento ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 uppercase">
+                            {p.recebimento}
+                          </span>
+                        ) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400 font-mono text-[12px]">
+                        {p.percentual != null ? `${p.percentual}%` : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400 font-mono text-[12px]">
+                        {p.meta != null
+                          ? Number(p.meta).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

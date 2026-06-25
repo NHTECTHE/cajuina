@@ -399,38 +399,64 @@ export default function UsuariosPage() {
           <p className="text-sm">Nenhum usuário encontrado.</p>
         </div>
       ) : (
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-          {/* Table header */}
-          <div className="grid grid-cols-[2fr_2fr_1fr_1fr_80px] bg-zinc-50 dark:bg-zinc-900/50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-800">
-            <span>Nome</span>
-            <span>Email</span>
-            <span>Usuário</span>
-            <span>Cargo</span>
-            <span></span>
+        <>
+          {/* Mobile Cards */}
+          <div className="md:hidden flex flex-col gap-3">
+            {usuarios.map(u => (
+              <div key={u.id} className="flex flex-col p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 shadow-sm gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-[14px] text-zinc-900 dark:text-zinc-100">{u.first_name}</span>
+                  <span className={cn("inline-block rounded-full px-2.5 py-0.5 text-[10px] font-semibold capitalize", CARGO_COLORS[u.cargo] ?? CARGO_COLORS.usuario)}>
+                    {CARGO_OPTIONS.find(o => o.value === u.cargo)?.label ?? u.cargo}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1 text-[12px] text-zinc-500 dark:text-zinc-400">
+                  <p><span className="font-medium text-zinc-600 dark:text-zinc-300">Email:</span> {u.email}</p>
+                  <p><span className="font-medium text-zinc-600 dark:text-zinc-300">Usuário:</span> {u.username}</p>
+                </div>
+                <div className="flex justify-end border-t border-zinc-100 dark:border-zinc-800 pt-2 mt-1">
+                  <button onClick={() => setModal({ open: true, usuario: u })} className="text-[12px] font-semibold text-brand-red hover:text-brand-red/80 transition-colors">
+                    Editar
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-          {/* Table rows */}
-          {usuarios.map(u => (
-            <div
-              key={u.id}
-              className="grid grid-cols-[2fr_2fr_1fr_1fr_80px] items-center px-4 py-3 border-b last:border-b-0 border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors"
-            >
-              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 truncate">{u.first_name}</span>
-              <span className="text-sm text-zinc-500 dark:text-zinc-400 truncate">{u.email}</span>
-              <span className="text-sm text-zinc-500 dark:text-zinc-400 truncate">{u.username}</span>
-              <span>
-                <span className={cn("inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize", CARGO_COLORS[u.cargo] ?? CARGO_COLORS.usuario)}>
-                  {CARGO_OPTIONS.find(o => o.value === u.cargo)?.label ?? u.cargo}
-                </span>
-              </span>
-              <button
-                onClick={() => setModal({ open: true, usuario: u })}
-                className="text-[11px] font-semibold text-brand-red hover:text-brand-red/80 transition-colors"
-              >
-                Editar
-              </button>
+
+          {/* Desktop Table */}
+          <div className="hidden md:block rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+            {/* Table header */}
+            <div className="grid grid-cols-[2fr_2fr_1fr_1fr_80px] bg-zinc-50 dark:bg-zinc-900/50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-800">
+              <span>Nome</span>
+              <span>Email</span>
+              <span>Usuário</span>
+              <span>Cargo</span>
+              <span></span>
             </div>
-          ))}
-        </div>
+            {/* Table rows */}
+            {usuarios.map(u => (
+              <div
+                key={u.id}
+                className="grid grid-cols-[2fr_2fr_1fr_1fr_80px] items-center px-4 py-3 border-b last:border-b-0 border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors"
+              >
+                <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 truncate">{u.first_name}</span>
+                <span className="text-sm text-zinc-500 dark:text-zinc-400 truncate">{u.email}</span>
+                <span className="text-sm text-zinc-500 dark:text-zinc-400 truncate">{u.username}</span>
+                <span>
+                  <span className={cn("inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize", CARGO_COLORS[u.cargo] ?? CARGO_COLORS.usuario)}>
+                    {CARGO_OPTIONS.find(o => o.value === u.cargo)?.label ?? u.cargo}
+                  </span>
+                </span>
+                <button
+                  onClick={() => setModal({ open: true, usuario: u })}
+                  className="text-[11px] font-semibold text-brand-red hover:text-brand-red/80 transition-colors"
+                >
+                  Editar
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Modal */}

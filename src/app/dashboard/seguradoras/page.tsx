@@ -379,40 +379,73 @@ export default function SeguradorasPage() {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
-              <thead>
-                <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40">
-                  {["Nome", "Valor Licitação", "Valor Execução", "Taxa Comissão", "Dia Venc."].map(h => (
-                    <th key={h} className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {seguradoras.map((s, i) => (
-                  <tr key={s.id}
-                    onClick={() => setModal(s)}
-                    className={cn(
-                      "border-b border-zinc-100 dark:border-zinc-800/60 transition-colors cursor-pointer",
-                      i % 2 === 0 ? "" : "bg-zinc-50/40 dark:bg-zinc-800/20",
-                      "hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
-                    )}>
-                    <td className="px-4 py-3 font-semibold text-zinc-900 dark:text-zinc-100">{s.nome}</td>
-                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{formatBRL(s.valor_licitacao)}</td>
-                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{formatBRL(s.valor_execucao)}</td>
-                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">
-                      {s.taxa_comissao ? `${Number(s.taxa_comissao).toFixed(2)}%` : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">
-                      {s.dia_vencimento ? `Dia ${s.dia_vencimento}` : "—"}
-                    </td>
+          <>
+            {/* Mobile Cards */}
+            <div className="md:hidden flex flex-col p-4 gap-3">
+              {seguradoras.map((s) => (
+                <div key={s.id} onClick={() => setModal(s)}
+                  className="flex flex-col p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20 active:scale-[0.98] transition-all cursor-pointer shadow-sm gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[14px] text-zinc-900 dark:text-zinc-100">{s.nome}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[12px] text-zinc-500 dark:text-zinc-400 mt-1">
+                    <div className="flex flex-col">
+                      <span className="font-medium text-[10px] uppercase tracking-wider text-zinc-400">Licitação</span>
+                      <span className="text-zinc-700 dark:text-zinc-300 font-semibold">{formatBRL(s.valor_licitacao)}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-medium text-[10px] uppercase tracking-wider text-zinc-400">Execução</span>
+                      <span className="text-zinc-700 dark:text-zinc-300 font-semibold">{formatBRL(s.valor_execucao)}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-medium text-[10px] uppercase tracking-wider text-zinc-400">Comissão</span>
+                      <span className="text-zinc-700 dark:text-zinc-300 font-semibold">{s.taxa_comissao ? `${Number(s.taxa_comissao).toFixed(2)}%` : "—"}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-medium text-[10px] uppercase tracking-wider text-zinc-400">Vencimento</span>
+                      <span className="text-zinc-700 dark:text-zinc-300 font-semibold">{s.dia_vencimento ? `Dia ${s.dia_vencimento}` : "—"}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40">
+                    {["Nome", "Valor Licitação", "Valor Execução", "Taxa Comissão", "Dia Venc."].map(h => (
+                      <th key={h} className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {seguradoras.map((s, i) => (
+                    <tr key={s.id}
+                      onClick={() => setModal(s)}
+                      className={cn(
+                        "border-b border-zinc-100 dark:border-zinc-800/60 transition-colors cursor-pointer",
+                        i % 2 === 0 ? "" : "bg-zinc-50/40 dark:bg-zinc-800/20",
+                        "hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
+                      )}>
+                      <td className="px-4 py-3 font-semibold text-zinc-900 dark:text-zinc-100">{s.nome}</td>
+                      <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{formatBRL(s.valor_licitacao)}</td>
+                      <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{formatBRL(s.valor_execucao)}</td>
+                      <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">
+                        {s.taxa_comissao ? `${Number(s.taxa_comissao).toFixed(2)}%` : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">
+                        {s.dia_vencimento ? `Dia ${s.dia_vencimento}` : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

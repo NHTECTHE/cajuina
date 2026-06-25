@@ -392,44 +392,71 @@ export default function ModalidadesPage() {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
-              <thead>
-                <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40">
-                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Status</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 w-full">Nome</th>
-                  <th className="text-right px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {modalidades.map((m, i) => (
-                  <tr key={m.id}
-                    className={cn(
-                      "border-b border-zinc-100 dark:border-zinc-800/60 transition-colors",
-                      i % 2 === 0 ? "" : "bg-zinc-50/40 dark:bg-zinc-800/20",
-                      "hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
-                    )}>
-                    <td className="px-4 py-3">
-                      <div className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest", m.ativo ? "bg-emerald-100 text-emerald-700" : "bg-zinc-100 text-zinc-600")}>
-                        {m.ativo ? "Ativo" : "Inativo"}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-zinc-900 dark:text-zinc-100">{m.nome}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => setToggleTarget(m)} title={m.ativo ? "Inativar" : "Ativar"} className={cn("p-1.5 rounded-lg transition-colors", m.ativo ? "text-orange-500 hover:bg-orange-50" : "text-emerald-500 hover:bg-emerald-50")}>
-                           {m.ativo ? <PowerOff className="size-4" /> : <Power className="size-4" />}
-                        </button>
-                        <button onClick={() => setModal(m)} title="Editar" className="p-1.5 rounded-lg text-zinc-400 hover:text-brand-red hover:bg-brand-red/10 transition-colors">
-                           <Edit className="size-4" />
-                        </button>
-                      </div>
-                    </td>
+          <>
+            {/* Mobile Cards */}
+            <div className="md:hidden flex flex-col p-4 gap-3">
+              {modalidades.map((m) => (
+                <div key={m.id} className="flex flex-col p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20 shadow-sm gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[14px] text-zinc-900 dark:text-zinc-100">{m.nome}</span>
+                    <div className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest", m.ativo ? "bg-emerald-100 text-emerald-700" : "bg-zinc-100 text-zinc-600")}>
+                      {m.ativo ? "Ativo" : "Inativo"}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end gap-2 border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
+                    <button onClick={() => setToggleTarget(m)} title={m.ativo ? "Inativar" : "Ativar"} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors", m.ativo ? "text-orange-600 bg-orange-50 hover:bg-orange-100" : "text-emerald-600 bg-emerald-50 hover:bg-emerald-100")}>
+                      {m.ativo ? <PowerOff className="size-3.5" /> : <Power className="size-3.5" />}
+                      {m.ativo ? "Inativar" : "Ativar"}
+                    </button>
+                    <button onClick={() => setModal(m)} title="Editar" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-zinc-600 bg-zinc-100 hover:bg-zinc-200 hover:text-brand-red transition-colors">
+                      <Edit className="size-3.5" />
+                      Editar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40">
+                    <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Status</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 w-full">Nome</th>
+                    <th className="text-right px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {modalidades.map((m, i) => (
+                    <tr key={m.id}
+                      className={cn(
+                        "border-b border-zinc-100 dark:border-zinc-800/60 transition-colors",
+                        i % 2 === 0 ? "" : "bg-zinc-50/40 dark:bg-zinc-800/20",
+                        "hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
+                      )}>
+                      <td className="px-4 py-3">
+                        <div className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest", m.ativo ? "bg-emerald-100 text-emerald-700" : "bg-zinc-100 text-zinc-600")}>
+                          {m.ativo ? "Ativo" : "Inativo"}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-zinc-900 dark:text-zinc-100">{m.nome}</td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button onClick={() => setToggleTarget(m)} title={m.ativo ? "Inativar" : "Ativar"} className={cn("p-1.5 rounded-lg transition-colors", m.ativo ? "text-orange-500 hover:bg-orange-50" : "text-emerald-500 hover:bg-emerald-50")}>
+                             {m.ativo ? <PowerOff className="size-4" /> : <Power className="size-4" />}
+                          </button>
+                          <button onClick={() => setModal(m)} title="Editar" className="p-1.5 rounded-lg text-zinc-400 hover:text-brand-red hover:bg-brand-red/10 transition-colors">
+                             <Edit className="size-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
