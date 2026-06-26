@@ -13,7 +13,13 @@ async function getAuthHeaders() {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
 
-export async function changePasswordAction(data: any) {
+export interface ChangePasswordPayload {
+  old_password?: string
+  new_password?: string
+  new_password_confirm?: string
+}
+
+export async function changePasswordAction(data: ChangePasswordPayload) {
   try {
     const headers = await getAuthHeaders()
     const res = await fetch(`${API_URL}/alterar-senha/`, {
@@ -28,7 +34,7 @@ export async function changePasswordAction(data: any) {
       return { error: json }
     }
     return { success: true, message: json.detail || "Senha alterada com sucesso!" }
-  } catch (error: any) {
+  } catch (error) {
     console.error("changePasswordAction error:", error)
     return { error: "Erro inesperado ao conectar com o servidor." }
   }

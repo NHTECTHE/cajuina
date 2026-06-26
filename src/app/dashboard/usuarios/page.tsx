@@ -320,7 +320,7 @@ export default function UsuariosPage() {
     else setUsuarios(res.data ?? [])
   }
 
-  React.useEffect(() => { load() }, [])
+  React.useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()

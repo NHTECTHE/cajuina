@@ -68,7 +68,7 @@ function ModalidadeModal({ modalidade, onClose, onSaved, onDelete }: ModalProps)
   const [confirmSave, setConfirmSave] = React.useState(false)
   const [feedback, setFeedback] = React.useState<{ type: "success" | "error"; message: string } | null>(null)
 
-  function set(field: string, value: any) {
+  function set(field: string, value: string | boolean) {
     setForm(f => ({ ...f, [field]: value }))
   }
 

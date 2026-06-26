@@ -32,9 +32,9 @@ export async function listModalidadesAction(search = "") {
     
     const json = await res.json()
     return { data: json.data as Modalidade[] }
-  } catch (error: any) {
+  } catch (error) {
     console.error("listModalidadesAction error:", error)
-    return { error: error.message || "Erro desconhecido" }
+    return { error: error instanceof Error ? error.message : "Erro desconhecido" }
   }
 }
 
@@ -53,9 +53,9 @@ export async function createModalidadeAction(data: Omit<Modalidade, "id" | "cria
       return { error: msg }
     }
     return { data: json.data as Modalidade }
-  } catch (error: any) {
+  } catch (error) {
     console.error("createModalidadeAction error:", error)
-    return { error: error.message || "Erro desconhecido" }
+    return { error: error instanceof Error ? error.message : "Erro desconhecido" }
   }
 }
 
@@ -74,9 +74,9 @@ export async function updateModalidadeAction(id: number, data: Partial<Modalidad
       return { error: msg }
     }
     return { data: json.data as Modalidade }
-  } catch (error: any) {
+  } catch (error) {
     console.error("updateModalidadeAction error:", error)
-    return { error: error.message || "Erro desconhecido" }
+    return { error: error instanceof Error ? error.message : "Erro desconhecido" }
   }
 }
 
@@ -90,8 +90,8 @@ export async function deleteModalidadeAction(id: number) {
     
     if (!res.ok) throw new Error("Erro ao excluir modalidade")
     return { success: true }
-  } catch (error: any) {
+  } catch (error) {
     console.error("deleteModalidadeAction error:", error)
-    return { error: error.message || "Erro desconhecido" }
+    return { error: error instanceof Error ? error.message : "Erro desconhecido" }
   }
 }
