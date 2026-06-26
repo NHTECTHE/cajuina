@@ -4,6 +4,7 @@ import * as React from "react"
 import { useState } from "react"
 import { loginAction } from "./actions/auth"
 import Image from "next/image"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   Eye,
@@ -450,16 +451,12 @@ export default function AuthPage() {
                   Lembrar-me
                 </Label>
               </div>
-              <a
-                href="#forgot-password"
-                onClick={(e) => {
-                  e.preventDefault();
-                  toast.info("Recuperação de senha não implementada nesta demo.");
-                }}
+              <Link
+                href="/esqueci-senha"
                 className="text-[13px] font-semibold text-[#e53e3e] hover:underline decoration-2 underline-offset-4"
               >
                 Esqueceu a senha?
-              </a>
+              </Link>
             </div>
 
             <Button
