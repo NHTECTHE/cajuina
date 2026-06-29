@@ -4,6 +4,7 @@ import * as React from "react"
 import { useState } from "react"
 import { loginAction } from "./actions/auth"
 import Image from "next/image"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   Eye,
@@ -45,7 +46,7 @@ const maskPhone = (value: string) => {
 
 export default function AuthPage() {
   const router = useRouter()
-  
+
   // State for Animation
   const [isRightPanelActive, setIsRightPanelActive] = useState(false)
 
@@ -57,7 +58,7 @@ export default function AuthPage() {
   const [showLoginPassword, setShowLoginPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
   const [isLoadingLogin, setIsLoadingLogin] = useState(false)
-  
+
   const [loginUsernameFocused, setLoginUsernameFocused] = useState(false)
   const [loginPasswordFocused, setLoginPasswordFocused] = useState(false)
 
@@ -157,7 +158,7 @@ export default function AuthPage() {
         else if (data.password) erroMsg = data.password[0];
         else if (data.detail) erroMsg = data.detail;
         else if (data.non_field_errors) erroMsg = data.non_field_errors[0];
-        
+
         toast.error(erroMsg)
       } else {
         setIsSuccessReg(true)
@@ -176,11 +177,11 @@ export default function AuthPage() {
           <CheckCircle2 className="size-20 text-green-500 mb-6" />
           <h1 className="text-2xl font-bold text-zinc-900 mb-4">Cadastro Realizado!</h1>
           <p className="text-zinc-500 mb-8 leading-relaxed">
-            Sua conta foi criada com sucesso, mas encontra-se inativa. 
-            <br/><br/>
+            Sua conta foi criada com sucesso, mas encontra-se inativa.
+            <br /><br />
             Enviamos um e-mail para <strong>{regData.email}</strong> com as instruções para ativação da sua conta.
           </p>
-          <Button 
+          <Button
             onClick={() => {
               setIsSuccessReg(false)
               setIsRightPanelActive(false)
@@ -199,13 +200,13 @@ export default function AuthPage() {
       <Toaster position="top-right" richColors duration={5000} />
 
       <div className={`auth-wrapper-fs flex-1 relative w-full lg:h-full bg-gradient-to-br from-white via-white to-red-50/40 lg:bg-none lg:bg-white rounded-none shadow-none m-0 p-0 ${isRightPanelActive ? "right-panel-active" : ""}`}>
-        
+
         {/* ==================================================== */}
         {/* SIGN UP CONTAINER (LEFT INIT, SLIDES RIGHT IN CSS)   */}
         {/* ==================================================== */}
         <div className={`form-container sign-up-container ${isRightPanelActive ? "flex" : "hidden lg:flex"} min-h-[100dvh] lg:min-h-0 flex-col justify-center items-center px-6 py-12 lg:py-0 lg:px-12 bg-white transition-all duration-[600ms] ease-in-out lg:absolute lg:top-0 lg:h-full w-full lg:w-[50vw] ${isRightPanelActive ? "lg:left-[50vw] lg:opacity-100 lg:z-[5]" : "lg:left-0 lg:opacity-0 lg:z-[1] lg:pointer-events-none"}`}>
           <form onSubmit={handleRegisterSubmit} className="flex flex-col gap-3 w-full max-w-[360px] animate-fade-in-up">
-            
+
             <div className="mb-4 text-center">
               <h1 className="text-2xl lg:text-3xl font-extrabold text-zinc-900 tracking-tight leading-tight mb-2">
                 Criar sua conta
@@ -335,21 +336,25 @@ export default function AuthPage() {
             >
               {isLoadingReg ? <Loader2 className="size-5 animate-spin" /> : "Finalizar Cadastro"}
             </Button>
-            
-            {/* Mobile-only toggle */}
-            <div className="lg:hidden mt-4 text-center">
-              <p className="text-[13px] text-zinc-500">
-                Já tem uma conta?{" "}
-                <button 
-                  type="button" 
-                  onClick={() => setIsRightPanelActive(false)}
-                  className="font-bold text-[#e53e3e] hover:underline"
-                >
-                  Entrar
-                </button>
-              </p>
-            </div>
+
           </form>
+
+          {/* Mobile-only toggle */}
+          <div className="lg:hidden mt-6 text-center w-full max-w-[360px] animate-fade-in-up">
+            <span className="text-[13px] text-zinc-500">
+              Já tem uma conta?{" "}
+            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                setIsRightPanelActive(false);
+              }}
+              className="text-[13px] font-bold text-[#e53e3e] hover:underline"
+            >
+              Entrar
+            </button>
+          </div>
         </div>
 
         {/* ==================================================== */}
@@ -357,7 +362,7 @@ export default function AuthPage() {
         {/* ==================================================== */}
         <div className={`form-container sign-in-container ${isRightPanelActive ? "hidden lg:flex" : "flex"} min-h-[100dvh] lg:min-h-0 flex-col justify-center items-center px-6 py-12 lg:py-0 lg:px-12 bg-white transition-all duration-[600ms] ease-in-out lg:absolute lg:top-0 lg:h-full w-full lg:w-[50vw] ${isRightPanelActive ? "lg:left-[50vw] lg:opacity-0 lg:z-[1] lg:pointer-events-none" : "lg:left-0 lg:opacity-100 lg:z-[2]"}`}>
           <form onSubmit={handleLoginSubmit} className="flex flex-col gap-4 w-full max-w-[360px] animate-fade-in-up">
-            
+
             {/* Mobile logo (only shown if needed, but overlay is hidden on mobile so we might want a logo here) */}
             <div className="lg:hidden mb-6 w-full flex justify-center px-4">
               <Image
@@ -381,8 +386,8 @@ export default function AuthPage() {
 
             <div className="relative group">
               <div className={`flex items-center gap-3 bg-zinc-50/80 rounded-2xl border transition-all duration-200 px-4 h-[56px] ${loginUsernameFocused
-                  ? "border-brand-red/30 bg-white shadow-sm ring-4 ring-brand-red/[0.06]"
-                  : "border-zinc-200/80 hover:border-zinc-300"
+                ? "border-brand-red/30 bg-white shadow-sm ring-4 ring-brand-red/[0.06]"
+                : "border-zinc-200/80 hover:border-zinc-300"
                 }`}>
                 <User className={`size-[18px] shrink-0 transition-colors duration-200 ${loginUsernameFocused ? "text-brand-red" : "text-zinc-400"}`} />
                 <div className="flex-1 relative">
@@ -406,8 +411,8 @@ export default function AuthPage() {
 
             <div className="relative group">
               <div className={`flex items-center gap-3 bg-zinc-50/80 rounded-2xl border transition-all duration-200 px-4 h-[56px] ${loginPasswordFocused
-                  ? "border-brand-red/30 bg-white shadow-sm ring-4 ring-brand-red/[0.06]"
-                  : "border-zinc-200/80 hover:border-zinc-300"
+                ? "border-brand-red/30 bg-white shadow-sm ring-4 ring-brand-red/[0.06]"
+                : "border-zinc-200/80 hover:border-zinc-300"
                 }`}>
                 <Lock className={`size-[18px] shrink-0 transition-colors duration-200 ${loginPasswordFocused ? "text-brand-red" : "text-zinc-400"}`} />
                 <div className="flex-1 relative">
@@ -450,16 +455,12 @@ export default function AuthPage() {
                   Lembrar-me
                 </Label>
               </div>
-              <a
-                href="#forgot-password"
-                onClick={(e) => {
-                  e.preventDefault();
-                  toast.info("Recuperação de senha não implementada nesta demo.");
-                }}
+              <Link
+                href="/esqueci-senha"
                 className="text-[13px] font-semibold text-[#e53e3e] hover:underline decoration-2 underline-offset-4"
               >
                 Esqueceu a senha?
-              </a>
+              </Link>
             </div>
 
             <Button
@@ -477,20 +478,24 @@ export default function AuthPage() {
               )}
             </Button>
 
-            {/* Mobile-only toggle */}
-            <div className="lg:hidden mt-4 text-center">
-              <p className="text-[13px] text-zinc-500">
-                Não possui conta?{" "}
-                <button 
-                  type="button" 
-                  onClick={() => setIsRightPanelActive(true)}
-                  className="font-bold text-[#e53e3e] hover:underline"
-                >
-                  Cadastre-se
-                </button>
-              </p>
-            </div>
           </form>
+
+          {/* Mobile-only toggle */}
+          <div className="lg:hidden mt-6 text-center w-full max-w-[360px] animate-fade-in-up">
+            <span className="text-[13px] text-zinc-500">
+              Não possui conta?{" "}
+            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                setIsRightPanelActive(true);
+              }}
+              className="text-[13px] font-bold text-[#e53e3e] hover:underline"
+            >
+              Cadastre-se
+            </button>
+          </div>
         </div>
 
         {/* ==================================================== */}
@@ -498,7 +503,7 @@ export default function AuthPage() {
         {/* ==================================================== */}
         <div className={`overlay-container hidden lg:block absolute top-0 h-full w-[50vw] transition-all duration-[600ms] ease-in-out overflow-hidden z-[100] ${isRightPanelActive ? "left-0 rounded-r-[2.5rem] rounded-l-none" : "left-[50vw] rounded-l-[2.5rem] rounded-r-none"}`}>
           <div className={`overlay absolute top-0 h-full w-[100vw] transition-all duration-[600ms] ease-in-out bg-cover bg-no-repeat text-white ${isRightPanelActive ? "left-0" : "left-[-50vw]"}`} style={{ background: "linear-gradient(135deg, #e53e3e 0%, #aa3232 100%)" }}>
-            
+
             {/* OVERLAY LEFT (Appears when Sign Up is active, clicking "Entrar" switches to Sign In) */}
             <div className={`overlay-panel overlay-left absolute top-0 h-full w-[50vw] flex flex-col justify-center items-center px-10 pb-12 text-center transition-all duration-[600ms] ease-in-out ${isRightPanelActive ? "left-0" : "left-[-20%]"}`}>
               <Image

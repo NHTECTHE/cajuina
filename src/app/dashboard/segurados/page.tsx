@@ -1,8 +1,9 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import {
-  ShieldCheck, Plus, Search, Trash2,
+  ArrowLeft, ShieldCheck, Plus, Search, Trash2,
   Loader2, AlertCircle, CheckCircle2, X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -415,6 +416,7 @@ function DeleteConfirm({ nome, onConfirm, onClose, loading }: {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SeguradosPage() {
+  const router = useRouter()
   const [segurados, setSegurados] = React.useState<Segurado[]>([])
   const [loading, setLoading] = React.useState(true)
   const [search, setSearch] = React.useState("")
@@ -468,11 +470,16 @@ export default function SeguradosPage() {
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">Segurados</h1>
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-            {segurados.length} {segurados.length === 1 ? "segurado cadastrado" : "segurados cadastrados"}
-          </p>
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.back()} className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer shrink-0">
+            <ArrowLeft className="size-4" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">Segurados</h1>
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+              {segurados.length} {segurados.length === 1 ? "segurado cadastrado" : "segurados cadastrados"}
+            </p>
+          </div>
         </div>
         <button onClick={() => setModal("create")}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold bg-brand-red text-white hover:bg-brand-red/90 active:scale-[0.98] transition-all cursor-pointer shadow-sm shadow-brand-red/20 self-start sm:self-auto">
@@ -514,35 +521,54 @@ export default function SeguradosPage() {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
-              <thead>
-                <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40">
-                  {["Nome", "CNPJ", "Cidade", "Estado"].map(h => (
-                    <th key={h} className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {segurados.map((s, i) => (
-                  <tr key={s.id}
-                    onClick={() => setModal(s)}
-                    className={cn(
-                      "border-b border-zinc-100 dark:border-zinc-800/60 transition-colors cursor-pointer",
-                      i % 2 === 0 ? "" : "bg-zinc-50/40 dark:bg-zinc-800/20",
-                      "hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
-                    )}>
-                    <td className="px-4 py-3 font-semibold text-zinc-900 dark:text-zinc-100">{s.nome}</td>
-                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400 font-mono text-[12px]">{s.cnpj}</td>
-                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{s.cidade || "—"}</td>
-                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{s.estado || "—"}</td>
+          <>
+            {/* Mobile Cards */}
+            <div className="md:hidden flex flex-col p-4 gap-3">
+              {segurados.map((s) => (
+                <div key={s.id} onClick={() => setModal(s)}
+                  className="flex flex-col p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20 active:scale-[0.98] transition-all cursor-pointer shadow-sm gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[14px] text-zinc-900 dark:text-zinc-100">{s.nome}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 text-[12px] text-zinc-500 dark:text-zinc-400">
+                    <p><span className="font-medium text-zinc-600 dark:text-zinc-300">CNPJ:</span> {s.cnpj}</p>
+                    <p><span className="font-medium text-zinc-600 dark:text-zinc-300">Localização:</span> {s.cidade || "—"} {s.estado ? `- ${s.estado}` : ""}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40">
+                    {["Nome", "CNPJ", "Cidade", "Estado"].map(h => (
+                      <th key={h} className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {segurados.map((s, i) => (
+                    <tr key={s.id}
+                      onClick={() => setModal(s)}
+                      className={cn(
+                        "border-b border-zinc-100 dark:border-zinc-800/60 transition-colors cursor-pointer",
+                        i % 2 === 0 ? "" : "bg-zinc-50/40 dark:bg-zinc-800/20",
+                        "hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
+                      )}>
+                      <td className="px-4 py-3 font-semibold text-zinc-900 dark:text-zinc-100">{s.nome}</td>
+                      <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400 font-mono text-[12px]">{s.cnpj}</td>
+                      <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{s.cidade || "—"}</td>
+                      <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{s.estado || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

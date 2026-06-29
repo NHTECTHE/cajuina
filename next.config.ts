@@ -5,6 +5,9 @@ const devOrigins = process.env.NEXT_PUBLIC_DEV_ORIGINS?.split(",").map(s => s.tr
 const nextConfig: NextConfig = {
   // Gera um build autocontido em .next/standalone para uma imagem Docker enxuta.
   output: "standalone",
+  images: {
+    qualities: [25, 50, 75, 100],
+  },
   experimental: {
     serverActions: {
       allowedOrigins: [
