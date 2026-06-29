@@ -10,7 +10,7 @@ import {
   UserCog,
   LayoutGrid,
   KeyRound,
-  BellRing,
+  History,
   ChevronRight,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -73,10 +73,10 @@ const ITEMS = [
     iconColor: "text-emerald-500",
   },
   {
-    label: "Alerta Login",
-    description: "Configure alertas de acesso à conta",
-    icon: BellRing,
-    href: "/dashboard/ajustes/alerta-login",
+    label: "Registro de Atividades",
+    description: "Histórico geral de ações dos usuários",
+    icon: History,
+    href: "/dashboard/registro-atividades",
     iconBg: "bg-orange-50 dark:bg-orange-500/10",
     iconColor: "text-orange-500",
   },
