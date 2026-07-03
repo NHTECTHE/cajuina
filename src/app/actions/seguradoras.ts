@@ -19,13 +19,24 @@ function authHeaders(token: string) {
 export interface Seguradora {
   id?: number
   nome: string
-  valor_licitacao: string | null
-  valor_execucao: string | null
+  logo: string | null
+  meta: string | null
+  premio_minimo: string
   taxa_comissao: string | null
   dia_vencimento: number | null
   ativo?: boolean
   criado_em?: string
   atualizado_em?: string
+}
+
+function toFormData(payload: Record<string, unknown>, logoFile?: File | null): FormData {
+  const formData = new FormData()
+  for (const [key, value] of Object.entries(payload)) {
+    if (value === null || value === undefined) continue
+    formData.append(key, String(value))
+  }
+  if (logoFile) formData.append('logo', logoFile)
+  return formData
 }
 
 export async function listSeguradorasAction(search = '') {
@@ -47,15 +58,35 @@ export async function listSeguradorasAction(search = '') {
   }
 }
 
-export async function createSeguradoraAction(payload: Omit<Seguradora, 'id' | 'criado_em' | 'atualizado_em'>) {
+export async function getSeguradoraAction(id: number) {
+  const token = await getToken()
+  if (!token) return { error: 'Não autenticado' }
+
+  try {
+    const res = await fetch(`${API_URL}/seguradoras/${id}/`, {
+      headers: authHeaders(token),
+      cache: 'no-store',
+    })
+    if (!res.ok) return { error: 'Erro ao buscar seguradora' }
+    const json = await res.json()
+    return { data: json.data as Seguradora }
+  } catch {
+    return { error: 'Falha na comunicação com o servidor' }
+  }
+}
+
+export async function createSeguradoraAction(
+  payload: Omit<Seguradora, 'id' | 'logo' | 'criado_em' | 'atualizado_em'>,
+  logoFile?: File | null,
+) {
   const token = await getToken()
   if (!token) return { error: 'Não autenticado' }
 
   try {
     const res = await fetch(`${API_URL}/seguradoras/`, {
       method: 'POST',
-      headers: authHeaders(token),
-      body: JSON.stringify(payload),
+      headers: { Authorization: `Bearer ${token}` },
+      body: toFormData(payload, logoFile),
     })
     const json = await res.json()
     if (!res.ok) return { error: json.detail || JSON.stringify(json) }
@@ -65,15 +96,19 @@ export async function createSeguradoraAction(payload: Omit<Seguradora, 'id' | 'c
   }
 }
 
-export async function updateSeguradoraAction(id: number, payload: Partial<Seguradora>) {
+export async function updateSeguradoraAction(
+  id: number,
+  payload: Partial<Omit<Seguradora, 'logo'>>,
+  logoFile?: File | null,
+) {
   const token = await getToken()
   if (!token) return { error: 'Não autenticado' }
 
   try {
     const res = await fetch(`${API_URL}/seguradoras/${id}/`, {
       method: 'PATCH',
-      headers: authHeaders(token),
-      body: JSON.stringify(payload),
+      headers: { Authorization: `Bearer ${token}` },
+      body: toFormData(payload, logoFile),
     })
     const json = await res.json()
     if (!res.ok) return { error: json.detail || JSON.stringify(json) }
