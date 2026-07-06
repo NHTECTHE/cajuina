@@ -123,7 +123,8 @@ export default function HeroBanner() {
 
   // Trigger entrance animations on mount
   useEffect(() => {
-    setIsLoaded(true);
+    const timer = setTimeout(() => setIsLoaded(true), 50);
+    return () => clearTimeout(timer);
   }, []);
 
   // Auto-slide every 7 seconds
@@ -138,10 +139,12 @@ export default function HeroBanner() {
   // Phone auto-highlight every 2 seconds on Slide 2
   useEffect(() => {
     if (currentSlide !== 1) {
-      setActivePhone(1); // default to center when not on this slide
-      return;
+      const timer = setTimeout(() => setActivePhone(1), 50);
+      return () => clearTimeout(timer);
     }
-    setActivePhone(1); // start with center phone when slide enters
+    
+    const initialTimer = setTimeout(() => setActivePhone(1), 50);
+    
     const phoneTimer = setInterval(() => {
       setActivePhone((prev) => {
         if (prev === 1) return 0; // Center -> Left
@@ -149,7 +152,11 @@ export default function HeroBanner() {
         return 1; // Right -> Center
       });
     }, 2000);
-    return () => clearInterval(phoneTimer);
+    
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(phoneTimer);
+    };
   }, [currentSlide]);
 
   const handleNext = () => {
