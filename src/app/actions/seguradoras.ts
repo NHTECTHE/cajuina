@@ -25,6 +25,10 @@ export interface Seguradora {
   taxa_comissao: string | null
   dia_vencimento: number | null
   ativo?: boolean
+  api_usuario?: string
+  api_senha?: string
+  api_ou_name?: string
+  api_source_app?: string
   criado_em?: string
   atualizado_em?: string
 }

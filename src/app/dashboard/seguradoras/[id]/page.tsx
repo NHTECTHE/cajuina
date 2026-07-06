@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Building2, Loader2, Trash2 } from "lucide-react"
+import { ArrowLeft, Building2, Loader2, Trash2, Plug, CheckCircle2, XCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   getSeguradoraAction,
@@ -28,6 +28,8 @@ export default function SeguradoraDetailPage() {
   const [deleting, setDeleting] = React.useState(false)
   const [confirmDelete, setConfirmDelete] = React.useState(false)
   const [feedback, setFeedback] = React.useState<{ type: "success" | "error"; message: string } | null>(null)
+  const [testingApi, setTestingApi] = React.useState(false)
+  const [apiTestResult, setApiTestResult] = React.useState<{ ok: boolean; message: string } | null>(null)
 
   React.useEffect(() => {
     let active = true
@@ -45,6 +47,10 @@ export default function SeguradoraDetailPage() {
           taxa_comissao: s.taxa_comissao,
           dia_vencimento: s.dia_vencimento,
           ativo: s.ativo,
+          api_usuario: s.api_usuario ?? "",
+          api_senha: s.api_senha ?? "",
+          api_ou_name: s.api_ou_name ?? "",
+          api_source_app: s.api_source_app ?? "",
         })
       }
       setLoading(false)
@@ -76,6 +82,30 @@ export default function SeguradoraDetailPage() {
       setSeguradora(res.data!)
       setLogoFile(null)
       setFeedback({ type: "success", message: "Seguradora atualizada!" })
+    }
+  }
+
+  async function handleTestApi() {
+    if (!form) return
+    setTestingApi(true)
+    setApiTestResult(null)
+
+    // Ainda não há integração real com nenhuma seguradora — apenas valida
+    // se as credenciais necessárias estão preenchidas.
+    await new Promise(resolve => setTimeout(resolve, 600))
+
+    const camposFaltando = [
+      !form.api_usuario && "Usuário",
+      !form.api_senha && "Senha",
+      !form.api_ou_name && "OUName",
+      !form.api_source_app && "SourceApp",
+    ].filter(Boolean)
+
+    setTestingApi(false)
+    if (camposFaltando.length > 0) {
+      setApiTestResult({ ok: false, message: `Preencha: ${camposFaltando.join(", ")}.` })
+    } else {
+      setApiTestResult({ ok: true, message: "Credenciais preenchidas. Integração ainda não implementada para esta seguradora." })
     }
   }
 
@@ -200,6 +230,56 @@ export default function SeguradoraDetailPage() {
                 />
               </div>
             </Field>
+          </div>
+        </div>
+
+        {/* Integração API */}
+        <div className="p-6 flex flex-col gap-4">
+          <p className="text-[11.5px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
+            Integração API
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Usuário">
+              <input className={inputCls} type="text" autoComplete="off"
+                placeholder="Usuário da API"
+                value={form.api_usuario ?? ""}
+                onChange={e => set("api_usuario", e.target.value)} />
+            </Field>
+            <Field label="Senha">
+              <input className={inputCls} type="password" autoComplete="new-password"
+                placeholder="Senha da API"
+                value={form.api_senha ?? ""}
+                onChange={e => set("api_senha", e.target.value)} />
+            </Field>
+            <Field label="OUName">
+              <input className={inputCls} type="text" autoComplete="off"
+                placeholder="OUName"
+                value={form.api_ou_name ?? ""}
+                onChange={e => set("api_ou_name", e.target.value)} />
+            </Field>
+            <Field label="SourceApp">
+              <input className={inputCls} type="text" autoComplete="off"
+                placeholder="SourceApp"
+                value={form.api_source_app ?? ""}
+                onChange={e => set("api_source_app", e.target.value)} />
+            </Field>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={handleTestApi} disabled={testingApi}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12.5px] font-bold border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-60">
+              {testingApi ? <Loader2 className="size-3.5 animate-spin" /> : <Plug className="size-3.5" />}
+              {testingApi ? "Testando..." : "Testar API"}
+            </button>
+            {apiTestResult && (
+              <span className={cn(
+                "inline-flex items-center gap-1.5 text-[12px] font-semibold",
+                apiTestResult.ok ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+              )}>
+                {apiTestResult.ok ? <CheckCircle2 className="size-3.5" /> : <XCircle className="size-3.5" />}
+                {apiTestResult.message}
+              </span>
+            )}
           </div>
         </div>
 

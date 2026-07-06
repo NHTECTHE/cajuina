@@ -13,6 +13,10 @@ const EMPTY_FORM = {
   premio_minimo: "",
   taxa_comissao: null as string | null,
   dia_vencimento: null as number | null,
+  api_usuario: "",
+  api_senha: "",
+  api_ou_name: "",
+  api_source_app: "",
 }
 
 export default function NovaSeguradoraPage() {
@@ -121,6 +125,39 @@ export default function NovaSeguradoraPage() {
                 placeholder="1 – 31"
                 value={form.dia_vencimento ?? ""}
                 onChange={e => set("dia_vencimento", e.target.value ? Number(e.target.value) : null)} />
+            </Field>
+          </div>
+        </div>
+
+        {/* Integração API */}
+        <div className="p-6 flex flex-col gap-4">
+          <p className="text-[11.5px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
+            Integração API
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Usuário">
+              <input className={inputCls} type="text" autoComplete="off"
+                placeholder="Usuário da API"
+                value={form.api_usuario}
+                onChange={e => set("api_usuario", e.target.value)} />
+            </Field>
+            <Field label="Senha">
+              <input className={inputCls} type="password" autoComplete="new-password"
+                placeholder="Senha da API"
+                value={form.api_senha}
+                onChange={e => set("api_senha", e.target.value)} />
+            </Field>
+            <Field label="OUName">
+              <input className={inputCls} type="text" autoComplete="off"
+                placeholder="OUName"
+                value={form.api_ou_name}
+                onChange={e => set("api_ou_name", e.target.value)} />
+            </Field>
+            <Field label="SourceApp">
+              <input className={inputCls} type="text" autoComplete="off"
+                placeholder="SourceApp"
+                value={form.api_source_app}
+                onChange={e => set("api_source_app", e.target.value)} />
             </Field>
           </div>
         </div>
