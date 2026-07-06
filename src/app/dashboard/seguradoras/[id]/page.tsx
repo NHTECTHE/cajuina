@@ -12,6 +12,7 @@ import {
   type Seguradora,
 } from "@/app/actions/seguradoras"
 import { Feedback, Field, inputCls, CurrencyInput, LogoAvatar } from "../_components"
+import { Switch } from "@/components/ui/switch"
 
 export default function SeguradoraDetailPage() {
   const params = useParams<{ id: string }>()
@@ -145,10 +146,10 @@ export default function SeguradoraDetailPage() {
             <div className="flex items-center gap-2 mt-1">
               <span className={cn(
                 "inline-flex items-center gap-1.5 text-[11.5px] font-semibold",
-                seguradora.ativo ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-400 dark:text-zinc-500"
+                form.ativo ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-400 dark:text-zinc-500"
               )}>
-                <span className={cn("size-1.5 rounded-full", seguradora.ativo ? "bg-emerald-500" : "bg-zinc-400")} />
-                {seguradora.ativo ? "Ativa" : "Inativa"}
+                <span className={cn("size-1.5 rounded-full", form.ativo ? "bg-emerald-500" : "bg-zinc-400")} />
+                {form.ativo ? "Ativa" : "Inativa"}
               </span>
               <span className="text-zinc-300 dark:text-zinc-600">·</span>
               <span className="text-[12.5px] text-zinc-400 dark:text-zinc-500">
@@ -190,6 +191,14 @@ export default function SeguradoraDetailPage() {
                 placeholder="1 – 31"
                 value={form.dia_vencimento ?? ""}
                 onChange={e => set("dia_vencimento", e.target.value ? Number(e.target.value) : null)} />
+            </Field>
+            <Field label="Seguradora Ativa">
+              <div className="flex items-center h-9">
+                <Switch
+                  checked={form.ativo ?? false}
+                  onCheckedChange={(checked) => set("ativo", checked)}
+                />
+              </div>
             </Field>
           </div>
         </div>

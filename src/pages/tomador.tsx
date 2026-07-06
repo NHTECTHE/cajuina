@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import {
   Search,
   Plus,
@@ -14,6 +15,7 @@ import {
   FileText,
   UserCheck,
   Building,
+  Percent,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -24,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { NativeSelect } from "@/components/ui/native-select"
 import { toast } from "sonner"
 import { lookupCnpj, tomadoresApi, type TomadorResponse } from "@/services/api"
+import { listSeguradorasAction, type Seguradora } from "@/app/actions/seguradoras"
 
 // Masks
 const maskCNPJ = (v: string) => {
@@ -64,11 +67,17 @@ interface SocioRow {
 }
 
 export default function TomadorPage() {
+  const router = useRouter()
   const [tomadores, setTomadores] = useState<TomadorResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [view, setView] = useState<"list" | "form">("list")
-  const [currentTab, setCurrentTab] = useState<"dados" | "endereco" | "contatos" | "socios">("dados")
+  const [currentTab, setCurrentTab] = useState<"dados" | "endereco" | "contatos" | "socios" | "taxas">("dados")
+
+  // Taxas tab — read-only list of insurers and their commercial rates
+  const [seguradoras, setSeguradoras] = useState<Seguradora[]>([])
+  const [seguradorasLoaded, setSeguradorasLoaded] = useState(false)
+  const loadingSeguradoras = currentTab === "taxas" && !seguradorasLoaded
 
   // Editing state — stores the backend id of the record being edited
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -303,6 +312,18 @@ export default function TomadorPage() {
       socios: prev.socios.filter((_, i) => i !== idx)
     }))
   }
+
+  useEffect(() => {
+    if (currentTab !== "taxas" || seguradorasLoaded) return
+    let cancelled = false
+    listSeguradorasAction().then((result) => {
+      if (cancelled) return
+      if (result.data) setSeguradoras(result.data)
+      else if (result.error) toast.error(result.error)
+      setSeguradorasLoaded(true)
+    })
+    return () => { cancelled = true }
+  }, [currentTab, seguradorasLoaded])
 
   const [cnpjLoading, setCnpjLoading] = React.useState(false)
 
@@ -669,6 +690,20 @@ export default function TomadorPage() {
             >
               <UserCheck className="size-4" />
               <span>Quadro de Sócios ({formData.socios.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCurrentTab("taxas")}
+              className={cn(
+                "w-full md:w-auto justify-start md:justify-center px-4 py-2.5 text-xs font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer",
+                currentTab === "taxas"
+                  ? "border-brand-red text-brand-red"
+                  : "border-transparent text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              )}
+            >
+              <Percent className="size-4" />
+              <span>Taxas</span>
             </button>
           </div>
 
@@ -1197,6 +1232,65 @@ export default function TomadorPage() {
                     <p className="col-span-full text-center text-xs opacity-50">Nenhum sócio ou administrador cadastrado.</p>
                   )}
                 </div>
+
+            </div>
+
+            {/* ──── TAB: TAXAS ──── */}
+            <div className={cn("space-y-6", currentTab !== "taxas" && "md:hidden")}>
+
+                <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 space-y-4">
+                  <h3 className="text-xs font-black text-brand-red uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <Percent className="size-4.5" />
+                    <span>Taxas por Seguradora</span>
+                  </h3>
+                  <p className="text-xs opacity-60">
+                    Taxa de comissão, vencimento e prêmio mínimo cadastrados para cada seguradora. Para alterar esses valores, acesse o cadastro da seguradora.
+                  </p>
+                </div>
+
+                {loadingSeguradoras ? (
+                  <div className="flex items-center justify-center py-12">
+                    <span className="w-5 h-5 border-2 border-brand-red border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {seguradoras.filter((s) => s.ativo !== false).map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => router.push(`/dashboard/seguradoras/${s.id}`)}
+                        className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200/50 dark:border-zinc-800/40 p-4 shadow-sm hover:shadow-md hover:border-brand-red/40 transition-shadow flex flex-col items-center text-center gap-1 cursor-pointer"
+                      >
+                        <h4 className="font-bold text-xs uppercase tracking-wide mb-2">{s.nome}</h4>
+                        <div className="w-16 h-16 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/60 flex items-center justify-center overflow-hidden mb-3">
+                          {s.logo ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={s.logo} alt={s.nome} className="w-full h-full object-contain" />
+                          ) : (
+                            <Building className="size-6 text-zinc-300 dark:text-zinc-600" />
+                          )}
+                        </div>
+                        <div className="w-full flex items-center justify-between text-xs">
+                          <span className="opacity-60">Taxa</span>
+                          <span className="font-semibold">{s.taxa_comissao ? `${s.taxa_comissao}%` : "-"}</span>
+                        </div>
+                        <div className="w-full flex items-center justify-between text-xs">
+                          <span className="opacity-60">Venc</span>
+                          <span className="font-semibold">{s.dia_vencimento ?? "-"}</span>
+                        </div>
+                        <div className="w-full flex items-center justify-between text-xs">
+                          <span className="opacity-60">P. M.</span>
+                          <span className="font-semibold">
+                            {Number(s.premio_minimo).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                    {seguradoras.filter((s) => s.ativo !== false).length === 0 && (
+                      <p className="col-span-full text-center text-xs opacity-50 py-12">Nenhuma seguradora cadastrada.</p>
+                    )}
+                  </div>
+                )}
 
             </div>
 
