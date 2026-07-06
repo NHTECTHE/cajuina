@@ -19,6 +19,7 @@ import {
   CheckCircle2
 } from "lucide-react"
 import { toast, Toaster } from "sonner"
+import { lookupCnpj } from "@/services/api"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -112,12 +113,35 @@ export default function AuthPage() {
   const [showRegPassword, setShowRegPassword] = useState(false)
   const [isLoadingReg, setIsLoadingReg] = useState(false)
   const [isSuccessReg, setIsSuccessReg] = useState(false)
+  const [cnpjLoading, setCnpjLoading] = useState(false)
 
-  const handleRegChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleRegChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     let newValue = value;
 
-    if (id === "cnpj") newValue = maskCNPJ(value);
+    if (id === "cnpj") {
+      newValue = maskCNPJ(value);
+      const digits = newValue.replace(/\D/g, "");
+      if (digits.length === 14) {
+        setCnpjLoading(true);
+        try {
+          const data = await lookupCnpj(digits);
+          setRegData(prev => ({
+            ...prev,
+            cnpj: newValue,
+            nome: data.razao_social || data.nome_fantasia || prev.nome,
+            email: data.email || prev.email,
+            telefone: maskPhone(data.telefone || "") || prev.telefone,
+          }));
+          setCnpjLoading(false);
+          return;
+        } catch {
+          toast.error("CNPJ não encontrado");
+        } finally {
+          setCnpjLoading(false);
+        }
+      }
+    }
     if (id === "telefone") newValue = maskPhone(value);
 
     setRegData(prev => ({ ...prev, [id]: newValue }));
@@ -225,14 +249,17 @@ export default function AuthPage() {
                     type="text"
                     value={regData.cnpj}
                     onChange={handleRegChange}
-                    disabled={isLoadingReg}
+                    disabled={isLoadingReg || cnpjLoading}
                     placeholder=" "
                     required
-                    className="peer w-full bg-transparent pt-3 pb-0 text-[13px] text-zinc-800 outline-none placeholder-transparent disabled:opacity-50"
+                    className="peer w-full bg-transparent pt-3 pb-0 pr-8 text-[13px] text-zinc-800 outline-none placeholder-transparent disabled:opacity-50"
                   />
                   <label className="absolute left-0 top-1/2 -translate-y-1/2 text-[12px] text-zinc-500 pointer-events-none transition-all duration-200 peer-focus:top-1 peer-focus:translate-y-0 peer-focus:text-[9px] peer-focus:font-semibold peer-focus:text-brand-red peer-[:not(:placeholder-shown)]:top-1 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-[9px] peer-[:not(:placeholder-shown)]:font-semibold peer-[:not(:placeholder-shown)]:text-zinc-500">
                     CNPJ
                   </label>
+                  {cnpjLoading && (
+                    <Loader2 className="absolute right-0 top-1/2 -translate-y-1/2 size-4 animate-spin text-brand-red" />
+                  )}
                 </div>
               </div>
             </div>
