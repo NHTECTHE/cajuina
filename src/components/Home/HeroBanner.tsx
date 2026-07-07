@@ -372,7 +372,7 @@ export default function HeroBanner() {
                         : "-translate-x-24 lg:-translate-x-40 -rotate-12 scale-95 lg:scale-100 opacity-80 z-10"
                     }`}>
                       <PhoneMockup>
-                        <ImageScreen src="/tela-inicio.png" />
+                        <ImageScreen src="/tela-inicio.webp" />
                       </PhoneMockup>
                     </div>
 
@@ -383,7 +383,7 @@ export default function HeroBanner() {
                         : "translate-x-24 lg:translate-x-40 rotate-12 scale-95 lg:scale-100 opacity-80 z-10"
                     }`}>
                       <PhoneMockup>
-                        <ImageScreen src="/tela-tomador.png" />
+                        <ImageScreen src="/tela-tomador.webp" />
                       </PhoneMockup>
                     </div>
                     
@@ -394,7 +394,7 @@ export default function HeroBanner() {
                         : "rotate-0 scale-[1.10] lg:scale-[1.15] opacity-90 z-20"
                     }`}>
                       <PhoneMockup>
-                        <ImageScreen src="/tela-login.png" />
+                        <ImageScreen src="/tela-login.webp" />
                       </PhoneMockup>
                     </div>
 
