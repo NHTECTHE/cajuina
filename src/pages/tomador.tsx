@@ -27,9 +27,19 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { NativeSelect } from "@/components/ui/native-select"
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
+} from "@/components/ui/combobox"
 import { toast } from "sonner"
 import { lookupCnpj, tomadoresApi, type TomadorResponse } from "@/services/api"
 import { listSeguradorasAction, type Seguradora } from "@/app/actions/seguradoras"
+import { listProdutoresAction, type Produtor } from "@/app/actions/produtores"
+import { listCorretoresAction, type Corretor } from "@/app/actions/corretores"
 import {
   listTomadorArquivosAction,
   uploadTomadorArquivoAction,
@@ -88,6 +98,11 @@ export default function TomadorPage() {
   const [seguradorasLoaded, setSeguradorasLoaded] = useState(false)
   const loadingSeguradoras = currentTab === "taxas" && !seguradorasLoaded
 
+  // Produtores / Corretores — cadastros used to populate the form comboboxes
+  const [produtores, setProdutores] = useState<Produtor[]>([])
+  const [corretores, setCorretores] = useState<Corretor[]>([])
+  const [cadastrosLoaded, setCadastrosLoaded] = useState(false)
+
   // Arquivos tab — files attached to the tomador being edited
   const [arquivos, setArquivos] = useState<TomadorArquivo[]>([])
   const [arquivosLoadedFor, setArquivosLoadedFor] = useState<number | null>(null)
@@ -108,8 +123,8 @@ export default function TomadorPage() {
   const initialFormState = {
     cnpj: "",
     nome: "",
-    produtor: "CAJUINA SEGUROS",
-    corretora: "CAJUINA",
+    produtor: "",
+    corretora: "",
     cidade: "",
     uf: "PI",
     contato: "",
@@ -172,6 +187,20 @@ export default function TomadorPage() {
 
   const totalPages = Math.max(1, Math.ceil(filteredTomadores.length / itemsPerPage))
 
+  // Combobox options — names of registered produtores/corretores, keeping the
+  // current form value in the list so an existing/default selection stays visible.
+  const produtorItems = useMemo(() => {
+    const names = produtores.map(p => p.nome).filter(Boolean)
+    if (formData.produtor && !names.includes(formData.produtor)) names.unshift(formData.produtor)
+    return names
+  }, [produtores, formData.produtor])
+
+  const corretorItems = useMemo(() => {
+    const names = corretores.map(c => c.nome).filter(Boolean)
+    if (formData.corretora && !names.includes(formData.corretora)) names.unshift(formData.corretora)
+    return names
+  }, [corretores, formData.corretora])
+
   // Clean filters
   const handleClearFilters = () => {
     setSearchQuery("")
@@ -188,8 +217,8 @@ export default function TomadorPage() {
     setFormData({
       cnpj: tomador.cnpj,
       nome: tomador.nome,
-      produtor: tomador.produtor,
-      corretora: tomador.corretora || "CAJUINA",
+      produtor: tomador.produtor || "",
+      corretora: tomador.corretora || "",
       cidade: tomador.cidade || "",
       uf: tomador.uf || "",
       contato: tomador.contato || "",
@@ -343,6 +372,20 @@ export default function TomadorPage() {
     })
     return () => { cancelled = true }
   }, [currentTab, seguradorasLoaded])
+
+  useEffect(() => {
+    if (view !== "form" || cadastrosLoaded) return
+    let cancelled = false
+    Promise.all([listProdutoresAction(), listCorretoresAction()]).then(([prod, corr]) => {
+      if (cancelled) return
+      if (prod.data) setProdutores(prod.data)
+      else if (prod.error) toast.error(prod.error)
+      if (corr.data) setCorretores(corr.data)
+      else if (corr.error) toast.error(corr.error)
+      setCadastrosLoaded(true)
+    })
+    return () => { cancelled = true }
+  }, [view, cadastrosLoaded])
 
   useEffect(() => {
     if (currentTab !== "arquivos" || editingId === null || arquivosLoadedFor === editingId) return
@@ -788,27 +831,55 @@ export default function TomadorPage() {
                     {/* Produtor */}
                     <div className="space-y-2">
                       <Label htmlFor="form-produtor" className="text-xs font-bold">Produtor</Label>
-                      <NativeSelect
-                        id="form-produtor"
+                      <Combobox
+                        items={produtorItems}
                         value={formData.produtor}
-                        onChange={(e) => setFormData(prev => ({ ...prev, produtor: e.target.value }))}
-                        className="w-full h-10 [&>select]:h-10 [&>select]:rounded-xl [&>select]:border-zinc-200/80 dark:[&>select]:border-zinc-800/80"
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, produtor: value ?? "" }))}
                       >
-                        <option value="CAJUINA SEGUROS">CAJUINA SEGUROS</option>
-                      </NativeSelect>
+                        <ComboboxInput
+                          id="form-produtor"
+                          placeholder={cadastrosLoaded ? "Pesquisar produtor..." : "Carregando produtores..."}
+                          disabled={!cadastrosLoaded}
+                          className="w-full h-10 [&_input]:h-10 rounded-xl border-zinc-200/80 dark:border-zinc-800/80"
+                        />
+                        <ComboboxContent>
+                          <ComboboxEmpty>Nenhum produtor encontrado.</ComboboxEmpty>
+                          <ComboboxList>
+                            {(item: string) => (
+                              <ComboboxItem key={item} value={item}>
+                                {item}
+                              </ComboboxItem>
+                            )}
+                          </ComboboxList>
+                        </ComboboxContent>
+                      </Combobox>
                     </div>
 
                     {/* Corretora */}
                     <div className="space-y-2">
                       <Label htmlFor="form-corretora" className="text-xs font-bold">Corretora</Label>
-                      <NativeSelect
-                        id="form-corretora"
+                      <Combobox
+                        items={corretorItems}
                         value={formData.corretora}
-                        onChange={(e) => setFormData(prev => ({ ...prev, corretora: e.target.value }))}
-                        className="w-full h-10 [&>select]:h-10 [&>select]:rounded-xl [&>select]:border-zinc-200/80 dark:[&>select]:border-zinc-800/80"
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, corretora: value ?? "" }))}
                       >
-                        <option value="CAJUINA">CAJUINA</option>
-                      </NativeSelect>
+                        <ComboboxInput
+                          id="form-corretora"
+                          placeholder={cadastrosLoaded ? "Pesquisar corretora..." : "Carregando corretoras..."}
+                          disabled={!cadastrosLoaded}
+                          className="w-full h-10 [&_input]:h-10 rounded-xl border-zinc-200/80 dark:border-zinc-800/80"
+                        />
+                        <ComboboxContent>
+                          <ComboboxEmpty>Nenhuma corretora encontrada.</ComboboxEmpty>
+                          <ComboboxList>
+                            {(item: string) => (
+                              <ComboboxItem key={item} value={item}>
+                                {item}
+                              </ComboboxItem>
+                            )}
+                          </ComboboxList>
+                        </ComboboxContent>
+                      </Combobox>
                     </div>
 
                     {/* CNPJ */}

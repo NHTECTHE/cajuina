@@ -39,6 +39,39 @@
   --brand-red-hover: #c53030;
 }
 
+.dark {
+  /* Dark surfaces matched to the dashboard's existing custom widgets
+     (#0f1424 cards / #0b0e17 inputs), with light foregrounds so text
+     inverts correctly instead of staying near-black. */
+  --background: oklch(0.17 0.02 265);
+  --foreground: oklch(0.98 0.005 265);
+
+  --card: oklch(0.21 0.025 265);
+  --card-foreground: oklch(0.98 0.005 265);
+
+  --popover: oklch(0.21 0.025 265);
+  --popover-foreground: oklch(0.98 0.005 265);
+
+  --primary: oklch(0.62 0.21 24.5);
+  --primary-foreground: oklch(0.99 0 0);
+
+  --secondary: oklch(0.27 0.02 265);
+  --secondary-foreground: oklch(0.98 0.005 265);
+
+  --muted: oklch(0.27 0.02 265);
+  --muted-foreground: oklch(0.72 0.015 265);
+
+  --accent: oklch(0.3 0.02 265);
+  --accent-foreground: oklch(0.98 0.005 265);
+
+  --destructive: oklch(0.6 0.22 24.5);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --border: oklch(0.3 0.02 265);
+  --input: oklch(0.3 0.02 265);
+  --ring: oklch(0.62 0.21 24.5);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

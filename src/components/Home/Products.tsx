@@ -75,7 +75,7 @@ const AnimatedTitle = () => {
 
 export default function Products() {
   return (
-    <section className="w-full text-white overflow-hidden bg-white lg:bg-brand-red">
+    <section id="seguros" className="w-full text-white overflow-hidden bg-white lg:bg-brand-red">
 
       {/* HEADER SECTION */}
       <div className="w-full bg-white lg:bg-brand-red pt-16 pb-6 lg:pt-36 lg:pb-16 text-center flex justify-center">
