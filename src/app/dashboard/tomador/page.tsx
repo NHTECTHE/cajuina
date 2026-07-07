@@ -1,4 +1,4 @@
-import TomadorPage from "@/pages/tomador"
+import TomadorPage from "@/components/tomador/TomadorPage"
 
 export default function Page() {
   return <TomadorPage />

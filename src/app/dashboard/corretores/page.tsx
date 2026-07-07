@@ -7,6 +7,7 @@ import {
   Loader2, AlertCircle, CheckCircle2, X, ChevronDown,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { lookupCnpj } from "@/services/api"
 import {
   type Corretor,
   listCorretoresAction,
@@ -106,9 +107,36 @@ function CorretorModal({ corretor, onClose, onSaved, onDelete }: ModalProps) {
   const [saving, setSaving] = React.useState(false)
   const [confirmSave, setConfirmSave] = React.useState(false)
   const [feedback, setFeedback] = React.useState<{ type: "success" | "error"; message: string } | null>(null)
+  const [cnpjLoading, setCnpjLoading] = React.useState(false)
+  const [cnpjError, setCnpjError] = React.useState<string | null>(null)
 
   function set(field: string, value: string) {
     setForm(f => ({ ...f, [field]: value }))
+  }
+
+  async function handleCpfCnpjChange(raw: string) {
+    const formatted = formatCpfCnpj(raw)
+    set("cpf_cnpj", formatted)
+    setCnpjError(null)
+
+    const digits = raw.replace(/\D/g, "")
+    if (digits.length === 14) {
+      setCnpjLoading(true)
+      try {
+        const data = await lookupCnpj(digits)
+        setForm(f => ({
+          ...f,
+          cpf_cnpj: formatted,
+          nome: data.razao_social || data.nome_fantasia || f.nome,
+          email: data.email || f.email,
+          telefone: formatTel(data.telefone || "") || f.telefone,
+        }))
+      } catch {
+        setCnpjError("CNPJ não encontrado")
+      } finally {
+        setCnpjLoading(false)
+      }
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -173,10 +201,21 @@ function CorretorModal({ corretor, onClose, onSaved, onDelete }: ModalProps) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="CPF / CNPJ" required>
-                <input className={inputCls} placeholder="000.000.000-00 ou 00.000.000/0001-00"
-                  value={form.cpf_cnpj}
-                  onChange={e => set("cpf_cnpj", formatCpfCnpj(e.target.value))}
-                  required maxLength={18} />
+                <div className="relative">
+                  <input className={cn(inputCls, cnpjLoading && "pr-10")} placeholder="000.000.000-00 ou 00.000.000/0001-00"
+                    value={form.cpf_cnpj}
+                    onChange={e => handleCpfCnpjChange(e.target.value)}
+                    required maxLength={18} />
+                  {cnpjLoading && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-brand-red" />
+                  )}
+                </div>
+                {cnpjError && (
+                  <p className="text-[11.5px] text-red-500 flex items-center gap-1 mt-0.5">
+                    <AlertCircle className="size-3 shrink-0" />
+                    {cnpjError}
+                  </p>
+                )}
               </Field>
               <Field label="Nome" required>
                 <input className={inputCls} placeholder="Nome completo ou razão social"
