@@ -229,6 +229,10 @@ export default function TomadorPage() {
       .then(() => {
         setTomadores(prev => prev.filter(t => t.id !== id))
         toast.success("Tomador excluído com sucesso!")
+        if (editingId === id) {
+          setView("list")
+          setEditingId(null)
+        }
       })
       .catch((err: Error) => toast.error(err.message || "Erro ao excluir tomador."))
   }
@@ -571,7 +575,8 @@ export default function TomadorPage() {
                 return (
                   <div
                     key={t.id}
-                    className="group grid grid-cols-12 gap-4 items-center bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl p-3.5 md:py-3.5 md:px-5 hover:border-brand-red/40 dark:hover:border-brand-red/40 hover:shadow-md transition-all duration-200 relative"
+                    onClick={() => handleEditClick(t.id)}
+                    className="cursor-pointer group grid grid-cols-12 gap-4 items-center bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl p-3.5 md:py-3.5 md:px-5 hover:border-brand-red/40 dark:hover:border-brand-red/40 hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50 hover:shadow-md transition-all duration-200 relative"
                   >
                     {/* Tomador */}
                     <div className="col-span-12 md:col-span-4 flex flex-col gap-1">
@@ -606,23 +611,7 @@ export default function TomadorPage() {
                         <span className="font-medium">{t.cidade ? `${t.cidade}/${t.uf}` : "N/A"}</span>
                       </div>
 
-                      {/* Action buttons on the right */}
-                      <div className="flex items-center gap-1 opacity-80 md:opacity-0 md:group-hover:opacity-100 hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handleEditClick(t.id)}
-                          title="Editar Tomador"
-                          className="w-7 h-7 rounded-md flex items-center justify-center border border-zinc-200 dark:border-zinc-850 hover:bg-zinc-150 dark:hover:bg-zinc-900 text-zinc-650 dark:text-zinc-400 hover:text-brand-red dark:hover:text-brand-red transition-all cursor-pointer"
-                        >
-                          <Edit className="size-3" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClick(t.id)}
-                          title="Excluir Tomador"
-                          className="w-7 h-7 rounded-md flex items-center justify-center border border-zinc-200 dark:border-zinc-850 hover:bg-zinc-150 dark:hover:bg-zinc-900 text-zinc-650 dark:text-zinc-400 hover:text-red-500 transition-all cursor-pointer"
-                        >
-                          <Trash2 className="size-3" />
-                        </button>
-                      </div>
+                      {/* Action buttons on the right removed */}
                     </div>
                   </div>
                 );
@@ -875,24 +864,14 @@ export default function TomadorPage() {
                     {/* E-mail */}
                     <div className="space-y-2">
                       <Label htmlFor="form-email" className="text-xs font-bold">E-mail</Label>
-                      <div className="flex items-center gap-3">
-                        <Input
-                          id="form-email"
-                          type="email"
-                          placeholder="exemplo@email.com"
-                          value={formData.email}
-                          onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                          className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30 flex-1"
-                        />
-                        <div className="flex items-center gap-2 select-none border border-zinc-250/10 px-3 py-2 rounded-xl h-10 bg-black/5 dark:bg-white/5 shrink-0">
-                          <Checkbox
-                            id="form-habilitar-email"
-                            checked={formData.habilitarEmail}
-                            onCheckedChange={(checked) => setFormData(prev => ({ ...prev, habilitarEmail: !!checked }))}
-                          />
-                          <Label htmlFor="form-habilitar-email" className="text-xs cursor-pointer">Habilitar e-mail</Label>
-                        </div>
-                      </div>
+                      <Input
+                        id="form-email"
+                        type="email"
+                        placeholder="exemplo@email.com"
+                        value={formData.email}
+                        onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30 w-full"
+                      />
                     </div>
 
                     {/* Telefone */}
@@ -941,18 +920,6 @@ export default function TomadorPage() {
                         onChange={(e) => setFormData(prev => ({ ...prev, observacoes: e.target.value }))}
                         className="rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30 min-h-[80px]"
                       />
-                    </div>
-
-                    {/* Checkbox Ativar Cotação */}
-                    <div className="md:col-span-2 flex items-center gap-2 select-none mt-2">
-                      <Checkbox
-                        id="form-ativar-cotacao"
-                        checked={formData.ativarCotacao}
-                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, ativarCotacao: !!checked }))}
-                      />
-                      <Label htmlFor="form-ativar-cotacao" className="text-xs font-bold cursor-pointer">
-                        Ativar Cotação Automática nas Seguradoras?
-                      </Label>
                     </div>
 
                   </div>
@@ -1478,26 +1445,40 @@ export default function TomadorPage() {
 
           {/* Form action footer buttons */}
           <div className="flex items-center gap-3 border-t border-zinc-200/50 dark:border-zinc-800/50 pt-5 shrink-0">
-            <Button
-              type="submit"
-              disabled={saving}
-              className="bg-brand-red text-white hover:bg-brand-red/90 font-bold px-6 py-2.5 h-10.5 rounded-xl cursor-pointer shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {saving && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              <span>{saving ? "Salvando..." : "Salvar Cadastro"}</span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={saving}
-              onClick={() => {
-                setView("list")
-                setEditingId(null)
-              }}
-              className="border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold px-6 py-2.5 h-10.5 rounded-xl cursor-pointer transition-all"
-            >
-              <span>Cancelar</span>
-            </Button>
+            {editingId !== null && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={saving}
+                onClick={() => handleDeleteClick(editingId)}
+                className="bg-red-50 text-red-600 hover:bg-red-100 border-red-200 hover:border-red-300 font-semibold px-4 py-2.5 h-10.5 rounded-xl cursor-pointer transition-all flex items-center gap-2 mr-auto"
+              >
+                <Trash2 className="size-4" />
+                Excluir
+              </Button>
+            )}
+            <div className={cn("flex items-center gap-3", editingId === null && "ml-auto")}>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={saving}
+                onClick={() => {
+                  setView("list")
+                  setEditingId(null)
+                }}
+                className="border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold px-6 py-2.5 h-10.5 rounded-xl cursor-pointer transition-all"
+              >
+                <span>Cancelar</span>
+              </Button>
+              <Button
+                type="submit"
+                disabled={saving}
+                className="bg-brand-red text-white hover:bg-brand-red/90 font-bold px-6 py-2.5 h-10.5 rounded-xl cursor-pointer shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {saving && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                <span>{saving ? "Salvando..." : "Salvar Cadastro"}</span>
+              </Button>
+            </div>
           </div>
 
         </form>
