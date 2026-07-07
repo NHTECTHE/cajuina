@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import {
   Search,
   Plus,
@@ -14,6 +15,10 @@ import {
   FileText,
   UserCheck,
   Building,
+  Percent,
+  Paperclip,
+  Download,
+  Upload,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -24,6 +29,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { NativeSelect } from "@/components/ui/native-select"
 import { toast } from "sonner"
 import { lookupCnpj, tomadoresApi, type TomadorResponse } from "@/services/api"
+import { listSeguradorasAction, type Seguradora } from "@/app/actions/seguradoras"
+import {
+  listTomadorArquivosAction,
+  uploadTomadorArquivoAction,
+  deleteTomadorArquivoAction,
+  type TomadorArquivo,
+} from "@/app/actions/tomador-arquivos"
 
 // Masks
 const maskCNPJ = (v: string) => {
@@ -64,11 +76,23 @@ interface SocioRow {
 }
 
 export default function TomadorPage() {
+  const router = useRouter()
   const [tomadores, setTomadores] = useState<TomadorResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [view, setView] = useState<"list" | "form">("list")
-  const [currentTab, setCurrentTab] = useState<"dados" | "endereco" | "contatos" | "socios">("dados")
+  const [currentTab, setCurrentTab] = useState<"dados" | "endereco" | "contatos" | "socios" | "taxas" | "arquivos">("dados")
+
+  // Taxas tab — read-only list of insurers and their commercial rates
+  const [seguradoras, setSeguradoras] = useState<Seguradora[]>([])
+  const [seguradorasLoaded, setSeguradorasLoaded] = useState(false)
+  const loadingSeguradoras = currentTab === "taxas" && !seguradorasLoaded
+
+  // Arquivos tab — files attached to the tomador being edited
+  const [arquivos, setArquivos] = useState<TomadorArquivo[]>([])
+  const [arquivosLoadedFor, setArquivosLoadedFor] = useState<number | null>(null)
+  const [uploadingArquivo, setUploadingArquivo] = useState(false)
+  const loadingArquivos = currentTab === "arquivos" && arquivosLoadedFor === null
 
   // Editing state — stores the backend id of the record being edited
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -306,6 +330,64 @@ export default function TomadorPage() {
       ...prev,
       socios: prev.socios.filter((_, i) => i !== idx)
     }))
+  }
+
+  useEffect(() => {
+    if (currentTab !== "taxas" || seguradorasLoaded) return
+    let cancelled = false
+    listSeguradorasAction().then((result) => {
+      if (cancelled) return
+      if (result.data) setSeguradoras(result.data)
+      else if (result.error) toast.error(result.error)
+      setSeguradorasLoaded(true)
+    })
+    return () => { cancelled = true }
+  }, [currentTab, seguradorasLoaded])
+
+  useEffect(() => {
+    if (currentTab !== "arquivos" || editingId === null || arquivosLoadedFor === editingId) return
+    let cancelled = false
+    listTomadorArquivosAction(editingId).then((result) => {
+      if (cancelled) return
+      if (result.data) setArquivos(result.data)
+      else if (result.error) toast.error(result.error)
+      setArquivosLoadedFor(editingId)
+    })
+    return () => { cancelled = true }
+  }, [currentTab, editingId, arquivosLoadedFor])
+
+  async function handleUploadArquivo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file || editingId === null) return
+    setUploadingArquivo(true)
+    const result = await uploadTomadorArquivoAction(editingId, file)
+    setUploadingArquivo(false)
+    if (result.error) {
+      toast.error(result.error)
+      return
+    }
+    if (result.data) {
+      setArquivos(prev => [result.data!, ...prev])
+      toast.success("Arquivo enviado com sucesso.")
+    }
+  }
+
+  async function handleDeleteArquivo(arquivo: TomadorArquivo) {
+    if (editingId === null) return
+    const result = await deleteTomadorArquivoAction(editingId, arquivo.id)
+    if (result.error) {
+      toast.error(result.error)
+      return
+    }
+    setArquivos(prev => prev.filter(a => a.id !== arquivo.id))
+    toast.success("Arquivo removido.")
+  }
+
+  function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
   const [cnpjLoading, setCnpjLoading] = React.useState(false)
@@ -658,6 +740,34 @@ export default function TomadorPage() {
             >
               <UserCheck className="size-4" />
               <span>Quadro de Sócios ({formData.socios.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCurrentTab("taxas")}
+              className={cn(
+                "w-full md:w-auto justify-start md:justify-center px-4 py-2.5 text-xs font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer",
+                currentTab === "taxas"
+                  ? "border-brand-red text-brand-red"
+                  : "border-transparent text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              )}
+            >
+              <Percent className="size-4" />
+              <span>Taxas</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCurrentTab("arquivos")}
+              className={cn(
+                "w-full md:w-auto justify-start md:justify-center px-4 py-2.5 text-xs font-bold border-b-2 transition-all flex items-center gap-2 cursor-pointer",
+                currentTab === "arquivos"
+                  ? "border-brand-red text-brand-red"
+                  : "border-transparent text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              )}
+            >
+              <Paperclip className="size-4" />
+              <span>Arquivos {editingId !== null && `(${arquivos.length})`}</span>
             </button>
           </div>
 
@@ -1164,6 +1274,170 @@ export default function TomadorPage() {
                     <p className="col-span-full text-center text-xs opacity-50">Nenhum sócio ou administrador cadastrado.</p>
                   )}
                 </div>
+
+            </div>
+
+            {/* ──── TAB: TAXAS ──── */}
+            <div className={cn("space-y-6", currentTab !== "taxas" && "md:hidden")}>
+
+                <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 space-y-4">
+                  <h3 className="text-xs font-black text-brand-red uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <Percent className="size-4.5" />
+                    <span>Taxas por Seguradora</span>
+                  </h3>
+                  <p className="text-xs opacity-60">
+                    Taxa de comissão, vencimento e prêmio mínimo cadastrados para cada seguradora. Para alterar esses valores, acesse o cadastro da seguradora.
+                  </p>
+                </div>
+
+                {loadingSeguradoras ? (
+                  <div className="flex items-center justify-center py-12">
+                    <span className="w-5 h-5 border-2 border-brand-red border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {seguradoras.filter((s) => s.ativo !== false).map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => router.push(`/dashboard/seguradoras/${s.id}`)}
+                        className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200/50 dark:border-zinc-800/40 p-4 shadow-sm hover:shadow-md hover:border-brand-red/40 transition-shadow flex flex-col items-center text-center gap-1 cursor-pointer"
+                      >
+                        <h4 className="font-bold text-xs uppercase tracking-wide mb-2">{s.nome}</h4>
+                        <div className="w-16 h-16 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/60 flex items-center justify-center overflow-hidden mb-3">
+                          {s.logo ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={s.logo} alt={s.nome} className="w-full h-full object-contain" />
+                          ) : (
+                            <Building className="size-6 text-zinc-300 dark:text-zinc-600" />
+                          )}
+                        </div>
+                        <div className="w-full flex items-center justify-between text-xs">
+                          <span className="opacity-60">Taxa</span>
+                          <span className="font-semibold">{s.taxa_comissao ? `${s.taxa_comissao}%` : "-"}</span>
+                        </div>
+                        <div className="w-full flex items-center justify-between text-xs">
+                          <span className="opacity-60">Venc</span>
+                          <span className="font-semibold">{s.dia_vencimento ?? "-"}</span>
+                        </div>
+                        <div className="w-full flex items-center justify-between text-xs">
+                          <span className="opacity-60">P. M.</span>
+                          <span className="font-semibold">
+                            {Number(s.premio_minimo).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                    {seguradoras.filter((s) => s.ativo !== false).length === 0 && (
+                      <p className="col-span-full text-center text-xs opacity-50 py-12">Nenhuma seguradora cadastrada.</p>
+                    )}
+                  </div>
+                )}
+
+            </div>
+
+            {/* ──── TAB: ARQUIVOS ──── */}
+            <div className={cn("space-y-6", currentTab !== "arquivos" && "md:hidden")}>
+
+                {editingId === null ? (
+                  <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6">
+                    <p className="text-xs opacity-60 text-center">
+                      Salve o cadastro do tomador antes de anexar arquivos.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 space-y-4">
+                      <h3 className="text-xs font-black text-brand-red uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <Paperclip className="size-4.5" />
+                        <span>Arquivos do Tomador</span>
+                      </h3>
+                      <label
+                        htmlFor="arquivo-upload"
+                        className={cn(
+                          "inline-flex items-center gap-2 px-3 py-1.5 h-8.5 rounded-lg text-xs font-bold cursor-pointer transition-all active:scale-[0.98]",
+                          uploadingArquivo
+                            ? "bg-zinc-300 dark:bg-zinc-700 text-zinc-500 cursor-not-allowed"
+                            : "bg-emerald-600 text-white hover:bg-emerald-700"
+                        )}
+                      >
+                        {uploadingArquivo ? (
+                          <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Upload className="size-3.5" />
+                        )}
+                        <span>{uploadingArquivo ? "Enviando..." : "Enviar Arquivo"}</span>
+                      </label>
+                      <input
+                        id="arquivo-upload"
+                        type="file"
+                        className="hidden"
+                        disabled={uploadingArquivo}
+                        onChange={handleUploadArquivo}
+                      />
+                    </div>
+
+                    {loadingArquivos ? (
+                      <div className="flex items-center justify-center py-12">
+                        <span className="w-5 h-5 border-2 border-brand-red border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ) : (
+                      <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl overflow-hidden">
+                        <table className="w-full border-collapse text-left text-sm">
+                          <thead>
+                            <tr className="border-b border-zinc-200/40 dark:border-zinc-800/40 bg-zinc-50/50 dark:bg-zinc-900/30 text-[10px] font-bold uppercase tracking-wider opacity-60">
+                              <th className="px-6 py-3">Arquivo</th>
+                              <th className="px-6 py-3">Tamanho</th>
+                              <th className="px-6 py-3">Enviado em</th>
+                              <th className="px-6 py-3 text-center">Ações</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-200/30 dark:divide-zinc-800/20">
+                            {arquivos.length > 0 ? (
+                              arquivos.map((a) => (
+                                <tr key={a.id} className="hover:bg-zinc-50/20 dark:hover:bg-zinc-950/10">
+                                  <td className="px-6 py-3 font-bold flex items-center gap-2">
+                                    <Paperclip className="size-3.5 opacity-50 shrink-0" />
+                                    <span className="truncate max-w-xs">{a.nome_original}</span>
+                                  </td>
+                                  <td className="px-6 py-3 text-xs opacity-75">{formatFileSize(a.tamanho)}</td>
+                                  <td className="px-6 py-3 text-xs opacity-75">
+                                    {new Date(a.criado_em).toLocaleDateString("pt-BR")}
+                                  </td>
+                                  <td className="px-6 py-3">
+                                    <div className="flex items-center justify-center gap-2">
+                                      <a
+                                        href={a.arquivo}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-7 h-7 rounded-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-850 hover:bg-emerald-500/10 text-zinc-500 hover:text-emerald-600 transition-all cursor-pointer"
+                                      >
+                                        <Download className="size-3.5" />
+                                      </a>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteArquivo(a)}
+                                        className="w-7 h-7 rounded-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-850 hover:bg-red-500/10 text-zinc-500 hover:text-red-500 transition-all cursor-pointer"
+                                      >
+                                        <Trash2 className="size-3.5" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan={4} className="px-6 py-12 text-center text-xs opacity-50 font-medium">
+                                  Nenhum arquivo enviado.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
+                )}
 
             </div>
 
