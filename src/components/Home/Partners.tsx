@@ -5,12 +5,12 @@ import ScrollReveal from '@/components/ui/ScrollReveal';
 
 // Replace these paths with the actual logo paths in your public folder
 const partners = [
-  { id: 1, name: 'Parceiro 1', src: '/parc1.png' },
-  { id: 2, name: 'Parceiro 2', src: '/parc2.png' },
-  { id: 3, name: 'Parceiro 3', src: '/parc3.png' },
-  { id: 4, name: 'Parceiro 4', src: '/parc4.png' },
-  { id: 5, name: 'Parceiro 5', src: '/parc5.png' },
-  { id: 6, name: 'Parceiro 6', src: '/parc6.png' },
+  { id: 1, name: 'Parceiro 1', src: '/parc1.webp' },
+  { id: 2, name: 'Parceiro 2', src: '/parc2.webp' },
+  { id: 3, name: 'Parceiro 3', src: '/parc3.webp' },
+  { id: 4, name: 'Parceiro 4', src: '/parc4.webp' },
+  { id: 5, name: 'Parceiro 5', src: '/parc5.webp' },
+  { id: 6, name: 'Parceiro 6', src: '/parc6.webp' },
 ];
 
 export default function Partners() {

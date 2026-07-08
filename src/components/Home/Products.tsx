@@ -9,21 +9,21 @@ const features = [
     id: 'garantia',
     title: 'Seguro Garantia',
     description: 'Tem como principal finalidade assegurar o fiel cumprimento das obrigações assumidas pelo tomador perante o segurado, sejam elas decorrentes de contratos firmados entre as partes ou de exigências previstas em lei. Esse tipo de seguro oferece proteção financeira ao segurado, garantindo que, caso o tomador deixe de cumprir suas responsabilidades contratuais ou legais, haverá cobertura para os prejuízos previstos na apólice.',
-    image: '/image3.png',
+    image: '/imagem3.webp',
     bgColor: 'bg-brand-red'
   },
   {
     id: 'risco',
     title: 'Risco de Engenharia',
     description: 'Protege obras e projetos contra danos e imprevistos durante sua execução. Ele oferece cobertura para novas construções, reformas, ampliações, instalações e mudanças de layout, desde o início até a conclusão da obra. Essa modalidade garante mais segurança financeira, reduz prejuízos causados por acidentes e contribui para o cumprimento do cronograma, proporcionando tranquilidade para empresas, construtoras e proprietários.',
-    image: '/image 2.png',
+    image: '/imagem2.webp',
     bgColor: 'bg-brand-red'
   },
   {
     id: 'responsabilidade',
     title: 'Responsabilidade Civil',
     description: 'Protege empresas e profissionais contra prejuízos decorrentes de danos materiais, corporais ou morais causados involuntariamente a terceiros durante o exercício de suas atividades. Essa modalidade oferece maior segurança financeira, preserva o patrimônio do segurado e permite que indústrias, comércios e prestadores de serviços atuem com mais tranquilidade e confiança.',
-    image: '/image1.png',
+    image: '/imagem1.webp',
     bgColor: 'bg-brand-red'
   }
 ];
