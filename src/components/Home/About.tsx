@@ -73,14 +73,14 @@ export default function About() {
             {/* The 4 Photos without background */}
             <div className="absolute inset-0 z-10 w-full h-full rounded-3xl lg:rounded-none overflow-visible">
               {/* Back Center (Top) - 4foto */}
-              <img src="/foto4.png" alt="Equipe 4" className={`absolute top-[-25%] lg:top-[-42%] left-[25%] lg:left-[18.5%] w-[50%] lg:w-[63%] h-auto object-contain drop-shadow-xl [mask-image:linear-gradient(to_bottom,black_40%,transparent_90%)] lg:[mask-image:linear-gradient(to_bottom,black_40%,transparent_90%)] ${getPhotoClasses(0, 'z-10')}`} />
+              <img src="/foto4.webp" alt="Equipe 4" className={`absolute top-[-25%] lg:top-[-42%] left-[25%] lg:left-[18.5%] w-[50%] lg:w-[63%] h-auto object-contain drop-shadow-xl [mask-image:linear-gradient(to_bottom,black_40%,transparent_90%)] lg:[mask-image:linear-gradient(to_bottom,black_40%,transparent_90%)] ${getPhotoClasses(0, 'z-10')}`} />
               {/* Middle Left - foto 3 */}
-              <img src="/foto3.png" alt="Equipe 3" className={`absolute bottom-[0%] left-[-5%] lg:left-[-6%] w-[55%] lg:w-[68%] h-auto object-contain drop-shadow-xl scale-x-[-1] ${getPhotoClasses(1, 'z-20')}`} />
+              <img src="/foto3.webp" alt="Equipe 3" className={`absolute bottom-[0%] left-[-5%] lg:left-[-6%] w-[55%] lg:w-[68%] h-auto object-contain drop-shadow-xl scale-x-[-1] ${getPhotoClasses(1, 'z-20')}`} />
               {/* Middle Right - foto 1 */}
-              <img src="/foto1.png" alt="Equipe 1" className={`absolute bottom-[0%] right-[-5%] lg:right-[-6%] w-[55%] lg:w-[68%] h-auto object-contain drop-shadow-xl ${getPhotoClasses(2, 'z-20')}`} />
+              <img src="/foto1.webp" alt="Equipe 1" className={`absolute bottom-[0%] right-[-5%] lg:right-[-6%] w-[55%] lg:w-[68%] h-auto object-contain drop-shadow-xl ${getPhotoClasses(2, 'z-20')}`} />
               {/* Front Center (Bottom) - foto 2 */}
               <div className="absolute inset-0 overflow-hidden z-30 pointer-events-none rounded-3xl lg:rounded-none">
-                <img src="/foto2.png" alt="Equipe 2" className={`absolute bottom-[0%] lg:bottom-[-12%] left-[25%] lg:left-[18%] w-[50%] lg:w-[66%] h-auto object-contain drop-shadow-2xl ${getPhotoClasses(3, 'z-30')}`} />
+                <img src="/foto2.webp" alt="Equipe 2" className={`absolute bottom-[0%] lg:bottom-[-12%] left-[25%] lg:left-[18%] w-[50%] lg:w-[66%] h-auto object-contain drop-shadow-2xl ${getPhotoClasses(3, 'z-30')}`} />
               </div>
             </div>
           </ScrollReveal>
@@ -99,7 +99,7 @@ export default function About() {
             {/* MOBILE IMAGE (cajuina.png) - INSIDE YELLOW BLOCK */}
             <ScrollReveal direction="up" duration={1000} once={true} className="flex lg:hidden relative w-full aspect-[2/1] mt-8 z-20">
               <div className="absolute inset-0 z-10 w-full h-full">
-                <img src="/cajuina.png" alt="Equipe Cajuína" className="w-full h-full object-cover object-[center_45%] rounded-[1.5rem] shadow-xl border-4 border-white/20" />
+                <img src="/cajuina.webp" alt="Equipe Cajuína" className="w-full h-full object-cover object-[center_45%] rounded-[1.5rem] shadow-xl border-4 border-white/20" />
               </div>
             </ScrollReveal>
           </div>
