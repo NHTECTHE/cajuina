@@ -34,7 +34,7 @@ const slides = [
     subtitle: "Licitação",
     highlight: "em minutos!",
     description: "As melhores cotações com o melhor custo-benefício para participar de licitações e garantir contratos com agilidade e segurança.",
-    image: "/hero-login.png", 
+    image: "/hero-login.webp",
     type: "image",
     accentColor: "bg-brand-red",
     textColor: "text-brand-red",
@@ -205,8 +205,8 @@ export default function HeroBanner() {
           
           <div className="relative w-full aspect-[4/5] max-h-[500px] bg-zinc-100 rounded-[2rem] overflow-hidden shadow-xl border border-white/50">
             <Image 
-              src="/hero-login.png" 
-              alt="Cliente Cajuína" 
+              src="/hero-login.webp"
+              alt="Cliente Cajuína"
               fill 
               sizes="100vw"
               className="object-cover object-center" 
@@ -222,7 +222,7 @@ export default function HeroBanner() {
             <div className="flex w-max animate-marquee items-center opacity-90">
               {[1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6].map((num, i) => (
                 <div key={i} className="relative w-56 h-24 -mx-4 flex-shrink-0">
-                  <Image src={`/parc${num}.png`} alt={`Parceiro ${num}`} fill sizes="224px" className="object-contain brightness-0" />
+                  <Image src={`/parc${num}.webp`} alt={`Parceiro ${num}`} fill sizes="224px" className="object-contain brightness-0" />
                 </div>
               ))}
             </div>
@@ -258,7 +258,7 @@ export default function HeroBanner() {
             }}
           >
             <Image
-              src="/hero-page.png"
+              src="/hero-page.webp"
               alt="Hero Background"
               fill
               sizes="100vw"
