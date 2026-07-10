@@ -1,0 +1,558 @@
+"use client"
+
+import * as React from "react"
+import { useState, useMemo } from "react"
+import {
+  Search,
+  Plus,
+  Ban,
+  ArrowUpDown,
+  FileText,
+  ArrowLeft,
+  FileDown,
+  MessageCircle,
+  Mail,
+  Trash2
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { NativeSelect } from "@/components/ui/native-select"
+import Image from "next/image"
+
+// Mock Data Structure
+interface CotacaoMock {
+  id: number
+  tomador: string
+  cnpj: string
+  modalidade: string
+  editalContrato: string
+  is: string
+  dataInicial: string
+  prazo: string
+  data: string
+  premio: string
+  emitidoPor: string
+}
+
+const mockCotacoes: CotacaoMock[] = [
+  {
+    id: 49578,
+    tomador: "VALTER ALVES DA SILVA EIRELI",
+    cnpj: "21.163.108/0001-75",
+    modalidade: "Edital / Licitação - Publico",
+    editalContrato: "CONCORRÊNCIA Nº 004/2026",
+    is: "R$ 38.300,00",
+    dataInicial: "09/07/2026",
+    prazo: "125 dias",
+    data: "09/07/2026",
+    premio: "R$ 0,00",
+    emitidoPor: "Érica Cordeiro"
+  },
+  {
+    id: 49577,
+    tomador: "VALE DO ITAIM SERVICOS E CONSULTORIA LTDA",
+    cnpj: "06.848.964/0001-70",
+    modalidade: "Edital / Licitação - Publico",
+    editalContrato: "CONCORRÊNCIA ELETRÔNICA Nº 001/2026",
+    is: "R$ 9.813,65",
+    dataInicial: "14/07/2026",
+    prazo: "95 dias",
+    data: "09/07/2026",
+    premio: "R$ 0,00",
+    emitidoPor: "Ananda Oliveira"
+  },
+  {
+    id: 49575,
+    tomador: "F R DE LIMA & CIA LTDA",
+    cnpj: "19.469.041/0001-50",
+    modalidade: "Contrato / Executante Construtor",
+    editalContrato: "110/2026",
+    is: "R$ 51.435,94",
+    dataInicial: "05/06/2026",
+    prazo: "574 dias",
+    data: "09/07/2026",
+    premio: "R$ 0,00",
+    emitidoPor: "Ananda Oliveira"
+  }
+]
+
+// Mock Seguradoras
+const mockSeguradoras = [
+  { name: "AVLA", status: "SEM CADASTRO", logo: null, color: "text-blue-600" },
+  { name: "BMG SEGUROS", status: "SEM CADASTRO", logo: null, color: "text-orange-500" },
+  { name: "CARTA FIANÇA", status: "SEM ACEITAÇÃO", logo: null, color: "text-zinc-500" },
+  { name: "ESSOR", status: "SEM CADASTRO", logo: null, color: "text-zinc-500" },
+  { name: "EXCELSIOR SEGUROS", status: "SEM CADASTRO", logo: null, color: "text-zinc-500" },
+  { name: "EZZE SEGURADORA", status: "SEM CADASTRO", logo: null, color: "text-teal-600" },
+  { name: "JNS SEGUROS", status: "SEM CADASTRO", logo: null, color: "text-blue-900" },
+  { name: "JUNTO SEGUROS", status: "OUTRO CORRETOR", logo: null, color: "text-teal-500" },
+  { name: "PORTO SEGURO", status: "SEM ACEITAÇÃO", logo: null, color: "text-blue-500" },
+  { name: "POTTENCIAL", status: "SEM ACEITAÇÃO", logo: null, color: "text-red-500" },
+  { name: "SANCOR", status: "SEM CADASTRO", logo: null, color: "text-zinc-500" },
+  { name: "SOMBREIRO", status: "SEM CADASTRO", logo: null, color: "text-zinc-500" },
+]
+
+export default function CotacoesPage() {
+  const [view, setView] = useState<"list" | "form" | "details">("list")
+  
+  // List State
+  const [searchQuery, setSearchQuery] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10)
+  
+  // Filter and Pagination Logic for List View
+  const filteredCotacoes = useMemo(() => {
+    return mockCotacoes.filter(c => 
+      c.tomador.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.cnpj.includes(searchQuery) ||
+      c.editalContrato.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  }, [searchQuery])
+
+  const paginatedCotacoes = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    return filteredCotacoes.slice(startIndex, startIndex + itemsPerPage)
+  }, [filteredCotacoes, currentPage, itemsPerPage])
+
+  const totalPages = Math.max(1, Math.ceil(filteredCotacoes.length / itemsPerPage))
+
+  const handleClearFilters = () => {
+    setSearchQuery("")
+    setCurrentPage(1)
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+
+      {/* ──── LIST VIEW ──── */}
+      {view === "list" && (
+        <>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+            <div>
+              <h1 className="text-2xl font-black tracking-tight text-inherit">
+                Lista de Simulações
+              </h1>
+              <p className="text-xs opacity-60 mt-0.5">
+                Gerencie e acompanhe as simulações e cotações ativas.
+              </p>
+            </div>
+
+            <Button 
+              onClick={() => setView("form")}
+              className="bg-brand-red text-white hover:bg-brand-red/90 font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer shadow-md shadow-brand-red/10 transition-all duration-200 active:scale-[0.98]"
+            >
+              <Plus className="size-4.5" />
+              <span>Nova Cotação</span>
+            </Button>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            {/* Filters Card */}
+            <div className="custom-filters-card border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-3.5 shadow-sm">
+              <div className="w-full max-w-xs">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 opacity-40" />
+                  <Input
+                    placeholder="Buscar simulação..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value)
+                      setCurrentPage(1)
+                    }}
+                    className="custom-filter-input pl-9 h-8.5 w-full max-w-xs rounded-lg border border-zinc-200 dark:border-zinc-800 focus-visible:ring-brand-red/20 focus-visible:border-brand-red text-xs transition-all duration-200"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-4 mt-3 flex-wrap">
+                <button
+                  onClick={handleClearFilters}
+                  className="text-[11px] font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:underline transition-all mt-1"
+                >
+                  Limpar Filtros
+                </button>
+              </div>
+            </div>
+
+            {/* Exibir registros */}
+            <div className="flex items-center justify-between mt-1">
+              <div className="flex items-center gap-1.5 text-[11px] text-zinc-650 dark:text-zinc-400 px-1">
+                <span>Exibir</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(parseInt(e.target.value))
+                    setCurrentPage(1)
+                  }}
+                  className="custom-select-exibir w-14 px-1.5 h-6 text-center font-extrabold border border-zinc-300 dark:border-zinc-800 rounded text-[11px] focus:outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red/20 cursor-pointer"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+                <span>registros por página</span>
+              </div>
+              <Button variant="destructive" className="h-7 text-[10px] font-bold px-4 rounded-md">
+                EXCLUIR SELECIONADOS
+              </Button>
+            </div>
+
+            {/* Cards Table list */}
+            <div className="flex flex-col gap-2">
+              <div className="hidden xl:grid grid-cols-10 gap-4 px-5 py-2 text-[9px] font-bold uppercase tracking-wider opacity-65 border-b border-zinc-200/30 dark:border-zinc-800/30">
+                <div className="col-span-1">ID</div>
+                <div className="col-span-2">Tomador / CNPJ</div>
+                <div className="col-span-2 xl:pl-6">Modalidade / Edital</div>
+                <div className="col-span-1">Início / Prazo</div>
+                <div className="col-span-1">Data</div>
+                <div className="col-span-1">Valores (IS/Prêmio)</div>
+                <div className="col-span-1">Emitido Por</div>
+                <div className="col-span-1 text-right">Ação</div>
+              </div>
+
+              {paginatedCotacoes.length > 0 ? (
+                paginatedCotacoes.map((t) => (
+                  <div
+                    key={t.id}
+                    onClick={() => setView("details")}
+                    className="cursor-pointer group bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl hover:border-brand-red/40 dark:hover:border-brand-red/40 hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50 hover:shadow-md transition-all duration-200 relative"
+                  >
+                    {/* ===== DESKTOP LAYOUT (INTACT) ===== */}
+                    <div className="hidden xl:grid grid-cols-10 gap-4 items-center p-3.5 px-5">
+                      <div className="col-span-1 text-[11px] font-bold text-zinc-500">#{t.id}</div>
+                      
+                      {/* Tomador / CNPJ */}
+                      <div className="col-span-2 flex flex-col gap-1">
+                        <span className="font-bold text-xs tracking-tight text-inherit uppercase">{t.tomador}</span>
+                        <span className="font-mono text-[10px] text-zinc-500 font-medium">{t.cnpj}</span>
+                      </div>
+
+                      {/* Modalidade / Edital */}
+                      <div className="col-span-2 pl-6 flex flex-col gap-1 text-[11px] text-zinc-650 dark:text-zinc-400 font-medium">
+                        <span className="flex items-start gap-1.5">
+                          <span className="leading-tight">{t.modalidade}</span>
+                        </span>
+                        <span className="flex items-start gap-1.5">
+                          <span className="leading-tight text-[10px] uppercase">{t.editalContrato}</span>
+                        </span>
+                      </div>
+
+                      {/* Data Início / Prazo */}
+                      <div className="col-span-1 flex flex-col gap-1 text-[11px] text-zinc-650 dark:text-zinc-400">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium text-[10px]">Inc: {t.dataInicial}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium text-[10px]">Prz: {t.prazo}</span>
+                        </div>
+                      </div>
+
+                      {/* Data */}
+                      <div className="col-span-1 flex flex-col gap-1 text-[11px] text-zinc-650 dark:text-zinc-400">
+                        <span className="font-medium text-[10px]">{t.data}</span>
+                      </div>
+
+                      {/* Valores */}
+                      <div className="col-span-1 flex flex-col gap-1 text-[11px] text-zinc-650 dark:text-zinc-400">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-brand-red dark:text-brand-red/80">{t.is}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium text-[10px]">Prêmio: {t.premio}</span>
+                        </div>
+                      </div>
+
+                      {/* Emitido Por */}
+                      <div className="col-span-1 flex items-center text-[11px] text-zinc-650 dark:text-zinc-400">
+                        <span className="font-medium opacity-80 uppercase leading-tight">{t.emitidoPor}</span>
+                      </div>
+
+                      {/* Ação */}
+                      <div className="col-span-1 flex items-center justify-end gap-2">
+                        <button 
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-7 h-7 bg-red-100 text-red-600 hover:bg-red-600 hover:text-white dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500 dark:hover:text-white rounded flex items-center justify-center cursor-pointer transition-colors shadow-sm"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                        <button 
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-7 h-7 bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600 rounded flex items-center justify-center cursor-pointer transition-colors shadow-sm"
+                        >
+                          <Ban className="size-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* ===== MOBILE LAYOUT (NEW DESIGN) ===== */}
+                    <div className="grid xl:hidden grid-cols-2 gap-x-4 gap-y-4 items-start p-4">
+                      {/* Tomador / CNPJ */}
+                      <div className="col-span-2 flex flex-col gap-1 order-1">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-[13px] font-medium text-brand-red/90 uppercase tracking-wide">Simulação #{t.id}</span>
+                        </div>
+                        <span className="font-bold text-[15px] tracking-tight text-zinc-800 dark:text-zinc-200 uppercase">{t.tomador}</span>
+                        <span className="font-mono text-[13px] text-zinc-400 font-normal">{t.cnpj}</span>
+                      </div>
+
+                      {/* Modalidade / Edital */}
+                      <div className="col-span-1 flex flex-col gap-1 text-[13px] text-zinc-800 dark:text-zinc-300 font-normal order-2">
+                        <span className="leading-tight uppercase">{t.modalidade}</span>
+                        <span className="leading-tight text-[12px] text-zinc-500 uppercase mt-0.5 max-w-[110px] inline-block">{t.editalContrato}</span>
+                      </div>
+
+                      {/* Data Início / Prazo */}
+                      <div className="col-span-1 flex flex-col gap-2.5 text-sm text-zinc-650 dark:text-zinc-400 order-3">
+                        <div className="flex flex-col gap-0">
+                          <span className="text-[10px] uppercase text-zinc-700 font-medium tracking-wide mb-0.5">Data Inicial:</span>
+                          <span className="font-normal text-[13px] text-zinc-600">{t.dataInicial}</span>
+                        </div>
+                        <div className="flex flex-col gap-0">
+                          <span className="text-[10px] uppercase text-zinc-700 font-medium tracking-wide mb-0.5">Prazo:</span>
+                          <span className="font-normal text-[13px] text-zinc-600">{t.prazo}</span>
+                        </div>
+                      </div>
+
+                      {/* Valores */}
+                      <div className="col-span-2 flex flex-col gap-0.5 text-sm text-zinc-650 dark:text-zinc-400 order-4 -mt-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-normal text-lg text-brand-red/90 dark:text-brand-red/80">{t.is}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium text-[12px] text-zinc-500 uppercase">Prêmio: {t.premio}</span>
+                        </div>
+                      </div>
+
+                      {/* Emitido Por / Data */}
+                      <div className="col-span-1 flex flex-col gap-0.5 mt-1 order-5">
+                        <span className="text-[11px] text-zinc-800 font-bold mb-0.5">Emitida em:</span>
+                        <span className="text-[12px] text-zinc-500">{t.data}</span>
+                        <span className="text-[12px] text-zinc-500 mt-1">Por <span className="font-bold">{t.emitidoPor}</span></span>
+                      </div>
+
+                      {/* Ação */}
+                      <div className="col-span-1 flex items-end justify-end gap-2 mt-1 order-6">
+                        <button 
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-11 h-11 bg-[#ffe6e6] text-brand-red hover:bg-brand-red hover:text-white dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500 dark:hover:text-white rounded-xl flex items-center justify-center cursor-pointer transition-colors"
+                        >
+                          <Trash2 className="size-5" />
+                        </button>
+                        <button 
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-11 h-11 bg-[#e4e4e7] text-zinc-800 hover:bg-zinc-800 hover:text-white dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600 rounded-xl flex items-center justify-center cursor-pointer transition-colors"
+                        >
+                          <Ban className="size-5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl p-12 text-center">
+                  <div className="flex flex-col items-center justify-center max-w-xs mx-auto">
+                    <FileText className="size-5 text-zinc-400 mb-3 opacity-70" />
+                    <h4 className="font-bold text-xs text-inherit">Nenhuma simulação encontrada</h4>
+                  </div>
+                </div>
+              )}
+
+              {/* Pagination */}
+              <div className="border border-zinc-200/40 dark:border-zinc-800/40 px-5 py-3 rounded-xl flex items-center justify-between bg-zinc-50/20 dark:bg-zinc-900/10 mt-2">
+                <span className="text-[11px] opacity-50">Mostrando {paginatedCotacoes.length} registros</span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} className="text-xs font-bold text-brand-red cursor-pointer">Anterior</button>
+                  <button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} className="text-xs font-bold text-brand-red cursor-pointer">Próximo</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ──── FORM VIEW (NOVA COTAÇÃO) ──── */}
+      {view === "form" && (
+        <div className="flex flex-col max-w-2xl mx-auto w-full">
+          <div className="flex items-center gap-4 mb-8">
+             <button 
+              onClick={() => setView("list")}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 transition-colors"
+            >
+              <ArrowLeft className="size-4 opacity-70" />
+            </button>
+            <h1 className="text-3xl font-light text-zinc-600 dark:text-zinc-300">
+              Nova Cotação
+            </h1>
+          </div>
+
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-8 flex flex-col gap-6">
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Tomador:</Label>
+              <NativeSelect className="h-10 text-sm border-zinc-300 w-full">
+                <option>Digite o nome do tomador...</option>
+              </NativeSelect>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Modalidade:</Label>
+              <NativeSelect className="h-10 text-sm border-zinc-300 w-full">
+                <option>Selecione</option>
+              </NativeSelect>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Segurado:</Label>
+              <NativeSelect className="h-10 text-sm border-zinc-300 w-full">
+                <option>Digite o nome do segurado...</option>
+              </NativeSelect>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Edital:</Label>
+              <Input className="h-10 border-zinc-300" />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center">Data de Início</Label>
+                <Input type="date" className="h-10 border-zinc-300" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center">Prazo</Label>
+                <Input className="h-10 border-zinc-300 text-center" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center">Data Final</Label>
+                <Input type="date" className="h-10 border-zinc-300" />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 mt-2">
+              <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase whitespace-nowrap">Importância Segurada</Label>
+              <div className="relative w-full">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-400">R$</span>
+                <Input className="h-10 pl-9 border-zinc-300" />
+              </div>
+            </div>
+
+            <div className="flex justify-center mt-6">
+              <Button 
+                onClick={() => setView("details")}
+                className="bg-green-500 hover:bg-green-600 text-white font-bold px-8 h-10 w-40 rounded-md transition-colors"
+              >
+                CALCULAR
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──── DETAILS VIEW (DADOS DA SIMULAÇÃO) ──── */}
+      {view === "details" && (
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setView("list")}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 transition-colors"
+              >
+                <ArrowLeft className="size-4 opacity-70" />
+              </button>
+              <h1 className="text-3xl font-light text-zinc-600 dark:text-zinc-300">
+                Dados da Simulação
+              </h1>
+            </div>
+            
+            <div className="flex gap-2">
+              <button className="w-8 h-8 rounded-full border border-red-200 text-red-500 flex items-center justify-center bg-white shadow-sm hover:bg-red-50"><FileDown className="size-4" /></button>
+              <button className="w-8 h-8 rounded-full border border-green-200 text-green-500 flex items-center justify-center bg-white shadow-sm hover:bg-green-50"><MessageCircle className="size-4" /></button>
+              <button className="w-8 h-8 rounded-full border border-blue-200 text-blue-500 flex items-center justify-center bg-white shadow-sm hover:bg-blue-50"><Mail className="size-4" /></button>
+              <button className="w-8 h-8 rounded-full border border-green-200 text-green-500 flex items-center justify-center bg-white shadow-sm hover:bg-green-50"><MessageCircle className="size-4" /></button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 max-w-5xl mx-auto w-full">
+            
+            {/* Informações da Cotação */}
+            <div className="md:col-span-12 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
+              <h2 className="text-[#e85c5c] text-lg font-light tracking-wide mb-6">INFORMAÇÕES DA COTAÇÃO</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+                <div className="flex flex-col gap-3 text-[13px] text-zinc-600 dark:text-zinc-400">
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Tomador:</strong> BM ENGENHARIA LTDA - 00.739.568/0001-29</p>
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Modalidade:</strong> Contrato / Executante Prestação de Serviços</p>
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Adicional Trabalhista:</strong> Não</p>
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Edital/Contrato:</strong> <span className="uppercase break-all">GFXCVBSB43RFCXSGFXCVFGFGAFSCDGSSADSBTEGRVDSXZ</span></p>
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Valor da Cobertura:</strong> R$ 99.999.999,99</p>
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Segurado:</strong> 2 BATALHAO DE ENGENHARIA DE CONSTRUCAO - 07.549.168/0001-08</p>
+                  <div className="mt-4 flex flex-col gap-3 border-t border-zinc-100 dark:border-zinc-800 pt-4">
+                    <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Realizado por:</strong> ytallo</p>
+                    <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Status:</strong> Iniciado</p>
+                    <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Observações:</strong></p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 text-[13px] text-zinc-600 dark:text-zinc-400">
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Vigência de:</strong> 01/07/2026</p>
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Até:</strong> 30/08/2026</p>
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Total de Dias:</strong> 60 Dias</p>
+                </div>
+              </div>
+            </div>
+
+
+            {/* Seguradoras Grid */}
+            <div className="md:col-span-12 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
+              <h2 className="text-[#e85c5c] text-lg font-light tracking-wide mb-6">SEGURADORAS</h2>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {mockSeguradoras.map((seg, idx) => (
+                  <div key={idx} className="relative bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-36 flex flex-col items-center justify-between p-3 border border-zinc-200 dark:border-zinc-700/50 hover:shadow-md transition-all cursor-pointer">
+                    <span className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">{seg.name}</span>
+                    
+                    <div className="flex-1 flex items-center justify-center">
+                      {seg.logo ? (
+                        <img src={seg.logo} alt={`Logo ${seg.name}`} className="max-w-full max-h-16 object-contain" />
+                      ) : (
+                        <div className={`text-2xl font-black ${seg.color}`}>{seg.name.split(" ")[0]}</div>
+                      )}
+                    </div>
+                    
+                    <span className="text-[9px] font-bold text-zinc-500 dark:text-zinc-500 uppercase">{seg.status}</span>
+                    
+                    {/* Fake magnifying glass for some items */}
+                    {(idx === 6 || idx === 7 || idx === 0) && (
+                      <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-white border border-red-200 text-[#e85c5c] rounded-full flex items-center justify-center shadow-sm">
+                        <Search className="size-3" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Action Buttons Footer */}
+            <div className="md:col-span-12 flex flex-wrap justify-center gap-0.5 mt-4 rounded-xl overflow-hidden shadow-sm border border-zinc-200 dark:border-zinc-800">
+              <button className="flex-1 bg-zinc-400 hover:bg-zinc-500 text-white font-bold py-2 px-4 text-[11px] uppercase transition-colors">
+                Excluir
+              </button>
+              <button className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 text-[11px] uppercase transition-colors">
+                Editar
+              </button>
+              <button className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 text-[11px] uppercase transition-colors">
+                Enviar Cotação
+              </button>
+              <button className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 text-[11px] uppercase transition-colors">
+                Aprovar Cotação
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+    </div>
+  )
+}
+

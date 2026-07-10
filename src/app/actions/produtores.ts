@@ -45,7 +45,7 @@ export async function listProdutoresAction(search = '') {
     if (!res.ok) return { error: 'Erro ao buscar produtores' }
     const json = await res.json()
     return { data: json.data as Produtor[] }
-  } catch {
+  } catch (e: any) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -62,7 +62,7 @@ export async function getProdutorAction(id: number) {
     if (!res.ok) return { error: 'Produtor não encontrado' }
     const json = await res.json()
     return { data: json.data as Produtor }
-  } catch {
+  } catch (e: any) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -80,7 +80,7 @@ export async function createProdutorAction(payload: Omit<Produtor, 'id' | 'criad
     const json = await res.json()
     if (!res.ok) return { error: json.detail || JSON.stringify(json) }
     return { data: json.data as Produtor }
-  } catch {
+  } catch (e: any) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -98,7 +98,7 @@ export async function updateProdutorAction(id: number, payload: Partial<Produtor
     const json = await res.json()
     if (!res.ok) return { error: json.detail || JSON.stringify(json) }
     return { data: json.data as Produtor }
-  } catch {
+  } catch (e: any) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -114,7 +114,7 @@ export async function deleteProdutorAction(id: number) {
     })
     if (!res.ok) return { error: 'Erro ao excluir produtor' }
     return { success: true }
-  } catch {
+  } catch (e: any) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }

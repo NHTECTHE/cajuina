@@ -35,7 +35,7 @@ export async function listTomadorArquivosAction(tomadorId: number) {
     if (!res.ok) return { error: 'Erro ao buscar arquivos' }
     const json = await res.json()
     return { data: json.data as TomadorArquivo[] }
-  } catch {
+  } catch (e: any) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -55,7 +55,7 @@ export async function uploadTomadorArquivoAction(tomadorId: number, file: File) 
     const json = await res.json()
     if (!res.ok) return { error: json.arquivo?.[0] || json.detail || 'Erro ao enviar arquivo' }
     return { data: json.data as TomadorArquivo }
-  } catch {
+  } catch (e: any) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -71,7 +71,7 @@ export async function deleteTomadorArquivoAction(tomadorId: number, arquivoId: n
     })
     if (!res.ok) return { error: 'Erro ao excluir arquivo' }
     return { success: true }
-  } catch {
+  } catch (e: any) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
