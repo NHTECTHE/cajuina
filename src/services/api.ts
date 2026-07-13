@@ -22,9 +22,14 @@ async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
 
   if (response.status === 204) return undefined as T;
 
-  const result: { data?: T } = await response.json();
-  if (result.data === undefined) throw new Error("Resposta inválida da API");
-  return result.data;
+  const result = await response.json();
+  if (result === undefined) throw new Error("Resposta inválida da API");
+  
+  if (result && typeof result === "object" && "data" in result) {
+    return result.data as T;
+  }
+  
+  return result as T;
 }
 
 // ─── Tomadores ───────────────────────────────────────────────────────────────

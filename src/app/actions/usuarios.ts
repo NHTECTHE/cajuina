@@ -39,7 +39,7 @@ export async function listUsuariosAction(search = '') {
     if (!res.ok) return { error: 'Erro ao buscar usuários' }
     const json = await res.json()
     return { data: json.data as Usuario[] }
-  } catch {
+  } catch (e: any) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -57,7 +57,7 @@ export async function createUsuarioAction(payload: Omit<Usuario, 'id'>) {
     const json = await res.json()
     if (!res.ok) return { error: json.detail || JSON.stringify(json) }
     return { data: json.data as Usuario }
-  } catch {
+  } catch (e: any) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -75,7 +75,7 @@ export async function updateUsuarioAction(id: number, payload: Partial<Usuario>)
     const json = await res.json()
     if (!res.ok) return { error: json.detail || JSON.stringify(json) }
     return { data: json.data as Usuario }
-  } catch {
+  } catch (e: any) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -91,7 +91,7 @@ export async function deleteUsuarioAction(id: number) {
     })
     if (!res.ok) return { error: 'Erro ao excluir usuário' }
     return { success: true }
-  } catch {
+  } catch (e: any) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }

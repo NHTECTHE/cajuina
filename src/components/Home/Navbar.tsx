@@ -39,7 +39,16 @@ export default function Navbar() {
     >
       <div className={`container mx-auto h-full px-6 lg:px-12 flex items-center justify-between transition-transform duration-300 ${scrolled ? "translate-y-0" : "translate-y-1 lg:translate-y-2"}`}>
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 relative z-50">
+        <Link 
+          href="/" 
+          className="flex items-center gap-2 relative z-50"
+          onClick={(e) => {
+            if (window.location.pathname === "/") {
+              e.preventDefault();
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+          }}
+        >
           <Image
             src="/2 - 1.png"
             alt="Cajuína"

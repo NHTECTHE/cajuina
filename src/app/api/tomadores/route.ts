@@ -31,3 +31,4 @@ export async function POST(request: NextRequest) {
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });
 }
+

@@ -138,8 +138,8 @@ export default function SidebarNav({
     >
       {/* ──── HEADER / LOGO ──── */}
       <div className={cn(
-        "px-6 flex items-center border-b border-zinc-250/5 dark:border-zinc-800/10",
-        (isCollapsed && !isMobileOpen) ? "justify-center py-4" : "justify-between pt-6 pb-1"
+        "px-6 flex items-center border-b border-zinc-250/5 dark:border-zinc-800/10 shrink-0",
+        (isCollapsed && !isMobileOpen) ? "justify-center h-[65px]" : "justify-between h-[65px]"
       )}>
         <div className="flex items-center gap-3">
           {isCollapsed && !isMobileOpen ? (
@@ -152,14 +152,14 @@ export default function SidebarNav({
               priority
             />
           ) : (
-            <Image
-              src={theme === "dark" ? "/5 - 5.png" : "/2 - 1.png"}
-              alt="Cajuína Corretora de Seguros"
-              width={240}
-              height={240}
-              className="h-32 w-auto object-contain shrink-0 select-none -my-9"
-              priority
-            />
+              <Image
+                src={theme === "dark" ? "/5 - 5.png" : "/2 - 1.png"}
+                alt="Cajuína Corretora de Seguros"
+                width={240}
+                height={240}
+                className="h-28 w-auto object-contain shrink-0 select-none -my-10 scale-[1.15] origin-left"
+                priority
+              />
           )}
         </div>
 
