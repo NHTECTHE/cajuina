@@ -6,20 +6,26 @@ import {
   Search,
   Plus,
   Ban,
-  ArrowUpDown,
   FileText,
   ArrowLeft,
   FileDown,
   MessageCircle,
   Mail,
-  Trash2
+  Trash2,
+  Pencil,
+  CheckCircle2
 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { NativeSelect } from "@/components/ui/native-select"
-import Image from "next/image"
+import { AsyncCombobox, type AsyncComboboxOption } from "@/components/ui/async-combobox"
+import {
+  tomadoresApi,
+  seguradosApi,
+  modalidadesApi,
+  seguradorasApi,
+  type SeguradoraResponse,
+} from "@/services/api"
 
 // Mock Data Structure
 interface CotacaoMock {
@@ -79,24 +85,137 @@ const mockCotacoes: CotacaoMock[] = [
 ]
 
 // Mock Seguradoras
-const mockSeguradoras = [
-  { name: "AVLA", status: "SEM CADASTRO", logo: null, color: "text-blue-600" },
-  { name: "BMG SEGUROS", status: "SEM CADASTRO", logo: null, color: "text-orange-500" },
-  { name: "CARTA FIANÇA", status: "SEM ACEITAÇÃO", logo: null, color: "text-zinc-500" },
-  { name: "ESSOR", status: "SEM CADASTRO", logo: null, color: "text-zinc-500" },
-  { name: "EXCELSIOR SEGUROS", status: "SEM CADASTRO", logo: null, color: "text-zinc-500" },
-  { name: "EZZE SEGURADORA", status: "SEM CADASTRO", logo: null, color: "text-teal-600" },
-  { name: "JNS SEGUROS", status: "SEM CADASTRO", logo: null, color: "text-blue-900" },
-  { name: "JUNTO SEGUROS", status: "OUTRO CORRETOR", logo: null, color: "text-teal-500" },
-  { name: "PORTO SEGURO", status: "SEM ACEITAÇÃO", logo: null, color: "text-blue-500" },
-  { name: "POTTENCIAL", status: "SEM ACEITAÇÃO", logo: null, color: "text-red-500" },
-  { name: "SANCOR", status: "SEM CADASTRO", logo: null, color: "text-zinc-500" },
-  { name: "SOMBREIRO", status: "SEM CADASTRO", logo: null, color: "text-zinc-500" },
-]
+// ─── Helpers de data (ISO yyyy-mm-dd, sem problema de fuso) ───────────────────
+
+// Soma `days` a uma data ISO e retorna outra data ISO. Retorna "" se inválido.
+function addDays(isoDate: string, days: number): string {
+  if (!isoDate || !Number.isFinite(days)) return ""
+  const [y, m, d] = isoDate.split("-").map(Number)
+  const date = new Date(y, m - 1, d)
+  if (isNaN(date.getTime())) return ""
+  date.setDate(date.getDate() + days)
+  const yyyy = date.getFullYear()
+  const mm = String(date.getMonth() + 1).padStart(2, "0")
+  const dd = String(date.getDate()).padStart(2, "0")
+  return `${yyyy}-${mm}-${dd}`
+}
+
+// Diferença em dias entre duas datas ISO (final - inicial). Retorna "" se inválido.
+function daysBetween(startIso: string, endIso: string): string {
+  if (!startIso || !endIso) return ""
+  const [ys, ms, ds] = startIso.split("-").map(Number)
+  const [ye, me, de] = endIso.split("-").map(Number)
+  const start = new Date(ys, ms - 1, ds)
+  const end = new Date(ye, me - 1, de)
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return ""
+  const diff = Math.round((end.getTime() - start.getTime()) / 86400000)
+  return String(diff)
+}
+
+// Formata um valor decimal (número ou string, ex.: "180.00") como moeda pt-BR
+// "R$ 180,00". Retorna "—" quando o valor não é informado.
+function formatBRL(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === "") return "—"
+  const num = typeof value === "number" ? value : Number(value)
+  if (!Number.isFinite(num)) return "—"
+  return num.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  })
+}
+
+// Formata dígitos em moeda pt-BR (ex.: "150000" -> "1.500,00"). Trata os dígitos
+// como centavos, então cada tecla desliza a vírgula. Retorna "" se não houver dígitos.
+function formatCurrency(raw: string): string {
+  const digits = raw.replace(/\D/g, "")
+  if (!digits) return ""
+  const cents = Number(digits)
+  return (cents / 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
 
 export default function CotacoesPage() {
   const [view, setView] = useState<"list" | "form" | "details">("list")
-  
+  // Contexto do formulário: criação de nova cotação ou edição de uma existente.
+  const [formMode, setFormMode] = useState<"create" | "edit">("create")
+
+  // Form State (Nova Cotação)
+  const [tomador, setTomador] = useState<AsyncComboboxOption | null>(null)
+  const [modalidade, setModalidade] = useState<AsyncComboboxOption | null>(null)
+  const [segurado, setSegurado] = useState<AsyncComboboxOption | null>(null)
+
+  const fetchTomadores = React.useCallback(async (search: string): Promise<AsyncComboboxOption[]> => {
+    const data = await tomadoresApi.list({ search })
+    return data.map((t) => ({ value: t.id, label: t.nome, hint: t.cnpj }))
+  }, [])
+
+  const fetchModalidades = React.useCallback(async (search: string): Promise<AsyncComboboxOption[]> => {
+    const data = await modalidadesApi.list({ search, ativo: true })
+    return data.map((m) => ({ value: m.id, label: m.nome }))
+  }, [])
+
+  const fetchSegurados = React.useCallback(async (search: string): Promise<AsyncComboboxOption[]> => {
+    const data = await seguradosApi.list({ search })
+    return data.map((s) => ({ value: s.id, label: s.nome, hint: s.cnpj }))
+  }, [])
+
+  // Vigência (Data Início / Prazo em dias / Data Final) com auto-cálculo
+  const [dataInicio, setDataInicio] = useState("")
+  const [prazo, setPrazo] = useState("")
+  const [dataFinal, setDataFinal] = useState("")
+
+  // Importância Segurada formatada em reais (pt-BR)
+  const [importanciaSegurada, setImportanciaSegurada] = useState("")
+
+  // Seguradoras cadastradas (exibidas na tela de detalhes da simulação)
+  const [seguradoras, setSeguradoras] = useState<SeguradoraResponse[]>([])
+  const [loadingSeguradoras, setLoadingSeguradoras] = useState(false)
+
+  React.useEffect(() => {
+    if (view !== "details") return
+    let active = true
+    ;(async () => {
+      if (active) setLoadingSeguradoras(true)
+      try {
+        const data = await seguradorasApi.list({ ativo: true })
+        if (active) setSeguradoras(data)
+      } catch {
+        if (active) setSeguradoras([])
+      } finally {
+        if (active) setLoadingSeguradoras(false)
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [view])
+
+  const handleDataInicioChange = (value: string) => {
+    setDataInicio(value)
+    // Mantém o Prazo se já foi informado e recalcula o Final; senão recalcula o Prazo a partir do Final.
+    if (prazo) {
+      setDataFinal(addDays(value, parseInt(prazo, 10)))
+    } else if (dataFinal) {
+      setPrazo(daysBetween(value, dataFinal))
+    }
+  }
+
+  const handlePrazoChange = (value: string) => {
+    setPrazo(value)
+    if (dataInicio) {
+      setDataFinal(addDays(dataInicio, parseInt(value, 10)))
+    }
+  }
+
+  const handleDataFinalChange = (value: string) => {
+    setDataFinal(value)
+    if (dataInicio) {
+      setPrazo(daysBetween(dataInicio, value))
+    }
+  }
+
   // List State
   const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
@@ -139,8 +258,8 @@ export default function CotacoesPage() {
               </p>
             </div>
 
-            <Button 
-              onClick={() => setView("form")}
+            <Button
+              onClick={() => { setFormMode("create"); setView("form") }}
               className="bg-brand-red text-white hover:bg-brand-red/90 font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer shadow-md shadow-brand-red/10 transition-all duration-200 active:scale-[0.98]"
             >
               <Plus className="size-4.5" />
@@ -193,9 +312,6 @@ export default function CotacoesPage() {
                 </select>
                 <span>registros por página</span>
               </div>
-              <Button variant="destructive" className="h-7 text-[10px] font-bold px-4 rounded-md">
-                EXCLUIR SELECIONADOS
-              </Button>
             </div>
 
             {/* Cards Table list */}
@@ -371,41 +487,53 @@ export default function CotacoesPage() {
         </>
       )}
 
-      {/* ──── FORM VIEW (NOVA COTAÇÃO) ──── */}
+      {/* ──── FORM VIEW (NOVA COTAÇÃO / EDITAR) ──── */}
       {view === "form" && (
         <div className="flex flex-col max-w-2xl mx-auto w-full">
           <div className="flex items-center gap-4 mb-8">
-             <button 
-              onClick={() => setView("list")}
+             <button
+              onClick={() => setView(formMode === "edit" ? "details" : "list")}
               className="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 transition-colors"
             >
               <ArrowLeft className="size-4 opacity-70" />
             </button>
             <h1 className="text-3xl font-light text-zinc-600 dark:text-zinc-300">
-              Nova Cotação
+              {formMode === "edit" ? "Editar Cotação" : "Nova Cotação"}
             </h1>
           </div>
 
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-8 flex flex-col gap-6">
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Tomador:</Label>
-              <NativeSelect className="h-10 text-sm border-zinc-300 w-full">
-                <option>Digite o nome do tomador...</option>
-              </NativeSelect>
+              <AsyncCombobox
+                value={tomador?.value ?? null}
+                onChange={setTomador}
+                fetchOptions={fetchTomadores}
+                placeholder="Digite o nome ou CNPJ do tomador..."
+                emptyMessage="Nenhum tomador encontrado."
+              />
             </div>
 
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Modalidade:</Label>
-              <NativeSelect className="h-10 text-sm border-zinc-300 w-full">
-                <option>Selecione</option>
-              </NativeSelect>
+              <AsyncCombobox
+                value={modalidade?.value ?? null}
+                onChange={setModalidade}
+                fetchOptions={fetchModalidades}
+                placeholder="Selecione a modalidade..."
+                emptyMessage="Nenhuma modalidade encontrada."
+              />
             </div>
 
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Segurado:</Label>
-              <NativeSelect className="h-10 text-sm border-zinc-300 w-full">
-                <option>Digite o nome do segurado...</option>
-              </NativeSelect>
+              <AsyncCombobox
+                value={segurado?.value ?? null}
+                onChange={setSegurado}
+                fetchOptions={fetchSegurados}
+                placeholder="Digite o nome ou CNPJ do segurado..."
+                emptyMessage="Nenhum segurado encontrado."
+              />
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -416,15 +544,31 @@ export default function CotacoesPage() {
             <div className="grid grid-cols-3 gap-4">
               <div className="flex flex-col gap-1.5">
                 <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center">Data de Início</Label>
-                <Input type="date" className="h-10 border-zinc-300" />
+                <Input
+                  type="date"
+                  className="h-10 border-zinc-300"
+                  value={dataInicio}
+                  onChange={(e) => handleDataInicioChange(e.target.value)}
+                />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center">Prazo</Label>
-                <Input className="h-10 border-zinc-300 text-center" />
+                <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center">Prazo (dias)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  className="h-10 border-zinc-300 text-center"
+                  value={prazo}
+                  onChange={(e) => handlePrazoChange(e.target.value)}
+                />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center">Data Final</Label>
-                <Input type="date" className="h-10 border-zinc-300" />
+                <Input
+                  type="date"
+                  className="h-10 border-zinc-300"
+                  value={dataFinal}
+                  onChange={(e) => handleDataFinalChange(e.target.value)}
+                />
               </div>
             </div>
 
@@ -432,16 +576,22 @@ export default function CotacoesPage() {
               <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase whitespace-nowrap">Importância Segurada</Label>
               <div className="relative w-full">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-400">R$</span>
-                <Input className="h-10 pl-9 border-zinc-300" />
+                <Input
+                  className="h-10 pl-9 border-zinc-300"
+                  inputMode="numeric"
+                  placeholder="0,00"
+                  value={importanciaSegurada}
+                  onChange={(e) => setImportanciaSegurada(formatCurrency(e.target.value))}
+                />
               </div>
             </div>
 
             <div className="flex justify-center mt-6">
-              <Button 
+              <Button
                 onClick={() => setView("details")}
-                className="bg-green-500 hover:bg-green-600 text-white font-bold px-8 h-10 w-40 rounded-md transition-colors"
+                className="bg-green-500 hover:bg-green-600 text-white font-bold px-8 h-10 w-auto min-w-40 rounded-md transition-colors"
               >
-                CALCULAR
+                {formMode === "edit" ? "SALVAR ALTERAÇÕES" : "CALCULAR"}
               </Button>
             </div>
           </div>
@@ -505,47 +655,72 @@ export default function CotacoesPage() {
             {/* Seguradoras Grid */}
             <div className="md:col-span-12 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
               <h2 className="text-[#e85c5c] text-lg font-light tracking-wide mb-6">SEGURADORAS</h2>
-              
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {mockSeguradoras.map((seg, idx) => (
-                  <div key={idx} className="relative bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-36 flex flex-col items-center justify-between p-3 border border-zinc-200 dark:border-zinc-700/50 hover:shadow-md transition-all cursor-pointer">
-                    <span className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">{seg.name}</span>
-                    
-                    <div className="flex-1 flex items-center justify-center">
-                      {seg.logo ? (
-                        <img src={seg.logo} alt={`Logo ${seg.name}`} className="max-w-full max-h-16 object-contain" />
-                      ) : (
-                        <div className={`text-2xl font-black ${seg.color}`}>{seg.name.split(" ")[0]}</div>
-                      )}
-                    </div>
-                    
-                    <span className="text-[9px] font-bold text-zinc-500 dark:text-zinc-500 uppercase">{seg.status}</span>
-                    
-                    {/* Fake magnifying glass for some items */}
-                    {(idx === 6 || idx === 7 || idx === 0) && (
-                      <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-white border border-red-200 text-[#e85c5c] rounded-full flex items-center justify-center shadow-sm">
-                        <Search className="size-3" />
+
+              {loadingSeguradoras ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {Array.from({ length: 4 }).map((_, idx) => (
+                    <div key={idx} className="bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-40 border border-zinc-200 dark:border-zinc-700/50 animate-pulse" />
+                  ))}
+                </div>
+              ) : seguradoras.length === 0 ? (
+                <p className="text-[13px] text-zinc-500 dark:text-zinc-400 py-4">
+                  Nenhuma seguradora cadastrada.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {seguradoras.map((seg) => (
+                    <div key={seg.id} className="relative bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-40 flex flex-col items-center justify-between p-4 border border-zinc-200 dark:border-zinc-700/50 hover:shadow-md transition-all">
+                      <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide text-center leading-tight">{seg.nome}</span>
+
+                      <div className="flex-1 flex items-center justify-center py-1">
+                        {seg.logo ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={seg.logo} alt={`Logo ${seg.nome}`} className="max-w-full max-h-14 object-contain" />
+                        ) : (
+                          <div className="text-2xl font-black text-brand-red/80">{seg.nome.charAt(0)}</div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+
+                      <div className="w-full flex flex-col gap-1 text-[10.5px] text-zinc-600 dark:text-zinc-400 border-t border-zinc-200/70 dark:border-zinc-700/50 pt-2">
+                        <div className="flex items-center justify-between">
+                          <span className="uppercase font-medium opacity-70">Taxa</span>
+                          <span className="font-bold text-zinc-800 dark:text-zinc-200">
+                            {seg.taxa_comissao != null ? `${Number(seg.taxa_comissao).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "—"}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="uppercase font-medium opacity-70">Prêmio mín.</span>
+                          <span className="font-bold text-zinc-800 dark:text-zinc-200">{formatBRL(seg.premio_minimo)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             
             {/* Action Buttons Footer */}
-            <div className="md:col-span-12 flex flex-wrap justify-center gap-0.5 mt-4 rounded-xl overflow-hidden shadow-sm border border-zinc-200 dark:border-zinc-800">
-              <button className="flex-1 bg-zinc-400 hover:bg-zinc-500 text-white font-bold py-2 px-4 text-[11px] uppercase transition-colors">
+            <div className="md:col-span-12 flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between gap-3 mt-4 pt-5 border-t border-zinc-200 dark:border-zinc-800">
+              {/* Ação destrutiva, isolada à esquerda */}
+              <button className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30 bg-red-50/60 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors">
+                <Trash2 className="size-4" />
                 Excluir
               </button>
-              <button className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 text-[11px] uppercase transition-colors">
-                Editar
-              </button>
-              <button className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 text-[11px] uppercase transition-colors">
-                Enviar Cotação
-              </button>
-              <button className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 text-[11px] uppercase transition-colors">
-                Aprovar Cotação
-              </button>
+
+              {/* Fluxo principal à direita */}
+              <div className="flex items-stretch gap-3">
+                <button
+                  onClick={() => { setFormMode("edit"); setView("form") }}
+                  className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                >
+                  <Pencil className="size-4" />
+                  Editar
+                </button>
+                <button className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 transition-colors">
+                  <CheckCircle2 className="size-4" />
+                  Aprovar Cotação
+                </button>
+              </div>
             </div>
 
           </div>

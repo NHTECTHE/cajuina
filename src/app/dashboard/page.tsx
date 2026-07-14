@@ -6,7 +6,6 @@ import {
   FileText, 
   MessageSquare,
   ArrowRight,
-  ShieldCheck,
   FileSpreadsheet,
   FileCheck,
   CreditCard
@@ -21,10 +20,6 @@ export default function DashboardPage() {
         
         {/* Welcome Section */}
         <div className="text-center mb-12 animate-fade-in-up">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand-red/10 text-brand-red border border-brand-red/10 mb-4">
-            <ShieldCheck className="size-3.5" />
-            Sessão ativa com sucesso
-          </span>
           <h1 className="text-3xl md:text-5xl font-black tracking-tight mb-4 text-inherit">
             Página Inicial
           </h1>
@@ -156,10 +151,7 @@ export default function DashboardPage() {
 
       {/* ──── FOOTER ──── */}
       <footer className="py-4 border-t border-zinc-200/20 w-full">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs opacity-40">
-            Desenvolvido por <span className="text-purple-650 font-semibold">Nhtec</span> © 2021 – 2026
-          </p>
+        <div className="flex flex-col sm:flex-row items-center justify-end gap-4">
           <div className="flex items-center gap-4 text-xs opacity-40">
             <a href="#" className="hover:opacity-100 transition-opacity">Termos</a>
             <span>•</span>

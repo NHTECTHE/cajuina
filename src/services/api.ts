@@ -143,3 +143,76 @@ export async function lookupCnpj(cnpj: string): Promise<CnpjData> {
   return result.data;
 }
 
+// ─── Segurados ───────────────────────────────────────────────────────────────
+
+export interface SeguradoResponse {
+  id: number;
+  cnpj: string;
+  nome: string;
+  natureza_juridica: string;
+  endereco: string;
+  cidade: string;
+  estado: string;
+  bairro: string;
+  numero: string;
+  cep: string;
+  complemento: string;
+  observacoes: string;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+export const seguradosApi = {
+  list: (params?: { search?: string }) => {
+    const qs = new URLSearchParams(
+      Object.entries(params ?? {}).filter(([, v]) => Boolean(v)) as [string, string][]
+    ).toString();
+    return apiRequest<SeguradoResponse[]>(`/segurados${qs ? `?${qs}` : ""}`);
+  },
+};
+
+// ─── Modalidades ─────────────────────────────────────────────────────────────
+
+export interface ModalidadeResponse {
+  id: number;
+  nome: string;
+  ativo: boolean;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+export const modalidadesApi = {
+  list: (params?: { search?: string; ativo?: boolean }) => {
+    const entries = Object.entries(params ?? {})
+      .filter(([, v]) => v !== undefined && v !== "")
+      .map(([k, v]) => [k, String(v)] as [string, string]);
+    const qs = new URLSearchParams(entries).toString();
+    return apiRequest<ModalidadeResponse[]>(`/modalidades${qs ? `?${qs}` : ""}`);
+  },
+};
+
+// ─── Seguradoras ─────────────────────────────────────────────────────────────
+
+export interface SeguradoraResponse {
+  id: number;
+  nome: string;
+  logo: string | null;
+  meta: string | null;
+  premio_minimo: string;
+  taxa_comissao: string | null;
+  dia_vencimento: number | null;
+  ativo: boolean;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+export const seguradorasApi = {
+  list: (params?: { search?: string; ativo?: boolean }) => {
+    const entries = Object.entries(params ?? {})
+      .filter(([, v]) => v !== undefined && v !== "")
+      .map(([k, v]) => [k, String(v)] as [string, string]);
+    const qs = new URLSearchParams(entries).toString();
+    return apiRequest<SeguradoraResponse[]>(`/seguradoras${qs ? `?${qs}` : ""}`);
+  },
+};
+
