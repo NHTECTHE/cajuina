@@ -455,7 +455,7 @@ export default function ProdutoresPage() {
     load(search)
   }
 
-  function handleSaved(_: Produtor) {
+  function handleSaved() {
     setModal(null)
     setToast({ type: "success", message: modal === "create" ? "Produtor cadastrado!" : "Produtor atualizado!" })
     load()

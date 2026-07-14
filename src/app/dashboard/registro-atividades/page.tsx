@@ -87,7 +87,7 @@ export default function RegistroAtividadesPage() {
     }
   }
 
-  React.useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
+  React.useEffect(() => { load() }, []) // eslint-disable-line react-hooks/set-state-in-effect
 
   const filteredAtividades = React.useMemo(() => {
     if (!search) return atividades

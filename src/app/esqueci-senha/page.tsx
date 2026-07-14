@@ -4,7 +4,7 @@ import * as React from "react"
 import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { Loader2, Mail, ArrowLeft, ArrowRight } from "lucide-react"
+import { Loader2, Mail, ArrowRight } from "lucide-react"
 import { toast, Toaster } from "sonner"
 import { Button } from "@/components/ui/button"
 

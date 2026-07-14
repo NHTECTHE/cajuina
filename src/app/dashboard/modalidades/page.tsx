@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, FolderTree, Plus, Search, Trash2, Power, PowerOff,
-  Loader2, AlertCircle, CheckCircle2, X, Edit } from "lucide-react"
+  Loader2, AlertCircle, CheckCircle2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   type Modalidade,
@@ -301,7 +301,7 @@ export default function ModalidadesPage() {
     load(search)
   }
 
-  function handleSaved(_: Modalidade) {
+  function handleSaved() {
     setModal(null)
     setToast({ type: "success", message: modal === "create" ? "Modalidade cadastrada!" : "Modalidade atualizada!" })
     load()

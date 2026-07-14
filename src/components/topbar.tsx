@@ -5,11 +5,8 @@ import { usePathname, useRouter } from "next/navigation"
 import {
   Bell,
   LogOut,
-  Settings, 
-  UserRound, 
-  Check, 
-  Info, 
-  AlertCircle,
+  Settings,
+  UserRound,
   Sidebar,
   Moon,
   Sun
@@ -46,7 +43,7 @@ interface NotificationItem {
   title: string
   description: string
   time: string
-  type: "info" | "success" | "warning"
+  status: string
   read: boolean
 }
 
@@ -69,31 +66,38 @@ export default function Topbar({ theme, setTheme, onMenuToggle, onSidebarToggle 
     loadUser()
   }, [])
 
-  // Simulated initial notifications
   const [notifications, setNotifications] = React.useState<NotificationItem[]>([
     {
       id: "1",
-      title: "Nova proposta emitida",
-      description: "Proposta de Seguro Garantia cadastrada com sucesso.",
-      time: "2 minutos atrás",
-      type: "success",
+      title: "Cotação #49578",
+      status: "APROVADA",
+      description: "Cotação atualizada para APROVADA",
+      time: "10/07/2026, 10:34",
       read: false
     },
     {
       id: "2",
-      title: "Apólice prestes a vencer",
-      description: "A apólice #84930 do Tomador vence em 15 dias.",
-      time: "1 hora atrás",
-      type: "warning",
+      title: "Cotação #49577",
+      status: "EM ANÁLISE",
+      description: "Cotação atualizada para EM ANÁLISE",
+      time: "10/07/2026, 10:04",
       read: false
     },
     {
       id: "3",
-      title: "Repasse confirmado",
-      description: "O lote de repasse financeiro do mês foi liquidado.",
-      time: "5 horas atrás",
-      type: "info",
-      read: false
+      title: "Apólice #84930",
+      status: "A VENCER",
+      description: "Apólice vencerá em 15 dias",
+      time: "09/07/2026, 16:11",
+      read: true
+    },
+    {
+      id: "4",
+      title: "Cotação #49570",
+      status: "FINALIZADA",
+      description: "Cotação atualizada para FINALIZADA",
+      time: "09/07/2026, 15:04",
+      read: true
     }
   ])
 
@@ -134,20 +138,8 @@ export default function Topbar({ theme, setTheme, onMenuToggle, onSidebarToggle 
   }
 
   const dropdownStyles = {
-    light: "bg-white border-zinc-200 text-zinc-800",
-    dark: "bg-[#0f1424] border-zinc-800/80 text-zinc-250 shadow-2xl"
-  }
-
-  const notificationIcon = {
-    success: <Check className="size-4 text-emerald-500" />,
-    warning: <AlertCircle className="size-4 text-amber-500" />,
-    info: <Info className="size-4 text-blue-500" />
-  }
-
-  const notificationBg = {
-    success: "bg-emerald-500/10 border-emerald-500/10",
-    warning: "bg-amber-500/10 border-amber-500/10",
-    info: "bg-blue-500/10 border-blue-500/10"
+    light: "bg-white border-zinc-200 text-zinc-800 shadow-lg",
+    dark: "bg-zinc-900 border-zinc-800 text-zinc-250 shadow-2xl"
   }
 
   return (
@@ -207,12 +199,12 @@ export default function Topbar({ theme, setTheme, onMenuToggle, onSidebarToggle 
               )}
             </button>
           </PopoverTrigger>
-          <PopoverContent align="end" className={cn("w-80 p-0 rounded-2xl overflow-hidden border", dropdownStyles[theme])}>
-            <div className="p-4 border-b border-zinc-200/10 bg-black/5 dark:bg-white/[0.02]">
-              <h3 className="font-extrabold text-sm leading-tight">Notificações</h3>
-              <p className="text-[10px] text-zinc-450 mt-0.5">Últimas atividades da corretora</p>
+          <PopoverContent align="end" className={cn("w-[340px] p-0 rounded-lg overflow-hidden border", dropdownStyles[theme])}>
+            <div className="p-4 pb-3 border-b border-zinc-200/50 dark:border-zinc-800">
+              <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 leading-tight">Notificações</h3>
+              <p className="text-[11px] text-zinc-500 mt-0.5">Últimas atualizações de cotações e apólices</p>
             </div>
-            <div className="max-h-64 overflow-y-auto no-scrollbar p-2 space-y-1">
+            <div className="max-h-[320px] overflow-y-auto p-3 space-y-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-zinc-300 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full">
               {notifications.length === 0 ? (
                 <div className="py-6 px-4 text-center text-xs text-zinc-450">
                   Nenhuma notificação recente.
@@ -221,22 +213,24 @@ export default function Topbar({ theme, setTheme, onMenuToggle, onSidebarToggle 
                 notifications.map((item) => (
                   <div
                     key={item.id}
-                    className={cn(
-                      "flex gap-3 p-3 rounded-xl border text-left transition-colors duration-200 hover:bg-zinc-500/5",
-                      item.read ? "bg-transparent border-transparent" : "bg-zinc-500/5 border-zinc-200/10"
-                    )}
+                    className="flex flex-col gap-1.5 p-3 rounded-lg border border-zinc-200/80 dark:border-zinc-800 text-left bg-white dark:bg-zinc-800/20 shadow-sm"
                   >
-                    <div className={cn("w-8 h-8 rounded-lg border flex items-center justify-center shrink-0", notificationBg[item.type])}>
-                      {notificationIcon[item.type]}
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">{item.title}</p>
+                      <span className="px-2 py-0.5 text-[9px] font-bold uppercase rounded-full bg-red-50 text-brand-red dark:bg-red-900/30 dark:text-red-400">
+                        {item.status}
+                      </span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold truncate">{item.title}</p>
-                      <p className="text-[10.5px] leading-snug text-zinc-450 mt-0.5">{item.description}</p>
-                      <p className="text-[9px] text-zinc-500 mt-1.5 font-medium">{item.time}</p>
-                    </div>
+                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400">{item.description}</p>
+                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{item.time}</p>
                   </div>
                 ))
               )}
+            </div>
+            <div className="p-3 pt-2">
+              <button className="w-full py-2.5 text-xs font-bold text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors">
+                Ver todas as atualizações
+              </button>
             </div>
           </PopoverContent>
         </Popover>

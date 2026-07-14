@@ -47,7 +47,7 @@ export async function listCorretoresAction(search = '') {
     if (!res.ok) return { error: 'Erro ao buscar corretores' }
     const json = await res.json()
     return { data: json.data as Corretor[] }
-  } catch {
+  } catch (e: unknown) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -64,7 +64,7 @@ export async function getCorretorAction(id: number) {
     if (!res.ok) return { error: 'Corretor não encontrado' }
     const json = await res.json()
     return { data: json.data as Corretor }
-  } catch {
+  } catch (e: unknown) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -82,7 +82,7 @@ export async function createCorretorAction(payload: Omit<Corretor, 'id' | 'criad
     const json = await res.json()
     if (!res.ok) return { error: json.detail || JSON.stringify(json) }
     return { data: json.data as Corretor }
-  } catch {
+  } catch (e: unknown) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -100,7 +100,7 @@ export async function updateCorretorAction(id: number, payload: Partial<Corretor
     const json = await res.json()
     if (!res.ok) return { error: json.detail || JSON.stringify(json) }
     return { data: json.data as Corretor }
-  } catch {
+  } catch (e: unknown) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -116,7 +116,7 @@ export async function deleteCorretorAction(id: number) {
     })
     if (!res.ok) return { error: 'Erro ao excluir corretor' }
     return { success: true }
-  } catch {
+  } catch (e: unknown) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }

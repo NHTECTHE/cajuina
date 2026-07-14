@@ -445,7 +445,7 @@ export default function SeguradosPage() {
     load(search)
   }
 
-  function handleSaved(_: Segurado) {
+  function handleSaved() {
     setModal(null)
     setToast({ type: "success", message: modal === "create" ? "Segurado cadastrado!" : "Segurado atualizado!" })
     load()

@@ -327,12 +327,12 @@ export default function UsuariosPage() {
     load(search)
   }
 
-  function handleSaved(_: Usuario) {
+  function handleSaved() {
     setModal({ open: false, usuario: null })
     load()
   }
 
-  function handleDelete(_: Usuario) {
+  function handleDelete() {
     setModal({ open: false, usuario: null })
     load()
   }

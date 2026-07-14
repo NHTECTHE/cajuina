@@ -16,7 +16,7 @@ const features = [
     id: 'risco',
     title: 'Risco de Engenharia',
     description: 'Protege obras e projetos contra danos e imprevistos durante sua execução. Ele oferece cobertura para novas construções, reformas, ampliações, instalações e mudanças de layout, desde o início até a conclusão da obra. Essa modalidade garante mais segurança financeira, reduz prejuízos causados por acidentes e contribui para o cumprimento do cronograma, proporcionando tranquilidade para empresas, construtoras e proprietários.',
-    image: '/imagem2.webp',
+    image: '/image2.webp',
     bgColor: 'bg-brand-red'
   },
   {

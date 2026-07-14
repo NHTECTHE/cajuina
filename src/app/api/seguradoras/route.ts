@@ -14,8 +14,7 @@ async function backendHeaders() {
 
 export async function GET(request: NextRequest) {
   const search = request.nextUrl.searchParams.toString();
-  const url = `${BACKEND}/tomadores/${search ? `?${search}` : ""}`;
-
+  const url = `${BACKEND}/seguradoras/${search ? `?${search}` : ""}`;
   const res = await fetch(url, { headers: await backendHeaders() });
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });
@@ -23,7 +22,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const res = await fetch(`${BACKEND}/tomadores/`, {
+  const res = await fetch(`${BACKEND}/seguradoras/`, {
     method: "POST",
     headers: await backendHeaders(),
     body: JSON.stringify(body),
@@ -31,4 +30,3 @@ export async function POST(request: NextRequest) {
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });
 }
-

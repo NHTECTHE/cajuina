@@ -46,7 +46,7 @@ export async function listSeguradosAction(search = '') {
     if (!res.ok) return { error: 'Erro ao buscar segurados' }
     const json = await res.json()
     return { data: json.data as Segurado[] }
-  } catch {
+  } catch (e: unknown) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -63,7 +63,7 @@ export async function createSeguradoAction(payload: Omit<Segurado, 'id' | 'criad
     const json = await res.json()
     if (!res.ok) return { error: json.detail || JSON.stringify(json) }
     return { data: json.data as Segurado }
-  } catch {
+  } catch (e: unknown) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -80,7 +80,7 @@ export async function updateSeguradoAction(id: number, payload: Partial<Segurado
     const json = await res.json()
     if (!res.ok) return { error: json.detail || JSON.stringify(json) }
     return { data: json.data as Segurado }
-  } catch {
+  } catch (e: unknown) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -95,7 +95,7 @@ export async function deleteSeguradoAction(id: number) {
     })
     if (!res.ok) return { error: 'Erro ao excluir segurado' }
     return { success: true }
-  } catch {
+  } catch (e: unknown) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }

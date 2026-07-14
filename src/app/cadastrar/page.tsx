@@ -162,7 +162,7 @@ export default function RegisterPage() {
       {/* ───── LEFT: Hero Image Panel ───── */}
       <div className="hidden lg:flex lg:w-[38%] relative overflow-hidden rounded-r-3xl">
         <Image
-          src="/hero-login.png"
+          src="/hero-login.webp"
           alt="Cajuína"
           fill
           priority
