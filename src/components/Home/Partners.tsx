@@ -31,8 +31,9 @@ export default function Partners() {
               key={`${partner.id}-${index}`} 
               className="flex justify-center items-center min-w-[200px] px-4 transition-all duration-300 opacity-70 hover:opacity-100"
             >
-              <img 
-                src={partner.src} 
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={partner.src}
                 alt={partner.name} 
                 className="max-h-40 w-auto object-contain brightness-0"
                 onError={(e) => {

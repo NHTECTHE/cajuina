@@ -5,11 +5,8 @@ import { usePathname, useRouter } from "next/navigation"
 import {
   Bell,
   LogOut,
-  Settings, 
-  UserRound, 
-  Check, 
-  Info, 
-  AlertCircle,
+  Settings,
+  UserRound,
   Sidebar,
   Moon,
   Sun

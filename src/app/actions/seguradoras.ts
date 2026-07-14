@@ -57,7 +57,7 @@ export async function listSeguradorasAction(search = '') {
     if (!res.ok) return { error: 'Erro ao buscar seguradoras' }
     const json = await res.json()
     return { data: json.data as Seguradora[] }
-  } catch (e: any) { console.error("ACTION ERROR:", e);
+  } catch (e: unknown) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -74,7 +74,7 @@ export async function getSeguradoraAction(id: number) {
     if (!res.ok) return { error: 'Erro ao buscar seguradora' }
     const json = await res.json()
     return { data: json.data as Seguradora }
-  } catch (e: any) { console.error("ACTION ERROR:", e);
+  } catch (e: unknown) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -96,13 +96,13 @@ export async function createSeguradoraAction(
     let json
     try {
       json = JSON.parse(text)
-    } catch (parseError) {
+    } catch {
       console.error("BACKEND HTML ERROR (status " + res.status + "):", text.substring(0, 2000))
       return { error: 'Erro inesperado no servidor backend.' }
     }
     if (!res.ok) return { error: json.detail || JSON.stringify(json) }
     return { data: json.data as Seguradora }
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
@@ -125,7 +125,7 @@ export async function updateSeguradoraAction(
     const json = await res.json()
     if (!res.ok) return { error: json.detail || JSON.stringify(json) }
     return { data: json.data as Seguradora }
-  } catch (e: any) { console.error("ACTION ERROR:", e);
+  } catch (e: unknown) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }
@@ -141,7 +141,7 @@ export async function deleteSeguradoraAction(id: number) {
     })
     if (!res.ok) return { error: 'Erro ao excluir seguradora' }
     return { success: true }
-  } catch (e: any) { console.error("ACTION ERROR:", e);
+  } catch (e: unknown) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }

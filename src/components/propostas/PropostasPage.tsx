@@ -3,16 +3,10 @@
 import * as React from "react"
 import { useState, useMemo } from "react"
 import {
-  Search,
   ArrowLeft,
   FileText,
-  FileDown,
-  MessageCircle,
-  Mail,
-  ClipboardList
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 // Mock Data Structure
@@ -235,7 +229,7 @@ export default function PropostasPage() {
               </div>
 
               {paginatedPropostas.length > 0 ? (
-                paginatedPropostas.map((t, idx) => (
+                paginatedPropostas.map((t) => (
                   <div
                     key={t.id}
                     onClick={() => handleRowClick(t)}
@@ -525,7 +519,7 @@ export default function PropostasPage() {
                 <p><strong className="text-zinc-800 dark:text-zinc-200 mr-1 font-bold">Valor da Cobertura:</strong> <span className="font-bold text-[16px] text-brand-red">{selectedProposta.is}</span></p>
                 
                 <div className="mt-4 pt-4 text-[#e85c5c]">
-                  <p><strong className="font-bold mr-1">Mensagem:</strong> Erro de requisição 503 "\r\n</p>
+                  <p><strong className="font-bold mr-1">Mensagem:</strong> Erro de requisição 503 &quot;\r\n</p>
                 </div>
               </div>
 

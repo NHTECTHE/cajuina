@@ -32,7 +32,7 @@ export async function getUserAction() {
 
     const data = await res.json()
     return { data }
-  } catch (e: any) { console.error("ACTION ERROR:", e);
+  } catch (e: unknown) { console.error("ACTION ERROR:", e);
     return { error: 'Falha na comunicação com o servidor' }
   }
 }

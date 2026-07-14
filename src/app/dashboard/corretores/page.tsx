@@ -399,7 +399,7 @@ export default function CorretoresPage() {
     load(search)
   }
 
-  function handleSaved(_: Corretor) {
+  function handleSaved() {
     setModal(null)
     setToast({ type: "success", message: modal === "create" ? "Corretor cadastrado!" : "Corretor atualizado!" })
     load()

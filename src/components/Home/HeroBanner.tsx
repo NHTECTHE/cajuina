@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, ArrowRight, ShieldCheck, Clock, FileCheck, User, Lock, Users, Handshake } from "lucide-react";
+import { ArrowRight, ShieldCheck, Clock, FileCheck, Users, Handshake } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 // CSS Mockup for iPhone
@@ -158,13 +158,6 @@ export default function HeroBanner() {
       clearInterval(phoneTimer);
     };
   }, [currentSlide]);
-
-  const handleNext = () => {
-    if (isAnimating) return;
-    setIsAnimating(true);
-    setCurrentSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
-    setTimeout(() => setIsAnimating(false), 800);
-  };
 
   const handleDotClick = (index: number) => {
     if (isAnimating || index === currentSlide) return;
