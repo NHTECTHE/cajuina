@@ -16,6 +16,11 @@ interface AsyncComboboxProps {
   onChange: (option: AsyncComboboxOption | null) => void
   /** Fetches matching options for the given search term (server-side). */
   fetchOptions: (search: string) => Promise<AsyncComboboxOption[]>
+  /**
+   * Rótulo a exibir para o `value` já selecionado (ex.: ao editar um registro
+   * existente), sem precisar reabrir o popup. Sincroniza quando muda.
+   */
+  initialLabel?: string
   placeholder?: string
   emptyMessage?: string
   disabled?: boolean
@@ -35,6 +40,7 @@ export function AsyncCombobox({
   value,
   onChange,
   fetchOptions,
+  initialLabel = "",
   placeholder = "Buscar...",
   emptyMessage = "Nenhum resultado encontrado.",
   disabled = false,
@@ -45,9 +51,18 @@ export function AsyncCombobox({
   const [open, setOpen] = React.useState(false)
   const [options, setOptions] = React.useState<AsyncComboboxOption[]>([])
   const [loading, setLoading] = React.useState(false)
-  const [selectedLabel, setSelectedLabel] = React.useState("")
+  const [selectedLabel, setSelectedLabel] = React.useState(initialLabel)
   const containerRef = React.useRef<HTMLDivElement>(null)
   const requestId = React.useRef(0)
+
+  // Seed/atualiza o rótulo exibido quando o pai fornece um novo `initialLabel`
+  // (ex.: ao abrir o form em modo edição). Ajuste de estado derivado de prop
+  // feito durante o render — padrão recomendado pelo React, sem useEffect.
+  const [prevInitialLabel, setPrevInitialLabel] = React.useState(initialLabel)
+  if (initialLabel !== prevInitialLabel) {
+    setPrevInitialLabel(initialLabel)
+    setSelectedLabel(initialLabel)
+  }
 
   // Keep the displayed text in sync with the selected label when the popup is closed.
   const displayValue = open ? query : selectedLabel

@@ -5,7 +5,6 @@ import { useState, useMemo } from "react"
 import {
   Search,
   Plus,
-  Ban,
   FileText,
   ArrowLeft,
   FileDown,
@@ -18,73 +17,29 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { cn } from "@/lib/utils"
 import { AsyncCombobox, type AsyncComboboxOption } from "@/components/ui/async-combobox"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   tomadoresApi,
   seguradosApi,
   modalidadesApi,
   seguradorasApi,
+  cotacoesApi,
   type SeguradoraResponse,
+  type CotacaoResponse,
+  type CotacaoPayload,
 } from "@/services/api"
 
-// Mock Data Structure
-interface CotacaoMock {
-  id: number
-  tomador: string
-  cnpj: string
-  modalidade: string
-  editalContrato: string
-  is: string
-  dataInicial: string
-  prazo: string
-  data: string
-  premio: string
-  emitidoPor: string
-}
-
-const mockCotacoes: CotacaoMock[] = [
-  {
-    id: 49578,
-    tomador: "VALTER ALVES DA SILVA EIRELI",
-    cnpj: "21.163.108/0001-75",
-    modalidade: "Edital / Licitação - Publico",
-    editalContrato: "CONCORRÊNCIA Nº 004/2026",
-    is: "R$ 38.300,00",
-    dataInicial: "09/07/2026",
-    prazo: "125 dias",
-    data: "09/07/2026",
-    premio: "R$ 0,00",
-    emitidoPor: "Érica Cordeiro"
-  },
-  {
-    id: 49577,
-    tomador: "VALE DO ITAIM SERVICOS E CONSULTORIA LTDA",
-    cnpj: "06.848.964/0001-70",
-    modalidade: "Edital / Licitação - Publico",
-    editalContrato: "CONCORRÊNCIA ELETRÔNICA Nº 001/2026",
-    is: "R$ 9.813,65",
-    dataInicial: "14/07/2026",
-    prazo: "95 dias",
-    data: "09/07/2026",
-    premio: "R$ 0,00",
-    emitidoPor: "Ananda Oliveira"
-  },
-  {
-    id: 49575,
-    tomador: "F R DE LIMA & CIA LTDA",
-    cnpj: "19.469.041/0001-50",
-    modalidade: "Contrato / Executante Construtor",
-    editalContrato: "110/2026",
-    is: "R$ 51.435,94",
-    dataInicial: "05/06/2026",
-    prazo: "574 dias",
-    data: "09/07/2026",
-    premio: "R$ 0,00",
-    emitidoPor: "Ananda Oliveira"
-  }
-]
-
-// Mock Seguradoras
 // ─── Helpers de data (ISO yyyy-mm-dd, sem problema de fuso) ───────────────────
 
 // Soma `days` a uma data ISO e retorna outra data ISO. Retorna "" se inválido.
@@ -136,6 +91,35 @@ function formatCurrency(raw: string): string {
   })
 }
 
+// Converte uma data ISO "yyyy-mm-dd" para exibição "dd/mm/yyyy". "" se vazio.
+function isoToBR(iso: string | null | undefined): string {
+  if (!iso) return "—"
+  const [y, m, d] = iso.split("-")
+  if (!y || !m || !d) return "—"
+  return `${d}/${m}/${y}`
+}
+
+// Converte um valor decimal do backend ("1500.00") para o formato de exibição
+// pt-BR do input ("1.500,00"). Retorna "" quando não há valor.
+function decimalToCurrencyInput(value: string | null | undefined): string {
+  if (value === null || value === undefined || value === "") return ""
+  const num = Number(value)
+  if (!Number.isFinite(num)) return ""
+  return num.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
+// Converte o texto pt-BR do input ("1.500,00") de volta para decimal serializável
+// ("1500.00"). Retorna null quando vazio.
+function currencyInputToDecimal(value: string): string | null {
+  const cleaned = value.replace(/\./g, "").replace(",", ".")
+  if (!cleaned) return null
+  const num = Number(cleaned)
+  return Number.isFinite(num) ? num.toFixed(2) : null
+}
+
 export default function CotacoesPage() {
   const [view, setView] = useState<"list" | "form" | "details">("list")
   // Contexto do formulário: criação de nova cotação ou edição de uma existente.
@@ -145,6 +129,28 @@ export default function CotacoesPage() {
   const [tomador, setTomador] = useState<AsyncComboboxOption | null>(null)
   const [modalidade, setModalidade] = useState<AsyncComboboxOption | null>(null)
   const [segurado, setSegurado] = useState<AsyncComboboxOption | null>(null)
+  // Rótulos iniciais dos comboboxes ao editar (para exibir o nome já selecionado).
+  const [tomadorLabel, setTomadorLabel] = useState("")
+  const [modalidadeLabel, setModalidadeLabel] = useState("")
+  const [seguradoLabel, setSeguradoLabel] = useState("")
+  const [edital, setEdital] = useState("")
+
+  // Cotação atualmente selecionada (linha clicada → detalhes / edição).
+  const [selectedCotacao, setSelectedCotacao] = useState<CotacaoResponse | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  // Confirmação de aprovação da cotação (tela de detalhes).
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false)
+
+  // Seguradora escolhida para a emissão (só habilitado após aprovar; ainda não
+  // persistido — a escolha efetiva acontece ao Emitir, próxima etapa).
+  const [seguradoraEscolhidaId, setSeguradoraEscolhidaId] = useState<number | null>(null)
+
+  // Seleciona a cotação em foco e limpa a escolha de seguradora anterior.
+  const selectCotacao = (c: CotacaoResponse | null) => {
+    setSelectedCotacao(c)
+    setSeguradoraEscolhidaId(null)
+  }
 
   const fetchTomadores = React.useCallback(async (search: string): Promise<AsyncComboboxOption[]> => {
     const data = await tomadoresApi.list({ search })
@@ -220,26 +226,145 @@ export default function CotacoesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState<number>(10)
-  
-  // Filter and Pagination Logic for List View
-  const filteredCotacoes = useMemo(() => {
-    return mockCotacoes.filter(c => 
-      c.tomador.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.cnpj.includes(searchQuery) ||
-      c.editalContrato.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-  }, [searchQuery])
 
+  // Cotações carregadas da API
+  const [cotacoes, setCotacoes] = useState<CotacaoResponse[]>([])
+  const [loadingCotacoes, setLoadingCotacoes] = useState(false)
+
+  // Busca a lista de cotações. Reutilizada após criar/editar/excluir.
+  const loadCotacoes = React.useCallback(async (search: string) => {
+    setLoadingCotacoes(true)
+    try {
+      const data = await cotacoesApi.list(search ? { search } : undefined)
+      setCotacoes(data)
+    } catch {
+      setCotacoes([])
+    } finally {
+      setLoadingCotacoes(false)
+    }
+  }, [])
+
+  // Carrega a lista ao entrar na view de lista, com debounce na busca.
+  React.useEffect(() => {
+    if (view !== "list") return
+    const handle = setTimeout(() => loadCotacoes(searchQuery.trim()), 300)
+    return () => clearTimeout(handle)
+  }, [view, searchQuery, loadCotacoes])
+
+  // Filter and Pagination Logic for List View (a busca já vem filtrada da API)
   const paginatedCotacoes = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage
-    return filteredCotacoes.slice(startIndex, startIndex + itemsPerPage)
-  }, [filteredCotacoes, currentPage, itemsPerPage])
+    return cotacoes.slice(startIndex, startIndex + itemsPerPage)
+  }, [cotacoes, currentPage, itemsPerPage])
 
-  const totalPages = Math.max(1, Math.ceil(filteredCotacoes.length / itemsPerPage))
+  const totalPages = Math.max(1, Math.ceil(cotacoes.length / itemsPerPage))
 
   const handleClearFilters = () => {
     setSearchQuery("")
     setCurrentPage(1)
+  }
+
+  // ─── Gestão do formulário (criar / editar) ──────────────────────────────────
+
+  // Limpa todos os campos do formulário.
+  const resetForm = React.useCallback(() => {
+    setTomador(null)
+    setModalidade(null)
+    setSegurado(null)
+    setTomadorLabel("")
+    setModalidadeLabel("")
+    setSeguradoLabel("")
+    setEdital("")
+    setDataInicio("")
+    setPrazo("")
+    setDataFinal("")
+    setImportanciaSegurada("")
+  }, [])
+
+  // Abre o formulário em branco para criar uma nova cotação.
+  const openCreate = () => {
+    resetForm()
+    setFormMode("create")
+    setView("form")
+  }
+
+  // Abre o formulário já preenchido com os dados da cotação `c` para edição.
+  const openEdit = (c: CotacaoResponse) => {
+    setFormMode("edit")
+    selectCotacao(c)
+    setTomador({ value: c.tomador, label: c.tomador_nome })
+    setModalidade({ value: c.modalidade, label: c.modalidade_nome })
+    setSegurado(c.segurado != null ? { value: c.segurado, label: c.segurado_nome ?? "" } : null)
+    setTomadorLabel(c.tomador_nome)
+    setModalidadeLabel(c.modalidade_nome)
+    setSeguradoLabel(c.segurado_nome ?? "")
+    setEdital(c.edital ?? "")
+    setDataInicio(c.data_inicio ?? "")
+    setPrazo(c.prazo_dias != null ? String(c.prazo_dias) : "")
+    setDataFinal(c.data_final ?? "")
+    setImportanciaSegurada(decimalToCurrencyInput(c.importancia_segurada))
+    setView("form")
+  }
+
+  // Cria ou atualiza a cotação conforme o modo atual.
+  const handleSave = async () => {
+    if (!tomador || !modalidade) {
+      alert("Selecione o tomador e a modalidade.")
+      return
+    }
+    const payload: CotacaoPayload = {
+      tomador: Number(tomador.value),
+      modalidade: Number(modalidade.value),
+      segurado: segurado ? Number(segurado.value) : null,
+      edital,
+      data_inicio: dataInicio || null,
+      prazo_dias: prazo ? parseInt(prazo, 10) : null,
+      data_final: dataFinal || null,
+      importancia_segurada: currencyInputToDecimal(importanciaSegurada),
+    }
+    setSaving(true)
+    try {
+      const saved =
+        formMode === "edit" && selectedCotacao
+          ? await cotacoesApi.update(selectedCotacao.id, payload)
+          : await cotacoesApi.create(payload)
+      setSelectedCotacao(saved)
+      await loadCotacoes(searchQuery.trim())
+      setView("details")
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erro ao salvar a cotação.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Exclui a cotação informada e volta para a lista.
+  const handleDelete = async (c: CotacaoResponse) => {
+    if (!confirm(`Excluir a cotação #${c.id}?`)) return
+    try {
+      await cotacoesApi.remove(c.id)
+      if (selectedCotacao?.id === c.id) selectCotacao(null)
+      await loadCotacoes(searchQuery.trim())
+      setView("list")
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erro ao excluir a cotação.")
+    }
+  }
+
+  // Aprova a cotação selecionada: habilita a escolha de seguradora e o Emitir.
+  const handleAprovar = async () => {
+    if (!selectedCotacao) return
+    setSaving(true)
+    try {
+      const aprovada = await cotacoesApi.aprovar(selectedCotacao.id)
+      setSelectedCotacao(aprovada)
+      await loadCotacoes(searchQuery.trim())
+      setShowApproveConfirm(false)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erro ao aprovar a cotação.")
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -259,7 +384,7 @@ export default function CotacoesPage() {
             </div>
 
             <Button
-              onClick={() => { setFormMode("create"); setView("form") }}
+              onClick={openCreate}
               className="bg-brand-red text-white hover:bg-brand-red/90 font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 cursor-pointer shadow-md shadow-brand-red/10 transition-all duration-200 active:scale-[0.98]"
             >
               <Plus className="size-4.5" />
@@ -327,76 +452,80 @@ export default function CotacoesPage() {
                 <div className="col-span-1 text-right">Ação</div>
               </div>
 
-              {paginatedCotacoes.length > 0 ? (
+              {loadingCotacoes ? (
+                <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl p-12 text-center">
+                  <div className="flex flex-col items-center justify-center max-w-xs mx-auto">
+                    <FileText className="size-5 text-zinc-400 mb-3 opacity-70 animate-pulse" />
+                    <h4 className="font-bold text-xs text-inherit opacity-70">Carregando cotações...</h4>
+                  </div>
+                </div>
+              ) : paginatedCotacoes.length > 0 ? (
                 paginatedCotacoes.map((t) => (
                   <div
                     key={t.id}
-                    onClick={() => setView("details")}
+                    onClick={() => { selectCotacao(t); setView("details") }}
                     className="cursor-pointer group bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl hover:border-brand-red/40 dark:hover:border-brand-red/40 hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50 hover:shadow-md transition-all duration-200 relative"
                   >
                     {/* ===== DESKTOP LAYOUT (INTACT) ===== */}
                     <div className="hidden xl:grid grid-cols-10 gap-4 items-center p-3.5 px-5">
                       <div className="col-span-1 text-[11px] font-bold text-zinc-500">#{t.id}</div>
-                      
+
                       {/* Tomador / CNPJ */}
                       <div className="col-span-2 flex flex-col gap-1">
-                        <span className="font-bold text-xs tracking-tight text-inherit uppercase">{t.tomador}</span>
-                        <span className="font-mono text-[10px] text-zinc-500 font-medium">{t.cnpj}</span>
+                        <span className="font-bold text-xs tracking-tight text-inherit uppercase">{t.tomador_nome}</span>
+                        <span className="font-mono text-[10px] text-zinc-500 font-medium">{t.tomador_cnpj}</span>
                       </div>
 
                       {/* Modalidade / Edital */}
                       <div className="col-span-2 pl-6 flex flex-col gap-1 text-[11px] text-zinc-650 dark:text-zinc-400 font-medium">
                         <span className="flex items-start gap-1.5">
-                          <span className="leading-tight">{t.modalidade}</span>
+                          <span className="leading-tight">{t.modalidade_nome}</span>
                         </span>
                         <span className="flex items-start gap-1.5">
-                          <span className="leading-tight text-[10px] uppercase">{t.editalContrato}</span>
+                          <span className="leading-tight text-[10px] uppercase">{t.edital || "—"}</span>
                         </span>
                       </div>
 
                       {/* Data Início / Prazo */}
                       <div className="col-span-1 flex flex-col gap-1 text-[11px] text-zinc-650 dark:text-zinc-400">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-[10px]">Inc: {t.dataInicial}</span>
+                          <span className="font-medium text-[10px]">Inc: {isoToBR(t.data_inicio)}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-[10px]">Prz: {t.prazo}</span>
+                          <span className="font-medium text-[10px]">Prz: {t.prazo_dias != null ? `${t.prazo_dias} dias` : "—"}</span>
                         </div>
                       </div>
 
                       {/* Data */}
                       <div className="col-span-1 flex flex-col gap-1 text-[11px] text-zinc-650 dark:text-zinc-400">
-                        <span className="font-medium text-[10px]">{t.data}</span>
+                        <span className="font-medium text-[10px]">{isoToBR(t.criado_em?.slice(0, 10))}</span>
                       </div>
 
                       {/* Valores */}
                       <div className="col-span-1 flex flex-col gap-1 text-[11px] text-zinc-650 dark:text-zinc-400">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-brand-red dark:text-brand-red/80">{t.is}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-[10px]">Prêmio: {t.premio}</span>
+                          <span className="font-bold text-brand-red dark:text-brand-red/80">{formatBRL(t.importancia_segurada)}</span>
                         </div>
                       </div>
 
                       {/* Emitido Por */}
                       <div className="col-span-1 flex items-center text-[11px] text-zinc-650 dark:text-zinc-400">
-                        <span className="font-medium opacity-80 uppercase leading-tight">{t.emitidoPor}</span>
+                        <span className="font-medium opacity-80 uppercase leading-tight">{t.criado_por_nome ?? "—"}</span>
                       </div>
 
                       {/* Ação */}
                       <div className="col-span-1 flex items-center justify-end gap-2">
-                        <button 
-                          onClick={(e) => e.stopPropagation()}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDelete(t) }}
                           className="w-7 h-7 bg-red-100 text-red-600 hover:bg-red-600 hover:text-white dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500 dark:hover:text-white rounded flex items-center justify-center cursor-pointer transition-colors shadow-sm"
                         >
                           <Trash2 className="size-3.5" />
                         </button>
-                        <button 
-                          onClick={(e) => e.stopPropagation()}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openEdit(t) }}
                           className="w-7 h-7 bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600 rounded flex items-center justify-center cursor-pointer transition-colors shadow-sm"
                         >
-                          <Ban className="size-3.5" />
+                          <Pencil className="size-3.5" />
                         </button>
                       </div>
                     </div>
@@ -408,58 +537,55 @@ export default function CotacoesPage() {
                         <div className="flex items-center gap-2 mb-1.5">
                           <span className="text-[13px] font-medium text-brand-red/90 uppercase tracking-wide">Simulação #{t.id}</span>
                         </div>
-                        <span className="font-bold text-[15px] tracking-tight text-zinc-800 dark:text-zinc-200 uppercase">{t.tomador}</span>
-                        <span className="font-mono text-[13px] text-zinc-400 font-normal">{t.cnpj}</span>
+                        <span className="font-bold text-[15px] tracking-tight text-zinc-800 dark:text-zinc-200 uppercase">{t.tomador_nome}</span>
+                        <span className="font-mono text-[13px] text-zinc-400 font-normal">{t.tomador_cnpj}</span>
                       </div>
 
                       {/* Modalidade / Edital */}
                       <div className="col-span-1 flex flex-col gap-1 text-[13px] text-zinc-800 dark:text-zinc-300 font-normal order-2">
-                        <span className="leading-tight uppercase">{t.modalidade}</span>
-                        <span className="leading-tight text-[12px] text-zinc-500 uppercase mt-0.5 max-w-[110px] inline-block">{t.editalContrato}</span>
+                        <span className="leading-tight uppercase">{t.modalidade_nome}</span>
+                        <span className="leading-tight text-[12px] text-zinc-500 uppercase mt-0.5 max-w-[110px] inline-block">{t.edital || "—"}</span>
                       </div>
 
                       {/* Data Início / Prazo */}
                       <div className="col-span-1 flex flex-col gap-2.5 text-sm text-zinc-650 dark:text-zinc-400 order-3">
                         <div className="flex flex-col gap-0">
                           <span className="text-[10px] uppercase text-zinc-700 font-medium tracking-wide mb-0.5">Data Inicial:</span>
-                          <span className="font-normal text-[13px] text-zinc-600">{t.dataInicial}</span>
+                          <span className="font-normal text-[13px] text-zinc-600">{isoToBR(t.data_inicio)}</span>
                         </div>
                         <div className="flex flex-col gap-0">
                           <span className="text-[10px] uppercase text-zinc-700 font-medium tracking-wide mb-0.5">Prazo:</span>
-                          <span className="font-normal text-[13px] text-zinc-600">{t.prazo}</span>
+                          <span className="font-normal text-[13px] text-zinc-600">{t.prazo_dias != null ? `${t.prazo_dias} dias` : "—"}</span>
                         </div>
                       </div>
 
                       {/* Valores */}
                       <div className="col-span-2 flex flex-col gap-0.5 text-sm text-zinc-650 dark:text-zinc-400 order-4 -mt-1">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-normal text-lg text-brand-red/90 dark:text-brand-red/80">{t.is}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-[12px] text-zinc-500 uppercase">Prêmio: {t.premio}</span>
+                          <span className="font-normal text-lg text-brand-red/90 dark:text-brand-red/80">{formatBRL(t.importancia_segurada)}</span>
                         </div>
                       </div>
 
                       {/* Emitido Por / Data */}
                       <div className="col-span-1 flex flex-col gap-0.5 mt-1 order-5">
                         <span className="text-[11px] text-zinc-800 font-bold mb-0.5">Emitida em:</span>
-                        <span className="text-[12px] text-zinc-500">{t.data}</span>
-                        <span className="text-[12px] text-zinc-500 mt-1">Por <span className="font-bold">{t.emitidoPor}</span></span>
+                        <span className="text-[12px] text-zinc-500">{isoToBR(t.criado_em?.slice(0, 10))}</span>
+                        <span className="text-[12px] text-zinc-500 mt-1">Por <span className="font-bold">{t.criado_por_nome ?? "—"}</span></span>
                       </div>
 
                       {/* Ação */}
                       <div className="col-span-1 flex items-end justify-end gap-2 mt-1 order-6">
-                        <button 
-                          onClick={(e) => e.stopPropagation()}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDelete(t) }}
                           className="w-11 h-11 bg-[#ffe6e6] text-brand-red hover:bg-brand-red hover:text-white dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500 dark:hover:text-white rounded-xl flex items-center justify-center cursor-pointer transition-colors"
                         >
                           <Trash2 className="size-5" />
                         </button>
-                        <button 
-                          onClick={(e) => e.stopPropagation()}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openEdit(t) }}
                           className="w-11 h-11 bg-[#e4e4e7] text-zinc-800 hover:bg-zinc-800 hover:text-white dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600 rounded-xl flex items-center justify-center cursor-pointer transition-colors"
                         >
-                          <Ban className="size-5" />
+                          <Pencil className="size-5" />
                         </button>
                       </div>
                     </div>
@@ -509,6 +635,7 @@ export default function CotacoesPage() {
                 value={tomador?.value ?? null}
                 onChange={setTomador}
                 fetchOptions={fetchTomadores}
+                initialLabel={tomadorLabel}
                 placeholder="Digite o nome ou CNPJ do tomador..."
                 emptyMessage="Nenhum tomador encontrado."
               />
@@ -520,6 +647,7 @@ export default function CotacoesPage() {
                 value={modalidade?.value ?? null}
                 onChange={setModalidade}
                 fetchOptions={fetchModalidades}
+                initialLabel={modalidadeLabel}
                 placeholder="Selecione a modalidade..."
                 emptyMessage="Nenhuma modalidade encontrada."
               />
@@ -531,6 +659,7 @@ export default function CotacoesPage() {
                 value={segurado?.value ?? null}
                 onChange={setSegurado}
                 fetchOptions={fetchSegurados}
+                initialLabel={seguradoLabel}
                 placeholder="Digite o nome ou CNPJ do segurado..."
                 emptyMessage="Nenhum segurado encontrado."
               />
@@ -538,7 +667,11 @@ export default function CotacoesPage() {
 
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Edital:</Label>
-              <Input className="h-10 border-zinc-300" />
+              <Input
+                className="h-10 border-zinc-300"
+                value={edital}
+                onChange={(e) => setEdital(e.target.value)}
+              />
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -588,10 +721,15 @@ export default function CotacoesPage() {
 
             <div className="flex justify-center mt-6">
               <Button
-                onClick={() => setView("details")}
-                className="bg-green-500 hover:bg-green-600 text-white font-bold px-8 h-10 w-auto min-w-40 rounded-md transition-colors"
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-green-500 hover:bg-green-600 text-white font-bold px-8 h-10 w-auto min-w-40 rounded-md transition-colors disabled:opacity-60"
               >
-                {formMode === "edit" ? "SALVAR ALTERAÇÕES" : "CALCULAR"}
+                {saving
+                  ? "SALVANDO..."
+                  : formMode === "edit"
+                  ? "SALVAR ALTERAÇÕES"
+                  : "CALCULAR"}
               </Button>
             </div>
           </div>
@@ -630,23 +768,21 @@ export default function CotacoesPage() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
                 <div className="flex flex-col gap-3 text-[13px] text-zinc-600 dark:text-zinc-400">
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Tomador:</strong> BM ENGENHARIA LTDA - 00.739.568/0001-29</p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Modalidade:</strong> Contrato / Executante Prestação de Serviços</p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Adicional Trabalhista:</strong> Não</p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Edital/Contrato:</strong> <span className="uppercase break-all">GFXCVBSB43RFCXSGFXCVFGFGAFSCDGSSADSBTEGRVDSXZ</span></p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Valor da Cobertura:</strong> R$ 99.999.999,99</p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Segurado:</strong> 2 BATALHAO DE ENGENHARIA DE CONSTRUCAO - 07.549.168/0001-08</p>
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Tomador:</strong> {selectedCotacao ? `${selectedCotacao.tomador_nome} - ${selectedCotacao.tomador_cnpj}` : "—"}</p>
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Modalidade:</strong> {selectedCotacao?.modalidade_nome ?? "—"}</p>
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Edital/Contrato:</strong> <span className="uppercase break-all">{selectedCotacao?.edital || "—"}</span></p>
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Valor da Cobertura:</strong> {formatBRL(selectedCotacao?.importancia_segurada)}</p>
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Segurado:</strong> {selectedCotacao?.segurado_nome ? `${selectedCotacao.segurado_nome}${selectedCotacao.segurado_cnpj ? ` - ${selectedCotacao.segurado_cnpj}` : ""}` : "—"}</p>
                   <div className="mt-4 flex flex-col gap-3 border-t border-zinc-100 dark:border-zinc-800 pt-4">
-                    <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Realizado por:</strong> ytallo</p>
-                    <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Status:</strong> Iniciado</p>
-                    <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Observações:</strong></p>
+                    <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Realizado por:</strong> {selectedCotacao?.criado_por_nome ?? "—"}</p>
+                    <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Observações:</strong> {selectedCotacao?.observacoes || "—"}</p>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-3 text-[13px] text-zinc-600 dark:text-zinc-400">
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Vigência de:</strong> 01/07/2026</p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Até:</strong> 30/08/2026</p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Total de Dias:</strong> 60 Dias</p>
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Vigência de:</strong> {isoToBR(selectedCotacao?.data_inicio)}</p>
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Até:</strong> {isoToBR(selectedCotacao?.data_final)}</p>
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Total de Dias:</strong> {selectedCotacao?.prazo_dias != null ? `${selectedCotacao.prazo_dias} Dias` : "—"}</p>
                 </div>
               </div>
             </div>
@@ -668,8 +804,26 @@ export default function CotacoesPage() {
                 </p>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {seguradoras.map((seg) => (
-                    <div key={seg.id} className="relative bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-40 flex flex-col items-center justify-between p-4 border border-zinc-200 dark:border-zinc-700/50 hover:shadow-md transition-all">
+                  {seguradoras.map((seg) => {
+                    const aprovada = selectedCotacao?.status === "Aprovado"
+                    const escolhida = seguradoraEscolhidaId === seg.id
+                    return (
+                    <div
+                      key={seg.id}
+                      onClick={() => aprovada && setSeguradoraEscolhidaId(seg.id)}
+                      className={cn(
+                        "relative bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-40 flex flex-col items-center justify-between p-4 border transition-all",
+                        aprovada ? "cursor-pointer hover:shadow-md" : "opacity-70",
+                        escolhida
+                          ? "border-brand-red ring-2 ring-brand-red/30"
+                          : "border-zinc-200 dark:border-zinc-700/50"
+                      )}
+                    >
+                      {escolhida && (
+                        <span className="absolute -top-2 -right-2 bg-brand-red text-white rounded-full p-1 shadow-sm">
+                          <CheckCircle2 className="size-3.5" />
+                        </span>
+                      )}
                       <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide text-center leading-tight">{seg.nome}</span>
 
                       <div className="flex-1 flex items-center justify-center py-1">
@@ -694,7 +848,8 @@ export default function CotacoesPage() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -702,30 +857,77 @@ export default function CotacoesPage() {
             {/* Action Buttons Footer */}
             <div className="md:col-span-12 flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between gap-3 mt-4 pt-5 border-t border-zinc-200 dark:border-zinc-800">
               {/* Ação destrutiva, isolada à esquerda */}
-              <button className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30 bg-red-50/60 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors">
+              <button
+                onClick={() => selectedCotacao && handleDelete(selectedCotacao)}
+                className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30 bg-red-50/60 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors cursor-pointer"
+              >
                 <Trash2 className="size-4" />
                 Excluir
               </button>
 
               {/* Fluxo principal à direita */}
               <div className="flex items-stretch gap-3">
-                <button
-                  onClick={() => { setFormMode("edit"); setView("form") }}
-                  className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                >
-                  <Pencil className="size-4" />
-                  Editar
-                </button>
-                <button className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 transition-colors">
-                  <CheckCircle2 className="size-4" />
-                  Aprovar Cotação
-                </button>
+                {selectedCotacao?.status === "Aprovado" ? (
+                  <button
+                    onClick={() => {
+                      if (!seguradoraEscolhidaId) {
+                        alert("Escolha uma seguradora antes de emitir.")
+                        return
+                      }
+                      // Emissão será implementada na próxima etapa.
+                    }}
+                    className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 transition-colors cursor-pointer"
+                  >
+                    <CheckCircle2 className="size-4" />
+                    Emitir
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => selectedCotacao && openEdit(selectedCotacao)}
+                      className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                    >
+                      <Pencil className="size-4" />
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => setShowApproveConfirm(true)}
+                      className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 transition-colors cursor-pointer"
+                    >
+                      <CheckCircle2 className="size-4" />
+                      Aprovar Cotação
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
           </div>
         </div>
       )}
+
+      {/* ──── CONFIRMAÇÃO DE APROVAÇÃO ──── */}
+      <AlertDialog open={showApproveConfirm} onOpenChange={setShowApproveConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Aprovar cotação?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja aprovar esta cotação
+              {selectedCotacao ? ` #${selectedCotacao.id}` : ""}? Essa ação não poderá ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleAprovar() }}
+              disabled={saving}
+              className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-60"
+            >
+              {saving ? "Aprovando..." : "Aprovar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   )
