@@ -1,10 +1,5 @@
 // Requests to /api/* go through Next.js Route Handlers which attach the httpOnly cookie token.
-async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`/api${path}`, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...options?.headers },
-  });
-
+async function handleApiResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     let errorMessage = body?.detail;
@@ -24,12 +19,20 @@ async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
 
   const result = await response.json();
   if (result === undefined) throw new Error("Resposta inválida da API");
-  
+
   if (result && typeof result === "object" && "data" in result) {
     return result.data as T;
   }
-  
+
   return result as T;
+}
+
+async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`/api${path}`, {
+    ...options,
+    headers: { "Content-Type": "application/json", ...options?.headers },
+  });
+  return handleApiResponse<T>(response);
 }
 
 // ─── Tomadores ───────────────────────────────────────────────────────────────
@@ -230,9 +233,11 @@ export interface CotacaoPayload {
   observacoes?: string;
 }
 
+export type CotacaoStatus = "Iniciado" | "Aprovado" | "Emitido";
+
 export interface CotacaoResponse {
   id: number;
-  status: "Iniciado" | "Aprovado";
+  status: CotacaoStatus;
   tomador: number;
   tomador_nome: string;
   tomador_cnpj: string;
@@ -254,7 +259,7 @@ export interface CotacaoResponse {
 }
 
 export const cotacoesApi = {
-  list: (params?: { search?: string }) => {
+  list: (params?: { search?: string; status?: CotacaoStatus }) => {
     const entries = Object.entries(params ?? {})
       .filter(([, v]) => v !== undefined && v !== "")
       .map(([k, v]) => [k, String(v)] as [string, string]);

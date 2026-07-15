@@ -30,6 +30,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   tomadoresApi,
   seguradosApi,
   modalidadesApi,
@@ -145,6 +152,13 @@ export default function CotacoesPage() {
   // Seguradora escolhida para a emissão (só habilitado após aprovar; ainda não
   // persistido — a escolha efetiva acontece ao Emitir, próxima etapa).
   const [seguradoraEscolhidaId, setSeguradoraEscolhidaId] = useState<number | null>(null)
+
+  // Modal "Emitir" (emissão manual, sem integração com API da seguradora).
+  const [showEmitirModal, setShowEmitirModal] = useState(false)
+  const [numeroApolice, setNumeroApolice] = useState("")
+  const [valorSeguradoraEmissao, setValorSeguradoraEmissao] = useState("")
+  const [arquivoApolice, setArquivoApolice] = useState<File | null>(null)
+  const [arquivoBoleto, setArquivoBoleto] = useState<File | null>(null)
 
   // Seleciona a cotação em foco e limpa a escolha de seguradora anterior.
   const selectCotacao = (c: CotacaoResponse | null) => {
@@ -365,6 +379,37 @@ export default function CotacoesPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  // Emissão da apólice: integração com o backend (POST /cotacoes/{id}/emitir/)
+  // e a tela de apólice ficam a cargo do frontend de Apólices (a ser criado).
+  // Por ora apenas valida os campos e fecha o modal.
+  const handleEmitir = async () => {
+    if (!selectedCotacao || !seguradoraEscolhidaId) return
+    if (!numeroApolice.trim()) {
+      alert("Informe o número da apólice.")
+      return
+    }
+    const valorDecimal = currencyInputToDecimal(valorSeguradoraEmissao)
+    if (!valorDecimal) {
+      alert("Informe o valor da seguradora.")
+      return
+    }
+
+    // Payload pronto para a emissão. A chamada ao backend
+    // (POST /cotacoes/{id}/emitir/, multipart) e a navegação para a tela da
+    // apólice ficam a cargo do frontend de Apólices (a ser criado).
+    const payload = {
+      cotacaoId: selectedCotacao.id,
+      seguradora: seguradoraEscolhidaId,
+      numero_apolice: numeroApolice.trim(),
+      valor_seguradora: valorDecimal,
+      arquivo_apolice: arquivoApolice,
+      arquivo_boleto: arquivoBoleto,
+    }
+    console.log("Emitir apólice (integração pendente):", payload)
+
+    setShowEmitirModal(false)
   }
 
   return (
@@ -874,7 +919,11 @@ export default function CotacoesPage() {
                         alert("Escolha uma seguradora antes de emitir.")
                         return
                       }
-                      // Emissão será implementada na próxima etapa.
+                      setNumeroApolice("")
+                      setValorSeguradoraEmissao("")
+                      setArquivoApolice(null)
+                      setArquivoBoleto(null)
+                      setShowEmitirModal(true)
                     }}
                     className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 transition-colors cursor-pointer"
                   >
@@ -928,6 +977,89 @@ export default function CotacoesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ──── EMITIR ──── */}
+      <Dialog open={showEmitirModal} onOpenChange={setShowEmitirModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Emitir</DialogTitle>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Nº Apólice:</Label>
+                <Input
+                  className="h-10 border-zinc-300"
+                  value={numeroApolice}
+                  onChange={(e) => setNumeroApolice(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Valor Seguradora:</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-400">R$</span>
+                  <Input
+                    className="h-10 pl-9 border-zinc-300"
+                    inputMode="numeric"
+                    placeholder="0,00"
+                    value={valorSeguradoraEmissao}
+                    onChange={(e) => setValorSeguradoraEmissao(formatCurrency(e.target.value))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Apólice:</Label>
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => setArquivoApolice(e.target.files?.[0] ?? null)}
+                  className="h-10 w-full rounded-md border border-zinc-300 text-xs file:mr-2 file:h-full file:border-0 file:bg-zinc-100 dark:file:bg-zinc-800 file:px-3 file:text-xs file:font-bold cursor-pointer"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Boleto:</Label>
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => setArquivoBoleto(e.target.files?.[0] ?? null)}
+                  className="h-10 w-full rounded-md border border-zinc-300 text-xs file:mr-2 file:h-full file:border-0 file:bg-zinc-100 dark:file:bg-zinc-800 file:px-3 file:text-xs file:font-bold cursor-pointer"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="sm:justify-between">
+            <button
+              type="button"
+              disabled
+              title="Emissão via API da seguradora ainda não disponível"
+              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-[12px] font-bold uppercase tracking-wide text-zinc-400 border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 cursor-not-allowed"
+            >
+              Emitir com API
+            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowEmitirModal(false)}
+                className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleEmitir}
+                className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 transition-colors cursor-pointer"
+              >
+                Emitir
+              </button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   )
