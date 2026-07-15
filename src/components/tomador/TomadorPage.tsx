@@ -819,7 +819,7 @@ export default function TomadorPage() {
             <div className={cn("space-y-6", currentTab !== "dados" && "md:hidden")}>
 
                 <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 space-y-6">
-                  <h3 className="text-sm font-black text-brand-red uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <h3 className="text-sm font-black text-brand-red dark:text-[#cf7458] uppercase tracking-wider mb-2 flex items-center gap-2">
                     <Building className="size-4.5" />
                     <span>DADOS DE IDENTIFICAÇÃO</span>
                   </h3>
@@ -885,7 +885,7 @@ export default function TomadorPage() {
                       <Label htmlFor="form-cnpj" className="text-xs font-bold flex items-center gap-2">
                         CNPJ *
                         {cnpjLoading && (
-                          <span className="flex items-center gap-1 text-[10px] font-normal text-brand-red opacity-80">
+                          <span className="flex items-center gap-1 text-[10px] font-normal text-brand-red dark:text-[#cf7458] opacity-80">
                             <span className="w-2.5 h-2.5 border border-brand-red border-t-transparent rounded-full animate-spin" />
                             Buscando...
                           </span>
@@ -998,7 +998,7 @@ export default function TomadorPage() {
             {/* ──── TAB: ENDEREÇO ──── */}
             <div className={cn("space-y-6", currentTab !== "endereco" && "md:hidden")}>
               <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 space-y-6">
-                <h3 className="text-sm font-black text-brand-red uppercase tracking-wider mb-2 flex items-center gap-2">
+                <h3 className="text-sm font-black text-brand-red dark:text-[#cf7458] uppercase tracking-wider mb-2 flex items-center gap-2">
                   <MapPin className="size-4.5" />
                   <span>ENDEREÇO DO TOMADOR</span>
                 </h3>
@@ -1099,7 +1099,7 @@ export default function TomadorPage() {
 
                 {/* Add new contact form row */}
                 <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 space-y-4">
-                  <h3 className="text-xs font-black text-brand-red uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <h3 className="text-xs font-black text-brand-red dark:text-[#cf7458] uppercase tracking-wider mb-2 flex items-center gap-2">
                     <PlusCircle className="size-4.5" />
                     <span>Adicionar Novo Contato Adicional</span>
                   </h3>
@@ -1216,7 +1216,7 @@ export default function TomadorPage() {
 
                 {/* Add new partner form row */}
                 <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 space-y-4">
-                  <h3 className="text-xs font-black text-brand-red uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <h3 className="text-xs font-black text-brand-red dark:text-[#cf7458] uppercase tracking-wider mb-2 flex items-center gap-2">
                     <PlusCircle className="size-4.5" />
                     <span>Adicionar Sócio ou Administrador</span>
                   </h3>
@@ -1350,7 +1350,7 @@ export default function TomadorPage() {
             <div className={cn("space-y-6", currentTab !== "taxas" && "md:hidden")}>
 
                 <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 space-y-4">
-                  <h3 className="text-xs font-black text-brand-red uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <h3 className="text-xs font-black text-brand-red dark:text-[#cf7458] uppercase tracking-wider mb-2 flex items-center gap-2">
                     <Percent className="size-4.5" />
                     <span>Taxas por Seguradora</span>
                   </h3>
@@ -1417,7 +1417,7 @@ export default function TomadorPage() {
                 ) : (
                   <>
                     <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 space-y-4">
-                      <h3 className="text-xs font-black text-brand-red uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <h3 className="text-xs font-black text-brand-red dark:text-[#cf7458] uppercase tracking-wider mb-2 flex items-center gap-2">
                         <Paperclip className="size-4.5" />
                         <span>Arquivos do Tomador</span>
                       </h3>
