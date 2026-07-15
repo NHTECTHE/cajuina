@@ -5,6 +5,9 @@ import { useState, useMemo } from "react"
 import {
   ArrowLeft,
   FileText,
+  Trash2,
+  Pencil,
+  CheckCircle2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
@@ -280,7 +283,7 @@ export default function PropostasPage() {
                       <div className="col-span-1 flex items-center justify-center">
                         <span className={cn(
                           "whitespace-nowrap px-2 py-1 rounded text-[9px] font-bold uppercase",
-                          t.status === "Em Conclusão" ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"
+                          t.status === "Em Conclusão" ? "bg-green-100 text-green-700 dark:bg-green-700 dark:text-white" : "bg-orange-100 text-orange-700 dark:bg-orange-600 dark:text-white"
                         )}>{t.status}</span>
                       </div>
                     </div>
@@ -291,7 +294,7 @@ export default function PropostasPage() {
                         <span className="font-bold text-brand-red">#{t.id}</span>
                         <span className={cn(
                           "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
-                          t.status === "Em Conclusão" ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"
+                          t.status === "Em Conclusão" ? "bg-green-100 text-green-700 dark:bg-green-700 dark:text-white" : "bg-orange-100 text-orange-700 dark:bg-orange-600 dark:text-white"
                         )}>{t.status}</span>
                       </div>
                       <div className="flex flex-col gap-1">
@@ -366,9 +369,9 @@ export default function PropostasPage() {
           <div className="flex items-center gap-4 mb-4">
             <button 
               onClick={() => setView("list")}
-              className="w-8 h-8 flex items-center justify-center rounded-full border border-red-200 text-red-500 bg-white shadow-sm hover:bg-red-50 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 transition-colors"
             >
-              <ArrowLeft className="size-4" />
+              <ArrowLeft className="size-4 opacity-70" />
             </button>
             <h1 className="text-3xl font-light text-zinc-600 dark:text-zinc-300">
               Emitir Cotação
@@ -471,16 +474,24 @@ export default function PropostasPage() {
             </p>
             <p className="text-[13px] font-bold text-zinc-600 dark:text-zinc-500 mb-6">Sujeito a Análise e a Aprovação pela Seguradora</p>
             
-            <div className="flex justify-center gap-1.5 mt-2">
-              <button className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 px-6 rounded-md text-xs transition-colors">
-                EXCLUIR
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between gap-3 mt-4 pt-5 border-t border-zinc-200 dark:border-zinc-800">
+              {/* Ação destrutiva, isolada à esquerda */}
+              <button className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30 bg-red-50/60 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors">
+                <Trash2 className="size-4" />
+                Excluir
               </button>
-              <button className="bg-zinc-500 hover:bg-zinc-600 text-white font-bold py-2.5 px-6 rounded-md text-xs transition-colors">
-                EDITAR
-              </button>
-              <button className="bg-brand-red hover:bg-brand-red/90 text-white font-bold py-2.5 px-6 rounded-md text-xs transition-colors">
-                EMITIR
-              </button>
+
+              {/* Fluxo principal à direita */}
+              <div className="flex items-stretch gap-3">
+                <button className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer">
+                  <Pencil className="size-4" />
+                  Editar
+                </button>
+                <button className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-brand-red hover:bg-brand-red/90 shadow-sm shadow-brand-red/20 transition-colors">
+                  <CheckCircle2 className="size-4" />
+                  Emitir Apólice
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -492,9 +503,9 @@ export default function PropostasPage() {
           <div className="flex items-center gap-4 mb-4">
             <button 
               onClick={() => setView("list")}
-              className="w-8 h-8 flex items-center justify-center rounded-full border border-red-200 text-red-500 bg-white shadow-sm hover:bg-red-50 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 transition-colors"
             >
-              <ArrowLeft className="size-4" />
+              <ArrowLeft className="size-4 opacity-70" />
             </button>
             <h1 className="text-3xl font-light text-zinc-600 dark:text-zinc-300">
               Cotação nº {selectedProposta.id}

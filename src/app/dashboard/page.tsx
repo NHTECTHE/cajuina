@@ -34,7 +34,7 @@ export default function DashboardPage() {
           {/* Card 1: Tomador */}
           <div className="group bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 hover:shadow-lg hover:border-brand-red/25 dark:hover:border-brand-red/30 transition-all duration-300 flex flex-col justify-between cursor-pointer">
             <div>
-              <div className="w-10 h-10 rounded-xl bg-brand-red/10 text-brand-red flex items-center justify-center mb-4 transition-all duration-300">
+              <div className="w-10 h-10 rounded-xl bg-brand-red/10 text-brand-red dark:text-white dark:bg-white/10 dark:group-hover:text-brand-red dark:group-hover:bg-brand-red/10 flex items-center justify-center mb-4 transition-all duration-300">
                 <Users className="size-5" />
               </div>
               <h3 className="font-bold text-inherit text-[15px] mb-1 group-hover:text-brand-red transition-colors duration-200">
@@ -53,7 +53,7 @@ export default function DashboardPage() {
           {/* Card 2: Apólices */}
           <div className="group bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 hover:shadow-lg hover:border-brand-red/25 dark:hover:border-brand-red/30 transition-all duration-300 flex flex-col justify-between cursor-pointer">
             <div>
-              <div className="w-10 h-10 rounded-xl bg-brand-red/10 text-brand-red flex items-center justify-center mb-4 transition-all duration-300">
+              <div className="w-10 h-10 rounded-xl bg-brand-red/10 text-brand-red dark:text-white dark:bg-white/10 dark:group-hover:text-brand-red dark:group-hover:bg-brand-red/10 flex items-center justify-center mb-4 transition-all duration-300">
                 <FileText className="size-5" />
               </div>
               <h3 className="font-bold text-inherit text-[15px] mb-1 group-hover:text-brand-red transition-colors duration-200">
@@ -72,7 +72,7 @@ export default function DashboardPage() {
           {/* Card 3: Cotações */}
           <div className="group bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 hover:shadow-lg hover:border-brand-red/25 dark:hover:border-brand-red/30 transition-all duration-300 flex flex-col justify-between cursor-pointer">
             <div>
-              <div className="w-10 h-10 rounded-xl bg-brand-red/10 text-brand-red flex items-center justify-center mb-4 transition-all duration-300">
+              <div className="w-10 h-10 rounded-xl bg-brand-red/10 text-brand-red dark:text-white dark:bg-white/10 dark:group-hover:text-brand-red dark:group-hover:bg-brand-red/10 flex items-center justify-center mb-4 transition-all duration-300">
                 <FileSpreadsheet className="size-5" />
               </div>
               <h3 className="font-bold text-inherit text-[15px] mb-1 group-hover:text-brand-red transition-colors duration-200">
@@ -91,7 +91,7 @@ export default function DashboardPage() {
           {/* Card 4: Propostas */}
           <div className="group bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 hover:shadow-lg hover:border-brand-red/25 dark:hover:border-brand-red/30 transition-all duration-300 flex flex-col justify-between cursor-pointer">
             <div>
-              <div className="w-10 h-10 rounded-xl bg-brand-red/10 text-brand-red flex items-center justify-center mb-4 transition-all duration-300">
+              <div className="w-10 h-10 rounded-xl bg-brand-red/10 text-brand-red dark:text-white dark:bg-white/10 dark:group-hover:text-brand-red dark:group-hover:bg-brand-red/10 flex items-center justify-center mb-4 transition-all duration-300">
                 <FileCheck className="size-5" />
               </div>
               <h3 className="font-bold text-inherit text-[15px] mb-1 group-hover:text-brand-red transition-colors duration-200">
@@ -110,7 +110,7 @@ export default function DashboardPage() {
           {/* Card 5: Financeiro */}
           <div className="group bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 hover:shadow-lg hover:border-brand-red/25 dark:hover:border-brand-red/30 transition-all duration-300 flex flex-col justify-between cursor-pointer">
             <div>
-              <div className="w-10 h-10 rounded-xl bg-brand-red/10 text-brand-red flex items-center justify-center mb-4 transition-all duration-300">
+              <div className="w-10 h-10 rounded-xl bg-brand-red/10 text-brand-red dark:text-white dark:bg-white/10 dark:group-hover:text-brand-red dark:group-hover:bg-brand-red/10 flex items-center justify-center mb-4 transition-all duration-300">
                 <CreditCard className="size-5" />
               </div>
               <h3 className="font-bold text-inherit text-[15px] mb-1 group-hover:text-brand-red transition-colors duration-200">
@@ -129,7 +129,7 @@ export default function DashboardPage() {
           {/* Card 6: Suporte */}
           <div className="group bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 hover:shadow-lg hover:border-brand-red/25 dark:hover:border-brand-red/30 transition-all duration-300 flex flex-col justify-between cursor-pointer">
             <div>
-              <div className="w-10 h-10 rounded-xl bg-brand-red/10 text-brand-red flex items-center justify-center mb-4 transition-all duration-300">
+              <div className="w-10 h-10 rounded-xl bg-brand-red/10 text-brand-red dark:text-white dark:bg-white/10 dark:group-hover:text-brand-red dark:group-hover:bg-brand-red/10 flex items-center justify-center mb-4 transition-all duration-300">
                 <MessageSquare className="size-5" />
               </div>
               <h3 className="font-bold text-inherit text-[15px] mb-1 group-hover:text-brand-red transition-colors duration-200">
