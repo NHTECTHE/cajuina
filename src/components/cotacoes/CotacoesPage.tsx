@@ -39,6 +39,7 @@ import {
   type CotacaoResponse,
   type CotacaoPayload,
 } from "@/services/api"
+import { toast } from "sonner"
 
 // ─── Helpers de data (ISO yyyy-mm-dd, sem problema de fuso) ───────────────────
 
@@ -142,6 +143,9 @@ export default function CotacoesPage() {
 
   // Confirmação de aprovação da cotação (tela de detalhes).
   const [showApproveConfirm, setShowApproveConfirm] = useState(false)
+
+  // Cotação para excluir (estado para o modal de confirmação)
+  const [deleteTarget, setDeleteTarget] = useState<CotacaoResponse | null>(null)
 
   // Seleciona a cotação em foco.
   const selectCotacao = (c: CotacaoResponse | null) => {
@@ -307,7 +311,7 @@ export default function CotacoesPage() {
   // Cria ou atualiza a cotação conforme o modo atual.
   const handleSave = async () => {
     if (!tomador || !modalidade) {
-      alert("Selecione o tomador e a modalidade.")
+      toast.error("Selecione o tomador e a modalidade.")
       return
     }
     const payload: CotacaoPayload = {
@@ -330,22 +334,28 @@ export default function CotacoesPage() {
       await loadCotacoes(searchQuery.trim())
       setView("details")
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro ao salvar a cotação.")
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar a cotação.")
     } finally {
       setSaving(false)
     }
   }
 
   // Exclui a cotação informada e volta para a lista.
-  const handleDelete = async (c: CotacaoResponse) => {
-    if (!confirm(`Excluir a cotação #${c.id}?`)) return
+  const handleDelete = (c: CotacaoResponse) => {
+    setDeleteTarget(c)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
     try {
-      await cotacoesApi.remove(c.id)
-      if (selectedCotacao?.id === c.id) selectCotacao(null)
+      await cotacoesApi.remove(deleteTarget.id)
+      if (selectedCotacao?.id === deleteTarget.id) selectCotacao(null)
       await loadCotacoes(searchQuery.trim())
       setView("list")
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro ao excluir a cotação.")
+      toast.error(err instanceof Error ? err.message : "Erro ao excluir a cotação.")
+    } finally {
+      setDeleteTarget(null)
     }
   }
 
@@ -359,7 +369,7 @@ export default function CotacoesPage() {
       setShowApproveConfirm(false)
       router.push("/dashboard/propostas")
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro ao aprovar a cotação.")
+      toast.error(err instanceof Error ? err.message : "Erro ao aprovar a cotação.")
     } finally {
       setSaving(false)
     }
@@ -369,6 +379,31 @@ export default function CotacoesPage() {
     <div className="flex flex-col gap-6">
 
       {/* ──── LIST VIEW ──── */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent className="max-w-sm rounded-2xl p-6 border-zinc-200 dark:border-zinc-800">
+          <AlertDialogHeader>
+            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto mb-2">
+              <Trash2 className="size-5 text-red-500" />
+            </div>
+            <AlertDialogTitle className="text-center font-bold text-zinc-900 dark:text-zinc-50">Excluir cotação?</AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-sm text-zinc-500 mt-1">
+              Você está prestes a excluir a cotação #{deleteTarget?.id}. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex gap-2 justify-center sm:justify-center mt-4 border-t-0 bg-transparent p-0">
+            <AlertDialogCancel className="mt-0 rounded-xl border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm text-zinc-600 dark:text-zinc-300">
+              Voltar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600"
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {view === "list" && (
         <>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
