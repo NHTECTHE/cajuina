@@ -900,7 +900,7 @@ export default function TomadorPage() {
                           setFormData(prev => ({ ...prev, cnpj: val }));
                           fetchCompanyByCnpj(val);
                         }}
-                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                         required
                       />
                     </div>
@@ -913,7 +913,7 @@ export default function TomadorPage() {
                         placeholder="Ex: ARCON CONSTRUCOES E CONSULTORIA LTDA"
                         value={formData.nome}
                         onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
-                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                         required
                       />
                     </div>
@@ -926,7 +926,7 @@ export default function TomadorPage() {
                         placeholder="Ex: ARCON CONSTRUTORA"
                         value={formData.nomeFantasia}
                         onChange={(e) => setFormData(prev => ({ ...prev, nomeFantasia: e.target.value }))}
-                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                       />
                     </div>
 
@@ -939,7 +939,7 @@ export default function TomadorPage() {
                         placeholder="exemplo@email.com"
                         value={formData.email}
                         onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30 w-full"
+                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5 w-full"
                       />
                     </div>
 
@@ -951,7 +951,7 @@ export default function TomadorPage() {
                         placeholder="(00) 0000-0000"
                         value={formData.telefone}
                         onChange={(e) => setFormData(prev => ({ ...prev, telefone: maskTelefone(e.target.value) }))}
-                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                       />
                     </div>
 
@@ -963,7 +963,7 @@ export default function TomadorPage() {
                         placeholder="(00) 90000-0000"
                         value={formData.celular}
                         onChange={(e) => setFormData(prev => ({ ...prev, celular: maskTelefone(e.target.value) }))}
-                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                       />
                     </div>
 
@@ -975,7 +975,7 @@ export default function TomadorPage() {
                         placeholder="Ex: Richard / João"
                         value={formData.contato}
                         onChange={(e) => setFormData(prev => ({ ...prev, contato: e.target.value }))}
-                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                       />
                     </div>
 
@@ -987,7 +987,7 @@ export default function TomadorPage() {
                         placeholder="Digite anotações adicionais sobre o tomador..."
                         value={formData.observacoes}
                         onChange={(e) => setFormData(prev => ({ ...prev, observacoes: e.target.value }))}
-                        className="rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30 min-h-[80px]"
+                        className="rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5 min-h-[80px]"
                       />
                     </div>
 
@@ -1013,7 +1013,7 @@ export default function TomadorPage() {
                       placeholder="64.000-000"
                       value={formData.cep}
                       onChange={(e) => setFormData(prev => ({ ...prev, cep: e.target.value }))}
-                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                     />
                   </div>
 
@@ -1025,7 +1025,7 @@ export default function TomadorPage() {
                       placeholder="Ex: Avenida Frei Serafim"
                       value={formData.endereco}
                       onChange={(e) => setFormData(prev => ({ ...prev, endereco: e.target.value }))}
-                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                     />
                   </div>
 
@@ -1037,7 +1037,7 @@ export default function TomadorPage() {
                       placeholder="Ex: 1500"
                       value={formData.numero}
                       onChange={(e) => setFormData(prev => ({ ...prev, numero: e.target.value }))}
-                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                     />
                   </div>
 
@@ -1049,7 +1049,7 @@ export default function TomadorPage() {
                       placeholder="Ex: Sala 202"
                       value={formData.complemento}
                       onChange={(e) => setFormData(prev => ({ ...prev, complemento: e.target.value }))}
-                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                     />
                   </div>
 
@@ -1061,7 +1061,7 @@ export default function TomadorPage() {
                       placeholder="Ex: Centro"
                       value={formData.bairro}
                       onChange={(e) => setFormData(prev => ({ ...prev, bairro: e.target.value }))}
-                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                     />
                   </div>
 
@@ -1073,7 +1073,7 @@ export default function TomadorPage() {
                       placeholder="Ex: Teresina"
                       value={formData.cidade}
                       onChange={(e) => setFormData(prev => ({ ...prev, cidade: e.target.value }))}
-                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                     />
                   </div>
 
@@ -1086,7 +1086,7 @@ export default function TomadorPage() {
                       maxLength={2}
                       value={formData.uf}
                       onChange={(e) => setFormData(prev => ({ ...prev, uf: e.target.value.toUpperCase() }))}
-                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30 text-center font-bold"
+                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5 text-center font-bold"
                     />
                   </div>
 
