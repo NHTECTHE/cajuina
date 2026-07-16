@@ -2,7 +2,8 @@
 
 import { cookies } from "next/headers"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+// NEXT_PUBLIC_API_URL já inclui o /api/v1 (mesmo padrão das rotas em app/api).
+const BACKEND = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
 
 export async function getNotificacoesAction() {
   const cookieStore = await cookies()
@@ -11,7 +12,7 @@ export async function getNotificacoesAction() {
   if (!token) return { data: [], error: "No token" }
 
   try {
-    const res = await fetch(`${API_URL}/api/v1/notificacoes/`, {
+    const res = await fetch(`${BACKEND}/notificacoes/`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -37,7 +38,7 @@ export async function markNotificacoesAsReadAction() {
   if (!token) return { success: false }
 
   try {
-    const res = await fetch(`${API_URL}/api/v1/notificacoes/lidas/`, {
+    const res = await fetch(`${BACKEND}/notificacoes/lidas/`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
