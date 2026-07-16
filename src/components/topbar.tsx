@@ -9,11 +9,13 @@ import {
   UserRound,
   Sidebar,
   Moon,
-  Sun
+  Sun,
+  FileText
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { logoutAction } from "@/app/actions/auth"
 import { getUserAction } from "@/app/actions/user"
+import { getNotificacoesAction, markNotificacoesAsReadAction } from "@/app/actions/notificacoes"
 
 import {
   DropdownMenu,
@@ -38,13 +40,21 @@ interface TopbarProps {
   onSidebarToggle: () => void
 }
 
+// A API (/notificacoes) responde em português: id, titulo, mensagem,
+// status_badge, lida, criado_em. Os campos em inglês são opcionais porque a UI
+// ainda lê os dois formatos (item.titulo || item.title).
 interface NotificationItem {
   id: string
-  title: string
-  description: string
-  time: string
-  status: string
-  read: boolean
+  titulo?: string
+  mensagem?: string
+  status_badge?: string | null
+  lida?: boolean
+  criado_em?: string
+  title?: string
+  description?: string
+  time?: string
+  status?: string
+  read?: boolean
 }
 
 export default function Topbar({ theme, setTheme, onMenuToggle, onSidebarToggle }: TopbarProps) {
@@ -66,48 +76,30 @@ export default function Topbar({ theme, setTheme, onMenuToggle, onSidebarToggle 
     loadUser()
   }, [])
 
-  const [notifications, setNotifications] = React.useState<NotificationItem[]>([
-    {
-      id: "1",
-      title: "Cotação #49578",
-      status: "APROVADA",
-      description: "Cotação atualizada para APROVADA",
-      time: "10/07/2026, 10:34",
-      read: false
-    },
-    {
-      id: "2",
-      title: "Cotação #49577",
-      status: "EM ANÁLISE",
-      description: "Cotação atualizada para EM ANÁLISE",
-      time: "10/07/2026, 10:04",
-      read: false
-    },
-    {
-      id: "3",
-      title: "Apólice #84930",
-      status: "A VENCER",
-      description: "Apólice vencerá em 15 dias",
-      time: "09/07/2026, 16:11",
-      read: true
-    },
-    {
-      id: "4",
-      title: "Cotação #49570",
-      status: "FINALIZADA",
-      description: "Cotação atualizada para FINALIZADA",
-      time: "09/07/2026, 15:04",
-      read: true
+  const [notifications, setNotifications] = React.useState<NotificationItem[]>([])
+
+  React.useEffect(() => {
+    async function loadNotifications() {
+      const res = await getNotificacoesAction()
+      if (res.data) {
+        setNotifications(res.data)
+      }
     }
-  ])
+    loadNotifications()
+    
+    // Optional: fetch every 30 seconds
+    const intervalId = setInterval(loadNotifications, 30000)
+    return () => clearInterval(intervalId)
+  }, [])
 
-  const unreadCount = notifications.filter(n => !n.read).length
+  const unreadCount = notifications.filter(n => !n.lida && !n.read).length
 
-  const handleNotificationOpenChange = (open: boolean) => {
+  const handleNotificationOpenChange = async (open: boolean) => {
     setNotificationOpen(open)
-    if (open) {
-      // Mark all as read when opening
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+    if (open && unreadCount > 0) {
+      // Optimistically mark all as read
+      setNotifications(prev => prev.map(n => ({ ...n, lida: true, read: true })))
+      await markNotificacoesAsReadAction()
     }
   }
 
@@ -199,38 +191,106 @@ export default function Topbar({ theme, setTheme, onMenuToggle, onSidebarToggle 
               )}
             </button>
           </PopoverTrigger>
-          <PopoverContent align="end" className={cn("w-[340px] p-0 rounded-lg overflow-hidden border", dropdownStyles[theme])}>
-            <div className="p-4 pb-3 border-b border-zinc-200/50 dark:border-zinc-800">
-              <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 leading-tight">Notificações</h3>
-              <p className="text-[11px] text-zinc-500 mt-0.5">Últimas atualizações de cotações e apólices</p>
+          <PopoverContent align="end" className={cn("w-[280px] p-0 rounded-2xl overflow-hidden border shadow-2xl backdrop-blur-xl", dropdownStyles[theme])}>
+            <div className="p-3 pb-2 border-b border-zinc-200/50 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30 flex items-center justify-between">
+              <div>
+                <h3 className="font-extrabold text-[12px] text-zinc-900 dark:text-zinc-100 leading-tight tracking-tight">Notificações</h3>
+                <p className="text-[9px] text-zinc-500 dark:text-zinc-400 mt-0.5 font-medium">Você tem {unreadCount} nova{unreadCount !== 1 ? 's' : ''}</p>
+              </div>
+              {unreadCount > 0 && (
+                <button 
+                  onClick={() => setNotifications(prev => prev.map(n => ({ ...n, lida: true })))}
+                  className="text-[9px] font-bold text-brand-red hover:bg-brand-red/10 px-1.5 py-0.5 rounded-md transition-colors"
+                >
+                  Marcar lidas
+                </button>
+              )}
             </div>
-            <div className="max-h-[320px] overflow-y-auto p-3 space-y-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-zinc-300 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full">
+            <div className="max-h-[260px] overflow-y-auto p-1.5 space-y-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-zinc-300 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full">
               {notifications.length === 0 ? (
-                <div className="py-6 px-4 text-center text-xs text-zinc-450">
-                  Nenhuma notificação recente.
+                <div className="py-6 px-3 flex flex-col items-center justify-center text-center gap-1.5">
+                  <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800/50 flex items-center justify-center">
+                    <Bell className="size-3.5 text-zinc-400" />
+                  </div>
+                  <p className="text-[10px] font-medium text-zinc-500">Nenhuma notificação recente</p>
                 </div>
               ) : (
-                notifications.map((item) => (
+                notifications.slice(0, 4).map((item: NotificationItem, i: number) => (
                   <div
                     key={item.id}
-                    className="flex flex-col gap-1.5 p-3 rounded-lg border border-zinc-200/80 dark:border-zinc-800 text-left bg-white dark:bg-zinc-800/20 shadow-sm"
+                    onClick={() => {
+                      setNotificationOpen(false);
+                      const title = (item.titulo || item.title || "").toLowerCase();
+                      if (title.includes("tomador")) router.push("/dashboard/tomador");
+                      else if (title.includes("cotação") || title.includes("cotacao")) router.push("/dashboard/cotacoes");
+                      else if (title.includes("proposta")) router.push("/dashboard/propostas");
+                      else if (title.includes("apólice") || title.includes("apolice")) router.push("/dashboard/apolices");
+                    }}
+                    className={cn(
+                      "group flex gap-2 p-2 rounded-xl border text-left transition-all duration-300 cursor-pointer relative overflow-hidden",
+                      !item.lida 
+                        ? "bg-gradient-to-r from-brand-red/[0.03] to-transparent border-brand-red/20 dark:from-brand-red/[0.08] dark:border-brand-red/30 shadow-sm hover:shadow-md hover:border-brand-red/40" 
+                        : "bg-white dark:bg-zinc-900/50 border-zinc-200/80 dark:border-zinc-800/80 hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700"
+                    )}
+                    style={{ animationDelay: `${i * 50}ms` }}
                   >
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">{item.title}</p>
-                      <span className="px-2 py-0.5 text-[9px] font-bold uppercase rounded-full bg-red-50 text-brand-red dark:bg-red-900/30 dark:text-red-400">
-                        {item.status}
+                    {!item.lida && (
+                      <span className="absolute top-2.5 right-2 flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-red opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-brand-red"></span>
                       </span>
+                    )}
+                    
+                    {/* Icon */}
+                    <div className={cn(
+                      "mt-0.5 shrink-0 flex items-center justify-center w-6 h-6 rounded-full border",
+                      !item.lida
+                        ? "bg-brand-red/10 border-brand-red/20 text-brand-red dark:bg-brand-red/20 dark:border-brand-red/30"
+                        : "bg-zinc-50 border-zinc-200 text-zinc-500 dark:bg-zinc-800/50 dark:border-zinc-700/50 dark:text-zinc-400"
+                    )}>
+                      {item.titulo?.toLowerCase().includes('tomador') ? (
+                        <UserRound className="size-3" />
+                      ) : (
+                        <FileText className="size-3" />
+                      )}
                     </div>
-                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400">{item.description}</p>
-                    <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{item.time}</p>
+
+                    <div className="flex flex-col justify-center w-full min-w-0 pr-1">
+                      <div className="flex items-start justify-between w-full gap-2">
+                        <div className="flex flex-col gap-0.5">
+                          <p className={cn(
+                            "text-[11px] tracking-tight leading-tight",
+                            !item.lida ? "font-bold text-zinc-900 dark:text-white" : "font-semibold text-zinc-700 dark:text-zinc-300"
+                          )}>
+                            {item.titulo || item.title}
+                          </p>
+                          <p className={cn(
+                            "text-[10px] leading-snug line-clamp-1",
+                            !item.lida ? "font-medium text-zinc-600 dark:text-zinc-400" : "text-zinc-500"
+                          )}>
+                            {item.mensagem || item.description}
+                          </p>
+                        </div>
+                        
+                        {(item.status_badge || item.status) && (
+                          <span className={cn(
+                            "shrink-0 px-1.5 py-[1px] text-[7px] font-bold uppercase rounded-sm shadow-sm ring-1",
+                            !item.lida 
+                              ? "bg-brand-red text-white ring-brand-red" 
+                              : "bg-zinc-100 text-zinc-500 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700"
+                          )}>
+                            {item.status_badge || item.status}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <p className="text-[8px] text-zinc-400 dark:text-zinc-500 font-medium mt-1">
+                        {item.criado_em ? new Date(item.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : item.time?.split(',')[1] || item.time}
+                      </p>
+                    </div>
                   </div>
                 ))
               )}
-            </div>
-            <div className="p-3 pt-2">
-              <button className="w-full py-2.5 text-xs font-bold text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors">
-                Ver todas as atualizações
-              </button>
             </div>
           </PopoverContent>
         </Popover>

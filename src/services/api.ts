@@ -1,10 +1,5 @@
 // Requests to /api/* go through Next.js Route Handlers which attach the httpOnly cookie token.
-async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`/api${path}`, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...options?.headers },
-  });
-
+async function handleApiResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     let errorMessage = body?.detail;
@@ -24,12 +19,20 @@ async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
 
   const result = await response.json();
   if (result === undefined) throw new Error("Resposta inválida da API");
-  
+
   if (result && typeof result === "object" && "data" in result) {
     return result.data as T;
   }
-  
+
   return result as T;
+}
+
+async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`/api${path}`, {
+    ...options,
+    headers: { "Content-Type": "application/json", ...options?.headers },
+  });
+  return handleApiResponse<T>(response);
 }
 
 // ─── Tomadores ───────────────────────────────────────────────────────────────
@@ -214,5 +217,144 @@ export const seguradorasApi = {
     const qs = new URLSearchParams(entries).toString();
     return apiRequest<SeguradoraResponse[]>(`/seguradoras${qs ? `?${qs}` : ""}`);
   },
+};
+
+// ─── Cotações ────────────────────────────────────────────────────────────────
+
+export interface CotacaoPayload {
+  tomador: number;
+  modalidade: number;
+  segurado?: number | null;
+  edital?: string;
+  data_inicio?: string | null;
+  prazo_dias?: number | null;
+  data_final?: string | null;
+  importancia_segurada?: string | null;
+  observacoes?: string;
+}
+
+export type CotacaoStatus = "Iniciado" | "Aprovado" | "Emitido";
+
+export interface CotacaoResponse {
+  id: number;
+  status: CotacaoStatus;
+  tomador: number;
+  tomador_nome: string;
+  tomador_cnpj: string;
+  modalidade: number;
+  modalidade_nome: string;
+  segurado: number | null;
+  segurado_nome: string | null;
+  segurado_cnpj: string | null;
+  edital: string;
+  data_inicio: string | null;
+  prazo_dias: number | null;
+  data_final: string | null;
+  importancia_segurada: string | null;
+  observacoes: string;
+  criado_por: number | null;
+  criado_por_nome: string | null;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+export const cotacoesApi = {
+  list: (params?: { search?: string; status?: CotacaoStatus }) => {
+    const entries = Object.entries(params ?? {})
+      .filter(([, v]) => v !== undefined && v !== "")
+      .map(([k, v]) => [k, String(v)] as [string, string]);
+    const qs = new URLSearchParams(entries).toString();
+    return apiRequest<CotacaoResponse[]>(`/cotacoes${qs ? `?${qs}` : ""}`);
+  },
+
+  get: (id: number) => apiRequest<CotacaoResponse>(`/cotacoes/${id}`),
+
+  create: (data: CotacaoPayload) =>
+    apiRequest<CotacaoResponse>("/cotacoes", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: number, data: Partial<CotacaoPayload>) =>
+    apiRequest<CotacaoResponse>(`/cotacoes/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  remove: (id: number) =>
+    apiRequest<void>(`/cotacoes/${id}`, { method: "DELETE" }),
+
+  aprovar: (id: number) =>
+    apiRequest<CotacaoResponse>(`/cotacoes/${id}/aprovar`, { method: "POST" }),
+
+  // Emite a apólice da cotação (multipart: pode levar os PDFs da apólice e do
+  // boleto). Aprova → Emitido, e a apólice criada é devolvida.
+  emitir: async (id: number, data: EmitirPayload): Promise<ApoliceResponse> => {
+    const form = new FormData();
+    form.append("seguradora", String(data.seguradora));
+    form.append("numero_apolice", data.numero_apolice);
+    form.append("valor_seguradora", data.valor_seguradora);
+    if (data.arquivo_apolice) form.append("arquivo_apolice", data.arquivo_apolice);
+    if (data.arquivo_boleto) form.append("arquivo_boleto", data.arquivo_boleto);
+
+    // Sem Content-Type manual: o browser define o boundary do multipart.
+    const response = await fetch(`/api/cotacoes/${id}/emitir`, {
+      method: "POST",
+      body: form,
+    });
+    return handleApiResponse<ApoliceResponse>(response);
+  },
+};
+
+export interface EmitirPayload {
+  seguradora: number;
+  numero_apolice: string;
+  valor_seguradora: string;
+  arquivo_apolice?: File | null;
+  arquivo_boleto?: File | null;
+}
+
+// ─── Apólices ────────────────────────────────────────────────────────────────
+
+export interface ApoliceResponse {
+  id: number;
+  cotacao: number;
+  tomador_nome: string;
+  tomador_cnpj: string;
+  modalidade_nome: string;
+  segurado_nome?: string | null;
+  segurado_cnpj?: string | null;
+  seguradora: number;
+  seguradora_nome: string;
+  numero_apolice: string;
+  valor_seguradora: string;
+  arquivo_apolice: string | null;
+  arquivo_boleto: string | null;
+  emitido_por: number | null;
+  emitido_por_nome: string | null;
+  criado_em: string;
+  atualizado_em: string;
+  
+  // Campos derivados da cotação que podem estar disponíveis na mesma consulta (se o serializer retornar, ou adaptado visualmente)
+  edital?: string | null;
+  data_inicio?: string | null;
+  prazo_dias?: number | null;
+  data_final?: string | null;
+  importancia_segurada?: string | null;
+}
+
+export const apolicesApi = {
+  list: (params?: { search?: string; tomador?: string; seguradora?: string; numero_apolice?: string }) => {
+    const entries = Object.entries(params ?? {})
+      .filter(([, v]) => v !== undefined && v !== "")
+      .map(([k, v]) => [k, String(v)] as [string, string]);
+    const qs = new URLSearchParams(entries).toString();
+    return apiRequest<ApoliceResponse[]>(`/apolices${qs ? `?${qs}` : ""}`);
+  },
+
+  get: (id: number) => apiRequest<ApoliceResponse>(`/apolices/${id}`),
+
+  remove: (id: number) =>
+    apiRequest<void>(`/apolices/${id}`, { method: "DELETE" }),
 };
 

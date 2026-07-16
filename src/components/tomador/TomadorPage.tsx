@@ -273,6 +273,11 @@ export default function TomadorPage() {
       return
     }
 
+    if (!formData.produtor || !formData.corretora) {
+      toast.error("Produtor e Corretora são obrigatórios.")
+      return
+    }
+
     const payload = {
       cnpj: formData.cnpj,
       nome: formData.nome.toUpperCase(),
@@ -312,7 +317,12 @@ export default function TomadorPage() {
       setFormData(initialFormState)
       setEditingId(null)
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro ao salvar tomador.")
+      const message = err instanceof Error ? err.message : "Erro ao salvar tomador."
+      if (message.toLowerCase().includes("cnpj") && message.toLowerCase().includes("já existe")) {
+        toast.error("Já existe um tomador cadastrado com esse CNPJ. Edite o cadastro existente na lista.")
+      } else {
+        toast.error(message)
+      }
     } finally {
       setSaving(false)
     }
@@ -819,7 +829,7 @@ export default function TomadorPage() {
             <div className={cn("space-y-6", currentTab !== "dados" && "md:hidden")}>
 
                 <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 space-y-6">
-                  <h3 className="text-sm font-black text-brand-red uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <h3 className="text-sm font-black text-brand-red dark:text-[#cf7458] uppercase tracking-wider mb-2 flex items-center gap-2">
                     <Building className="size-4.5" />
                     <span>DADOS DE IDENTIFICAÇÃO</span>
                   </h3>
@@ -828,7 +838,7 @@ export default function TomadorPage() {
 
                     {/* Produtor */}
                     <div className="space-y-2">
-                      <Label htmlFor="form-produtor" className="text-xs font-bold">Produtor</Label>
+                      <Label htmlFor="form-produtor" className="text-xs font-bold">Produtor *</Label>
                       <Combobox
                         items={produtorItems}
                         value={formData.produtor}
@@ -855,7 +865,7 @@ export default function TomadorPage() {
 
                     {/* Corretora */}
                     <div className="space-y-2">
-                      <Label htmlFor="form-corretora" className="text-xs font-bold">Corretora</Label>
+                      <Label htmlFor="form-corretora" className="text-xs font-bold">Corretora *</Label>
                       <Combobox
                         items={corretorItems}
                         value={formData.corretora}
@@ -885,7 +895,7 @@ export default function TomadorPage() {
                       <Label htmlFor="form-cnpj" className="text-xs font-bold flex items-center gap-2">
                         CNPJ *
                         {cnpjLoading && (
-                          <span className="flex items-center gap-1 text-[10px] font-normal text-brand-red opacity-80">
+                          <span className="flex items-center gap-1 text-[10px] font-normal text-brand-red dark:text-[#cf7458] opacity-80">
                             <span className="w-2.5 h-2.5 border border-brand-red border-t-transparent rounded-full animate-spin" />
                             Buscando...
                           </span>
@@ -900,7 +910,7 @@ export default function TomadorPage() {
                           setFormData(prev => ({ ...prev, cnpj: val }));
                           fetchCompanyByCnpj(val);
                         }}
-                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                         required
                       />
                     </div>
@@ -913,7 +923,7 @@ export default function TomadorPage() {
                         placeholder="Ex: ARCON CONSTRUCOES E CONSULTORIA LTDA"
                         value={formData.nome}
                         onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
-                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                         required
                       />
                     </div>
@@ -926,7 +936,7 @@ export default function TomadorPage() {
                         placeholder="Ex: ARCON CONSTRUTORA"
                         value={formData.nomeFantasia}
                         onChange={(e) => setFormData(prev => ({ ...prev, nomeFantasia: e.target.value }))}
-                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                       />
                     </div>
 
@@ -939,7 +949,7 @@ export default function TomadorPage() {
                         placeholder="exemplo@email.com"
                         value={formData.email}
                         onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30 w-full"
+                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5 w-full"
                       />
                     </div>
 
@@ -951,7 +961,7 @@ export default function TomadorPage() {
                         placeholder="(00) 0000-0000"
                         value={formData.telefone}
                         onChange={(e) => setFormData(prev => ({ ...prev, telefone: maskTelefone(e.target.value) }))}
-                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                       />
                     </div>
 
@@ -963,7 +973,7 @@ export default function TomadorPage() {
                         placeholder="(00) 90000-0000"
                         value={formData.celular}
                         onChange={(e) => setFormData(prev => ({ ...prev, celular: maskTelefone(e.target.value) }))}
-                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                       />
                     </div>
 
@@ -975,7 +985,7 @@ export default function TomadorPage() {
                         placeholder="Ex: Richard / João"
                         value={formData.contato}
                         onChange={(e) => setFormData(prev => ({ ...prev, contato: e.target.value }))}
-                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                        className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                       />
                     </div>
 
@@ -987,7 +997,7 @@ export default function TomadorPage() {
                         placeholder="Digite anotações adicionais sobre o tomador..."
                         value={formData.observacoes}
                         onChange={(e) => setFormData(prev => ({ ...prev, observacoes: e.target.value }))}
-                        className="rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30 min-h-[80px]"
+                        className="rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5 min-h-[80px]"
                       />
                     </div>
 
@@ -998,7 +1008,7 @@ export default function TomadorPage() {
             {/* ──── TAB: ENDEREÇO ──── */}
             <div className={cn("space-y-6", currentTab !== "endereco" && "md:hidden")}>
               <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 space-y-6">
-                <h3 className="text-sm font-black text-brand-red uppercase tracking-wider mb-2 flex items-center gap-2">
+                <h3 className="text-sm font-black text-brand-red dark:text-[#cf7458] uppercase tracking-wider mb-2 flex items-center gap-2">
                   <MapPin className="size-4.5" />
                   <span>ENDEREÇO DO TOMADOR</span>
                 </h3>
@@ -1013,7 +1023,7 @@ export default function TomadorPage() {
                       placeholder="64.000-000"
                       value={formData.cep}
                       onChange={(e) => setFormData(prev => ({ ...prev, cep: e.target.value }))}
-                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                     />
                   </div>
 
@@ -1025,7 +1035,7 @@ export default function TomadorPage() {
                       placeholder="Ex: Avenida Frei Serafim"
                       value={formData.endereco}
                       onChange={(e) => setFormData(prev => ({ ...prev, endereco: e.target.value }))}
-                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                     />
                   </div>
 
@@ -1037,7 +1047,7 @@ export default function TomadorPage() {
                       placeholder="Ex: 1500"
                       value={formData.numero}
                       onChange={(e) => setFormData(prev => ({ ...prev, numero: e.target.value }))}
-                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                     />
                   </div>
 
@@ -1049,7 +1059,7 @@ export default function TomadorPage() {
                       placeholder="Ex: Sala 202"
                       value={formData.complemento}
                       onChange={(e) => setFormData(prev => ({ ...prev, complemento: e.target.value }))}
-                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                     />
                   </div>
 
@@ -1061,7 +1071,7 @@ export default function TomadorPage() {
                       placeholder="Ex: Centro"
                       value={formData.bairro}
                       onChange={(e) => setFormData(prev => ({ ...prev, bairro: e.target.value }))}
-                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                     />
                   </div>
 
@@ -1073,7 +1083,7 @@ export default function TomadorPage() {
                       placeholder="Ex: Teresina"
                       value={formData.cidade}
                       onChange={(e) => setFormData(prev => ({ ...prev, cidade: e.target.value }))}
-                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30"
+                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                     />
                   </div>
 
@@ -1086,7 +1096,7 @@ export default function TomadorPage() {
                       maxLength={2}
                       value={formData.uf}
                       onChange={(e) => setFormData(prev => ({ ...prev, uf: e.target.value.toUpperCase() }))}
-                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-zinc-955/30 text-center font-bold"
+                      className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5 text-center font-bold"
                     />
                   </div>
 
@@ -1099,7 +1109,7 @@ export default function TomadorPage() {
 
                 {/* Add new contact form row */}
                 <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 space-y-4">
-                  <h3 className="text-xs font-black text-brand-red uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <h3 className="text-xs font-black text-brand-red dark:text-[#cf7458] uppercase tracking-wider mb-2 flex items-center gap-2">
                     <PlusCircle className="size-4.5" />
                     <span>Adicionar Novo Contato Adicional</span>
                   </h3>
@@ -1216,7 +1226,7 @@ export default function TomadorPage() {
 
                 {/* Add new partner form row */}
                 <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 space-y-4">
-                  <h3 className="text-xs font-black text-brand-red uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <h3 className="text-xs font-black text-brand-red dark:text-[#cf7458] uppercase tracking-wider mb-2 flex items-center gap-2">
                     <PlusCircle className="size-4.5" />
                     <span>Adicionar Sócio ou Administrador</span>
                   </h3>
@@ -1350,7 +1360,7 @@ export default function TomadorPage() {
             <div className={cn("space-y-6", currentTab !== "taxas" && "md:hidden")}>
 
                 <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 space-y-4">
-                  <h3 className="text-xs font-black text-brand-red uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <h3 className="text-xs font-black text-brand-red dark:text-[#cf7458] uppercase tracking-wider mb-2 flex items-center gap-2">
                     <Percent className="size-4.5" />
                     <span>Taxas por Seguradora</span>
                   </h3>
@@ -1417,7 +1427,7 @@ export default function TomadorPage() {
                 ) : (
                   <>
                     <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 space-y-4">
-                      <h3 className="text-xs font-black text-brand-red uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <h3 className="text-xs font-black text-brand-red dark:text-[#cf7458] uppercase tracking-wider mb-2 flex items-center gap-2">
                         <Paperclip className="size-4.5" />
                         <span>Arquivos do Tomador</span>
                       </h3>
