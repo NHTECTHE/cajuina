@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useState, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import {
   Search,
   Plus,
@@ -17,7 +18,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { cn } from "@/lib/utils"
 import { AsyncCombobox, type AsyncComboboxOption } from "@/components/ui/async-combobox"
 import {
   AlertDialog,
@@ -29,13 +29,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import {
   tomadoresApi,
   seguradosApi,
@@ -128,6 +121,7 @@ function currencyInputToDecimal(value: string): string | null {
 }
 
 export default function CotacoesPage() {
+  const router = useRouter()
   const [view, setView] = useState<"list" | "form" | "details">("list")
   // Contexto do formulário: criação de nova cotação ou edição de uma existente.
   const [formMode, setFormMode] = useState<"create" | "edit">("create")
@@ -149,21 +143,9 @@ export default function CotacoesPage() {
   // Confirmação de aprovação da cotação (tela de detalhes).
   const [showApproveConfirm, setShowApproveConfirm] = useState(false)
 
-  // Seguradora escolhida para a emissão (só habilitado após aprovar; ainda não
-  // persistido — a escolha efetiva acontece ao Emitir, próxima etapa).
-  const [seguradoraEscolhidaId, setSeguradoraEscolhidaId] = useState<number | null>(null)
-
-  // Modal "Emitir" (emissão manual, sem integração com API da seguradora).
-  const [showEmitirModal, setShowEmitirModal] = useState(false)
-  const [numeroApolice, setNumeroApolice] = useState("")
-  const [valorSeguradoraEmissao, setValorSeguradoraEmissao] = useState("")
-  const [arquivoApolice, setArquivoApolice] = useState<File | null>(null)
-  const [arquivoBoleto, setArquivoBoleto] = useState<File | null>(null)
-
-  // Seleciona a cotação em foco e limpa a escolha de seguradora anterior.
+  // Seleciona a cotação em foco.
   const selectCotacao = (c: CotacaoResponse | null) => {
     setSelectedCotacao(c)
-    setSeguradoraEscolhidaId(null)
   }
 
   const fetchTomadores = React.useCallback(async (search: string): Promise<AsyncComboboxOption[]> => {
@@ -246,10 +228,12 @@ export default function CotacoesPage() {
   const [loadingCotacoes, setLoadingCotacoes] = useState(false)
 
   // Busca a lista de cotações. Reutilizada após criar/editar/excluir.
+  // Só lista as em aberto: uma vez aprovada, a cotação vira proposta e passa a
+  // ser listada em Propostas (status "Aprovado") ou em Apólices ("Emitido").
   const loadCotacoes = React.useCallback(async (search: string) => {
     setLoadingCotacoes(true)
     try {
-      const data = await cotacoesApi.list(search ? { search } : undefined)
+      const data = await cotacoesApi.list({ status: "Iniciado", ...(search ? { search } : {}) })
       setCotacoes(data)
     } catch {
       setCotacoes([])
@@ -365,51 +349,20 @@ export default function CotacoesPage() {
     }
   }
 
-  // Aprova a cotação selecionada: habilita a escolha de seguradora e o Emitir.
+  // Aprova a cotação selecionada. Aprovada, ela vira proposta: sai desta
+  // listagem e o fluxo segue em Propostas, para onde redirecionamos.
   const handleAprovar = async () => {
     if (!selectedCotacao) return
     setSaving(true)
     try {
-      const aprovada = await cotacoesApi.aprovar(selectedCotacao.id)
-      setSelectedCotacao(aprovada)
-      await loadCotacoes(searchQuery.trim())
+      await cotacoesApi.aprovar(selectedCotacao.id)
       setShowApproveConfirm(false)
+      router.push("/dashboard/propostas")
     } catch (err) {
       alert(err instanceof Error ? err.message : "Erro ao aprovar a cotação.")
     } finally {
       setSaving(false)
     }
-  }
-
-  // Emissão da apólice: integração com o backend (POST /cotacoes/{id}/emitir/)
-  // e a tela de apólice ficam a cargo do frontend de Apólices (a ser criado).
-  // Por ora apenas valida os campos e fecha o modal.
-  const handleEmitir = async () => {
-    if (!selectedCotacao || !seguradoraEscolhidaId) return
-    if (!numeroApolice.trim()) {
-      alert("Informe o número da apólice.")
-      return
-    }
-    const valorDecimal = currencyInputToDecimal(valorSeguradoraEmissao)
-    if (!valorDecimal) {
-      alert("Informe o valor da seguradora.")
-      return
-    }
-
-    // Payload pronto para a emissão. A chamada ao backend
-    // (POST /cotacoes/{id}/emitir/, multipart) e a navegação para a tela da
-    // apólice ficam a cargo do frontend de Apólices (a ser criado).
-    const payload = {
-      cotacaoId: selectedCotacao.id,
-      seguradora: seguradoraEscolhidaId,
-      numero_apolice: numeroApolice.trim(),
-      valor_seguradora: valorDecimal,
-      arquivo_apolice: arquivoApolice,
-      arquivo_boleto: arquivoBoleto,
-    }
-    console.log("Emitir apólice (integração pendente):", payload)
-
-    setShowEmitirModal(false)
   }
 
   return (
@@ -850,25 +803,11 @@ export default function CotacoesPage() {
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {seguradoras.map((seg) => {
-                    const aprovada = selectedCotacao?.status === "Aprovado"
-                    const escolhida = seguradoraEscolhidaId === seg.id
                     return (
                     <div
                       key={seg.id}
-                      onClick={() => aprovada && setSeguradoraEscolhidaId(seg.id)}
-                      className={cn(
-                        "relative bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-40 flex flex-col items-center justify-between p-4 border transition-all",
-                        aprovada ? "cursor-pointer hover:shadow-md" : "opacity-70",
-                        escolhida
-                          ? "border-brand-red ring-2 ring-brand-red/30"
-                          : "border-zinc-200 dark:border-zinc-700/50"
-                      )}
+                      className="relative bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-40 flex flex-col items-center justify-between p-4 border border-zinc-200 dark:border-zinc-700/50 opacity-70"
                     >
-                      {escolhida && (
-                        <span className="absolute -top-2 -right-2 bg-brand-red text-white rounded-full p-1 shadow-sm">
-                          <CheckCircle2 className="size-3.5" />
-                        </span>
-                      )}
                       <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide text-center leading-tight">{seg.nome}</span>
 
                       <div className="flex-1 flex items-center justify-center py-1">
@@ -912,42 +851,20 @@ export default function CotacoesPage() {
 
               {/* Fluxo principal à direita */}
               <div className="flex items-stretch gap-3">
-                {selectedCotacao?.status === "Aprovado" ? (
-                  <button
-                    onClick={() => {
-                      if (!seguradoraEscolhidaId) {
-                        alert("Escolha uma seguradora antes de emitir.")
-                        return
-                      }
-                      setNumeroApolice("")
-                      setValorSeguradoraEmissao("")
-                      setArquivoApolice(null)
-                      setArquivoBoleto(null)
-                      setShowEmitirModal(true)
-                    }}
-                    className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 transition-colors cursor-pointer"
-                  >
-                    <CheckCircle2 className="size-4" />
-                    Emitir
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => selectedCotacao && openEdit(selectedCotacao)}
-                      className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                    >
-                      <Pencil className="size-4" />
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => setShowApproveConfirm(true)}
-                      className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 transition-colors cursor-pointer"
-                    >
-                      <CheckCircle2 className="size-4" />
-                      Aprovar Cotação
-                    </button>
-                  </>
-                )}
+                <button
+                  onClick={() => selectedCotacao && openEdit(selectedCotacao)}
+                  className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                >
+                  <Pencil className="size-4" />
+                  Editar
+                </button>
+                <button
+                  onClick={() => setShowApproveConfirm(true)}
+                  className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 transition-colors cursor-pointer"
+                >
+                  <CheckCircle2 className="size-4" />
+                  Aprovar Cotação
+                </button>
               </div>
             </div>
 
@@ -977,89 +894,6 @@ export default function CotacoesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* ──── EMITIR ──── */}
-      <Dialog open={showEmitirModal} onOpenChange={setShowEmitirModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Emitir</DialogTitle>
-          </DialogHeader>
-
-          <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Nº Apólice:</Label>
-                <Input
-                  className="h-10 border-zinc-300"
-                  value={numeroApolice}
-                  onChange={(e) => setNumeroApolice(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Valor Seguradora:</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-400">R$</span>
-                  <Input
-                    className="h-10 pl-9 border-zinc-300"
-                    inputMode="numeric"
-                    placeholder="0,00"
-                    value={valorSeguradoraEmissao}
-                    onChange={(e) => setValorSeguradoraEmissao(formatCurrency(e.target.value))}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Apólice:</Label>
-                <input
-                  type="file"
-                  accept=".pdf"
-                  onChange={(e) => setArquivoApolice(e.target.files?.[0] ?? null)}
-                  className="h-10 w-full rounded-md border border-zinc-300 text-xs file:mr-2 file:h-full file:border-0 file:bg-zinc-100 dark:file:bg-zinc-800 file:px-3 file:text-xs file:font-bold cursor-pointer"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Boleto:</Label>
-                <input
-                  type="file"
-                  accept=".pdf"
-                  onChange={(e) => setArquivoBoleto(e.target.files?.[0] ?? null)}
-                  className="h-10 w-full rounded-md border border-zinc-300 text-xs file:mr-2 file:h-full file:border-0 file:bg-zinc-100 dark:file:bg-zinc-800 file:px-3 file:text-xs file:font-bold cursor-pointer"
-                />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="sm:justify-between">
-            <button
-              type="button"
-              disabled
-              title="Emissão via API da seguradora ainda não disponível"
-              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-[12px] font-bold uppercase tracking-wide text-zinc-400 border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 cursor-not-allowed"
-            >
-              Emitir com API
-            </button>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setShowEmitirModal(false)}
-                className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleEmitir}
-                className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 transition-colors cursor-pointer"
-              >
-                Emitir
-              </button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
     </div>
   )

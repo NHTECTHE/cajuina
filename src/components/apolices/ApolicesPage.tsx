@@ -483,20 +483,6 @@ export default function ApolicesPage() {
                   </thead>
                   <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
                     <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
-                      <td className="py-3 font-bold text-zinc-800 dark:text-zinc-200">Prêmio Cajuína</td>
-                      <td className="py-3 text-brand-red dark:text-[#cf7458] font-bold">{formatBRL(selected.valor_seguradora)}</td>
-                      <td className="py-3 text-zinc-600 dark:text-zinc-400">—</td>
-                      <td className="py-3">
-                         <div className="flex items-center gap-2">
-                           <div className="w-9 h-4 bg-zinc-300 dark:bg-zinc-700 rounded-full flex items-center px-1 cursor-pointer">
-                             <div className="w-2.5 h-2.5 bg-white rounded-full"></div>
-                           </div>
-                           <span className="font-bold text-[10px] text-zinc-500 uppercase">Pendente</span>
-                         </div>
-                      </td>
-                      <td className="py-3 text-zinc-500">—</td>
-                    </tr>
-                    <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
                       <td className="py-3 font-bold text-zinc-800 dark:text-zinc-200">Prêmio Seguradora</td>
                       <td className="py-3 text-zinc-700 dark:text-zinc-300 font-bold">{formatBRL(selected.valor_seguradora)}</td>
                       <td className="py-3 text-zinc-600 dark:text-zinc-400">—</td>
@@ -530,30 +516,6 @@ export default function ApolicesPage() {
 
               {/* ===== MOBILE CARDS ===== */}
               <div className="flex md:hidden flex-col gap-4">
-                <div className="flex flex-col gap-3 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50/50 dark:bg-zinc-900/30">
-                  <div className="flex justify-between items-center border-b border-zinc-200/50 dark:border-zinc-800/50 pb-2">
-                    <span className="font-bold text-zinc-800 dark:text-zinc-200">Prêmio Cajuína</span>
-                    <span className="text-brand-red dark:text-[#cf7458] font-black text-sm">{formatBRL(selected.valor_seguradora)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-zinc-500 font-bold uppercase">Vencimento</span>
-                    <span className="text-zinc-600 dark:text-zinc-400">—</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-zinc-500 font-bold uppercase">Status</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-9 h-4 bg-zinc-300 dark:bg-zinc-700 rounded-full flex items-center px-1 cursor-pointer">
-                        <div className="w-2.5 h-2.5 bg-white rounded-full"></div>
-                      </div>
-                      <span className="font-bold text-[10px] text-zinc-500 uppercase">Pendente</span>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-zinc-500 font-bold uppercase">Boleto</span>
-                    <span className="text-zinc-500">—</span>
-                  </div>
-                </div>
-
                 <div className="flex flex-col gap-3 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50/50 dark:bg-zinc-900/30">
                   <div className="flex justify-between items-center border-b border-zinc-200/50 dark:border-zinc-800/50 pb-2">
                     <span className="font-bold text-zinc-800 dark:text-zinc-200">Prêmio Seguradora</span>

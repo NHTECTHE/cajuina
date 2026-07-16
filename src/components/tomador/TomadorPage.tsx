@@ -273,6 +273,11 @@ export default function TomadorPage() {
       return
     }
 
+    if (!formData.produtor || !formData.corretora) {
+      toast.error("Produtor e Corretora são obrigatórios.")
+      return
+    }
+
     const payload = {
       cnpj: formData.cnpj,
       nome: formData.nome.toUpperCase(),
@@ -312,7 +317,12 @@ export default function TomadorPage() {
       setFormData(initialFormState)
       setEditingId(null)
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Erro ao salvar tomador.")
+      const message = err instanceof Error ? err.message : "Erro ao salvar tomador."
+      if (message.toLowerCase().includes("cnpj") && message.toLowerCase().includes("já existe")) {
+        toast.error("Já existe um tomador cadastrado com esse CNPJ. Edite o cadastro existente na lista.")
+      } else {
+        toast.error(message)
+      }
     } finally {
       setSaving(false)
     }
@@ -828,7 +838,7 @@ export default function TomadorPage() {
 
                     {/* Produtor */}
                     <div className="space-y-2">
-                      <Label htmlFor="form-produtor" className="text-xs font-bold">Produtor</Label>
+                      <Label htmlFor="form-produtor" className="text-xs font-bold">Produtor *</Label>
                       <Combobox
                         items={produtorItems}
                         value={formData.produtor}
@@ -855,7 +865,7 @@ export default function TomadorPage() {
 
                     {/* Corretora */}
                     <div className="space-y-2">
-                      <Label htmlFor="form-corretora" className="text-xs font-bold">Corretora</Label>
+                      <Label htmlFor="form-corretora" className="text-xs font-bold">Corretora *</Label>
                       <Combobox
                         items={corretorItems}
                         value={formData.corretora}

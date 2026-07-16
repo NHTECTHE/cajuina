@@ -286,7 +286,33 @@ export const cotacoesApi = {
 
   aprovar: (id: number) =>
     apiRequest<CotacaoResponse>(`/cotacoes/${id}/aprovar`, { method: "POST" }),
+
+  // Emite a apólice da cotação (multipart: pode levar os PDFs da apólice e do
+  // boleto). Aprova → Emitido, e a apólice criada é devolvida.
+  emitir: async (id: number, data: EmitirPayload): Promise<ApoliceResponse> => {
+    const form = new FormData();
+    form.append("seguradora", String(data.seguradora));
+    form.append("numero_apolice", data.numero_apolice);
+    form.append("valor_seguradora", data.valor_seguradora);
+    if (data.arquivo_apolice) form.append("arquivo_apolice", data.arquivo_apolice);
+    if (data.arquivo_boleto) form.append("arquivo_boleto", data.arquivo_boleto);
+
+    // Sem Content-Type manual: o browser define o boundary do multipart.
+    const response = await fetch(`/api/cotacoes/${id}/emitir`, {
+      method: "POST",
+      body: form,
+    });
+    return handleApiResponse<ApoliceResponse>(response);
+  },
 };
+
+export interface EmitirPayload {
+  seguradora: number;
+  numero_apolice: string;
+  valor_seguradora: string;
+  arquivo_apolice?: File | null;
+  arquivo_boleto?: File | null;
+}
 
 // ─── Apólices ────────────────────────────────────────────────────────────────
 
