@@ -7,6 +7,7 @@ import {
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { apolicesApi, type ApoliceResponse } from "@/services/api"
+import { toast } from "sonner"
 
 // Formata um decimal ("180.00") como moeda pt-BR. "—" quando não informado.
 function formatBRL(value: string | number | null | undefined): string {
@@ -227,7 +228,7 @@ export default function ApolicesPage() {
                           onClick={(e) => {
                             e.stopPropagation()
                             if (a.arquivo_apolice) window.open(a.arquivo_apolice, "_blank")
-                            else alert("Arquivo da Apólice não anexado nesta cotação.")
+                            else toast.error("Arquivo da Apólice não anexado nesta cotação.")
                           }}
                           className="w-6 h-6 rounded border border-red-200 text-[#e85c5c] dark:text-[#e85c5c] flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title="Visualizar PDF Apólice">
                           <FileDown className="size-3.5" />
@@ -236,7 +237,7 @@ export default function ApolicesPage() {
                           onClick={(e) => {
                             e.stopPropagation()
                             if (a.arquivo_boleto) window.open(a.arquivo_boleto, "_blank")
-                            else alert("Boleto/Financeiro não anexado nesta cotação.")
+                            else toast.error("Boleto/Financeiro não anexado nesta cotação.")
                           }}
                           className="w-6 h-6 rounded border border-zinc-200 text-zinc-500 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" title="Financeiro / Boleto">
                           <DollarSign className="size-3.5" />
@@ -253,7 +254,7 @@ export default function ApolicesPage() {
                             onClick={(e) => {
                               e.stopPropagation()
                               if (a.arquivo_apolice) window.open(a.arquivo_apolice, "_blank")
-                              else alert("Arquivo da Apólice não anexado.")
+                              else toast.error("Arquivo da Apólice não anexado.")
                             }}
                             className="w-7 h-7 rounded border border-red-200 text-[#e85c5c] dark:text-[#cf7458] flex items-center justify-center bg-red-50/50 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title="Visualizar PDF Apólice" style={{backgroundColor:"transparent"}}>
                             <FileDown className="size-4" />
@@ -262,7 +263,7 @@ export default function ApolicesPage() {
                             onClick={(e) => {
                               e.stopPropagation()
                               if (a.arquivo_boleto) window.open(a.arquivo_boleto, "_blank")
-                              else alert("Boleto não anexado.")
+                              else toast.error("Boleto não anexado.")
                             }}
                             className="w-7 h-7 rounded border border-zinc-200 text-zinc-500 flex items-center justify-center bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors" title="Financeiro / Boleto">
                             <DollarSign className="size-4" />
@@ -588,7 +589,7 @@ export default function ApolicesPage() {
               <div className="flex items-center p-3 text-xs text-zinc-500">
                 <div className="flex-1">Proposta</div>
                 <div className="w-32 flex justify-center">
-                  <button onClick={() => alert("PDF da proposta não configurado.")} className="hover:scale-110 transition-transform">
+                  <button onClick={() => toast.error("PDF da proposta não configurado.")} className="hover:scale-110 transition-transform">
                     <FileDown className="size-4 text-[#e85c5c] dark:text-[#cf7458] cursor-pointer" />
                   </button>
                 </div>
@@ -600,7 +601,7 @@ export default function ApolicesPage() {
                   <button 
                     onClick={() => {
                       if (selected.arquivo_apolice) window.open(selected.arquivo_apolice, "_blank")
-                      else alert("Arquivo da Apólice não anexado.")
+                      else toast.error("Arquivo da Apólice não anexado.")
                     }} 
                     className="hover:scale-110 transition-transform"
                   >
@@ -615,7 +616,7 @@ export default function ApolicesPage() {
                   <button 
                     onClick={() => {
                       if (selected.arquivo_boleto) window.open(selected.arquivo_boleto, "_blank")
-                      else alert("Arquivo do Boleto não anexado.")
+                      else toast.error("Arquivo do Boleto não anexado.")
                     }} 
                     className="hover:scale-110 transition-transform"
                   >
@@ -627,7 +628,7 @@ export default function ApolicesPage() {
               <div className="flex items-center p-3 text-xs text-zinc-500">
                 <div className="flex-1">Whatsapp</div>
                 <div className="w-32 flex justify-center gap-3 text-green-500">
-                  <button onClick={() => alert("Integração com WhatsApp será implementada em breve.")} className="hover:scale-110 transition-transform">
+                  <button onClick={() => toast.info("Integração com WhatsApp será implementada em breve.")} className="hover:scale-110 transition-transform">
                     <Phone className="size-4 cursor-pointer" />
                   </button>
                 </div>
@@ -636,7 +637,7 @@ export default function ApolicesPage() {
               <div className="flex items-center p-3 text-xs text-zinc-500">
                 <div className="flex-1">Email</div>
                 <div className="w-32 flex justify-center">
-                  <button onClick={() => alert("Envio por email será implementado em breve.")} className="hover:scale-110 transition-transform">
+                  <button onClick={() => toast.info("Envio por email será implementado em breve.")} className="hover:scale-110 transition-transform">
                     <Mail className="size-4 text-blue-400 cursor-pointer" />
                   </button>
                 </div>

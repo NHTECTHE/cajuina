@@ -24,6 +24,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { NativeSelect } from "@/components/ui/native-select"
 import {
   Combobox,
@@ -109,6 +119,9 @@ export default function TomadorPage() {
 
   // Editing state — stores the backend id of the record being edited
   const [editingId, setEditingId] = useState<number | null>(null)
+
+  // Deletion state
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("")
@@ -251,17 +264,22 @@ export default function TomadorPage() {
 
   // Delete action
   const handleDeleteClick = (id: number) => {
-    if (!confirm("Deseja realmente excluir este tomador?")) return
-    tomadoresApi.remove(id)
+    setDeleteTarget(id)
+  }
+
+  const confirmDelete = () => {
+    if (deleteTarget === null) return
+    tomadoresApi.remove(deleteTarget)
       .then(() => {
-        setTomadores(prev => prev.filter(t => t.id !== id))
+        setTomadores(prev => prev.filter(t => t.id !== deleteTarget))
         toast.success("Tomador excluído com sucesso!")
-        if (editingId === id) {
+        if (editingId === deleteTarget) {
           setView("list")
           setEditingId(null)
         }
       })
       .catch((err: Error) => toast.error(err.message || "Erro ao excluir tomador."))
+      .finally(() => setDeleteTarget(null))
   }
 
   // Handle Save
@@ -520,6 +538,31 @@ export default function TomadorPage() {
           </Button>
         )}
       </div>
+
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent className="max-w-sm rounded-2xl p-6 border-zinc-200 dark:border-zinc-800">
+          <AlertDialogHeader>
+            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto mb-2">
+              <Trash2 className="size-5 text-red-500" />
+            </div>
+            <AlertDialogTitle className="text-center font-bold text-zinc-900 dark:text-zinc-50">Excluir tomador?</AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-sm text-zinc-500 mt-1">
+              Deseja realmente excluir este tomador? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex gap-2 justify-center sm:justify-center mt-4 border-t-0 bg-transparent p-0">
+            <AlertDialogCancel className="mt-0 rounded-xl border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm text-zinc-600 dark:text-zinc-300">
+              Voltar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600"
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ──── LIST VIEW ──── */}
       {view === "list" && (
