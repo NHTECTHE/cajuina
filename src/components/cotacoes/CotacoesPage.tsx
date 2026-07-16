@@ -549,7 +549,7 @@ export default function CotacoesPage() {
                       {/* Valores */}
                       <div className="col-span-1 flex flex-col gap-1 text-[11px] text-zinc-650 dark:text-zinc-400">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-brand-red dark:text-brand-red/80">{formatBRL(t.importancia_segurada)}</span>
+                          <span className="font-bold text-brand-red dark:text-[#cf7458]">{formatBRL(t.importancia_segurada)}</span>
                         </div>
                       </div>
 
@@ -580,7 +580,7 @@ export default function CotacoesPage() {
                       {/* Tomador / CNPJ */}
                       <div className="col-span-2 flex flex-col gap-1 order-1">
                         <div className="flex items-center gap-2 mb-1.5">
-                          <span className="text-[13px] font-medium text-brand-red/90 uppercase tracking-wide">Simulação #{t.id}</span>
+                          <span className="text-[13px] font-medium text-brand-red/90 dark:text-[#cf7458] uppercase tracking-wide">Simulação #{t.id}</span>
                         </div>
                         <span className="font-bold text-[15px] tracking-tight text-zinc-800 dark:text-zinc-200 uppercase">{t.tomador_nome}</span>
                         <span className="font-mono text-[13px] text-zinc-400 font-normal">{t.tomador_cnpj}</span>
@@ -607,7 +607,7 @@ export default function CotacoesPage() {
                       {/* Valores */}
                       <div className="col-span-2 flex flex-col gap-0.5 text-sm text-zinc-650 dark:text-zinc-400 order-4 -mt-1">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-normal text-lg text-brand-red/90 dark:text-brand-red/80">{formatBRL(t.importancia_segurada)}</span>
+                          <span className="font-normal text-lg text-brand-red/90 dark:text-[#cf7458]">{formatBRL(t.importancia_segurada)}</span>
                         </div>
                       </div>
 
@@ -649,8 +649,8 @@ export default function CotacoesPage() {
               <div className="border border-zinc-200/40 dark:border-zinc-800/40 px-5 py-3 rounded-xl flex items-center justify-between bg-zinc-50/20 dark:bg-zinc-900/10 mt-2">
                 <span className="text-[11px] opacity-50">Mostrando {paginatedCotacoes.length} registros</span>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} className="text-xs font-bold text-brand-red cursor-pointer">Anterior</button>
-                  <button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} className="text-xs font-bold text-brand-red cursor-pointer">Próximo</button>
+                  <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} className="text-xs font-bold text-brand-red dark:text-[#cf7458] cursor-pointer">Anterior</button>
+                  <button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} className="text-xs font-bold text-brand-red dark:text-[#cf7458] cursor-pointer">Próximo</button>
                 </div>
               </div>
             </div>
@@ -809,7 +809,7 @@ export default function CotacoesPage() {
             
             {/* Informações da Cotação */}
             <div className="md:col-span-12 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
-              <h2 className="text-[#e85c5c] text-lg font-light tracking-wide mb-6">INFORMAÇÕES DA COTAÇÃO</h2>
+              <h2 className="text-[#e85c5c] dark:text-[#cf7458] text-lg font-light tracking-wide mb-6">INFORMAÇÕES DA COTAÇÃO</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
                 <div className="flex flex-col gap-3 text-[13px] text-zinc-600 dark:text-zinc-400">
@@ -835,7 +835,7 @@ export default function CotacoesPage() {
 
             {/* Seguradoras Grid */}
             <div className="md:col-span-12 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
-              <h2 className="text-[#e85c5c] text-lg font-light tracking-wide mb-6">SEGURADORAS</h2>
+              <h2 className="text-[#e85c5c] dark:text-[#cf7458] text-lg font-light tracking-wide mb-6">SEGURADORAS</h2>
 
               {loadingSeguradoras ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -876,7 +876,7 @@ export default function CotacoesPage() {
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={seg.logo} alt={`Logo ${seg.nome}`} className="max-w-full max-h-14 object-contain" />
                         ) : (
-                          <div className="text-2xl font-black text-brand-red/80">{seg.nome.charAt(0)}</div>
+                          <div className="text-2xl font-black text-brand-red/80 dark:text-[#cf7458]">{seg.nome.charAt(0)}</div>
                         )}
                       </div>
 

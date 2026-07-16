@@ -180,7 +180,7 @@ export default function PropostasPage() {
 
                       {/* IS */}
                       <div className="col-span-1 flex flex-col items-center justify-center gap-1 text-[11px] text-zinc-650 dark:text-zinc-400">
-                        <span className="font-bold text-brand-red dark:text-brand-red/80 whitespace-nowrap">{formatBRL(t.importancia_segurada)}</span>
+                        <span className="font-bold text-brand-red dark:text-[#cf7458] whitespace-nowrap">{formatBRL(t.importancia_segurada)}</span>
                       </div>
 
                       {/* Status */}
@@ -195,11 +195,10 @@ export default function PropostasPage() {
                     {/* ===== MOBILE LAYOUT ===== */}
                     <div className="flex xl:hidden flex-col gap-4 text-left p-4">
                       <div className="flex justify-between items-center border-b border-zinc-100 dark:border-zinc-800 pb-2">
-                        <span className="font-bold text-brand-red">#{t.id}</span>
-                        <span className={cn(
-                          "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
-                          t.status === "Em Conclusão" ? "bg-green-100 text-green-700 dark:bg-green-700 dark:text-white" : "bg-orange-100 text-orange-700 dark:bg-orange-600 dark:text-white"
-                        )}>{t.status}</span>
+                        <span className="font-bold text-brand-red dark:text-[#cf7458]">#{t.id}</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-green-100 text-green-700">
+                          {t.status}
+                        </span>
                       </div>
                       <div className="flex flex-col gap-1">
                         <span className="font-bold text-[14px] text-zinc-800 dark:text-zinc-200 uppercase leading-tight">{t.tomador_nome}</span>
@@ -216,7 +215,7 @@ export default function PropostasPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[10px] font-bold text-zinc-500 uppercase">IS:</span>
-                          <span className="text-xs font-bold text-brand-red">{formatBRL(t.importancia_segurada)}</span>
+                          <span className="text-xs font-bold text-brand-red dark:text-[#cf7458] ">{formatBRL(t.importancia_segurada)}</span>
                         </div>
                         <div className="flex flex-col gap-0.5 text-right">
                           <span className="text-[10px] font-bold text-zinc-500 uppercase">Início / Prazo:</span>
@@ -277,7 +276,7 @@ export default function PropostasPage() {
           </div>
 
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-8 shadow-sm flex flex-col">
-            <h2 className="text-[#e85c5c] text-lg font-light tracking-wide mb-6">INFORMAÇÕES DA PROPOSTA</h2>
+            <h2 className="text-[#e85c5c] dark:text-[#cf7458] text-lg font-light tracking-wide mb-6">INFORMAÇÕES DA PROPOSTA</h2>
 
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-6 mb-2 mx-auto max-w-2xl">
               Declaro, expressamente, ter lido, compreendido e concordado com as condições aqui estabelecidas, incluindo as condições gerais do presente seguro.
@@ -337,7 +336,7 @@ export default function PropostasPage() {
                 <p><strong className="text-zinc-800 dark:text-zinc-200 mr-1 font-bold">Modalidade:</strong> <span className="uppercase text-[15px] text-zinc-700 dark:text-zinc-300">{selected.modalidade_nome}</span></p>
                 <p><strong className="text-zinc-800 dark:text-zinc-200 mr-1 font-bold">Segurado:</strong> <span className="uppercase text-[15px] text-zinc-700 dark:text-zinc-300">{selected.segurado_nome ? `${selected.segurado_nome}${selected.segurado_cnpj ? ` - ${selected.segurado_cnpj}` : ""}` : "—"}</span></p>
                 <p><strong className="text-zinc-800 dark:text-zinc-200 mr-1 font-bold">Edital/Contrato:</strong> <span className="uppercase text-[14px]">{selected.edital || "—"}</span></p>
-                <p><strong className="text-zinc-800 dark:text-zinc-200 mr-1 font-bold">Valor da Cobertura:</strong> <span className="font-bold text-[16px] text-brand-red">{formatBRL(selected.importancia_segurada)}</span></p>
+                <p><strong className="text-zinc-800 dark:text-zinc-200 mr-1 font-bold">Valor da Cobertura:</strong> <span className="font-bold text-[16px] text-brand-red dark:text-[#cf7458]">{formatBRL(selected.importancia_segurada)}</span></p>
               </div>
 
               <div className="flex flex-col gap-3 text-[13px] text-zinc-600 dark:text-zinc-400">

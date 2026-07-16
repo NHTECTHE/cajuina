@@ -288,3 +288,47 @@ export const cotacoesApi = {
     apiRequest<CotacaoResponse>(`/cotacoes/${id}/aprovar`, { method: "POST" }),
 };
 
+// ─── Apólices ────────────────────────────────────────────────────────────────
+
+export interface ApoliceResponse {
+  id: number;
+  cotacao: number;
+  tomador_nome: string;
+  tomador_cnpj: string;
+  modalidade_nome: string;
+  segurado_nome?: string | null;
+  segurado_cnpj?: string | null;
+  seguradora: number;
+  seguradora_nome: string;
+  numero_apolice: string;
+  valor_seguradora: string;
+  arquivo_apolice: string | null;
+  arquivo_boleto: string | null;
+  emitido_por: number | null;
+  emitido_por_nome: string | null;
+  criado_em: string;
+  atualizado_em: string;
+  
+  // Campos derivados da cotação que podem estar disponíveis na mesma consulta (se o serializer retornar, ou adaptado visualmente)
+  edital?: string | null;
+  data_inicio?: string | null;
+  prazo_dias?: number | null;
+  data_final?: string | null;
+  importancia_segurada?: string | null;
+}
+
+export const apolicesApi = {
+  list: (params?: { search?: string; tomador?: string; seguradora?: string; numero_apolice?: string }) => {
+    const entries = Object.entries(params ?? {})
+      .filter(([, v]) => v !== undefined && v !== "")
+      .map(([k, v]) => [k, String(v)] as [string, string]);
+    const qs = new URLSearchParams(entries).toString();
+    return apiRequest<ApoliceResponse[]>(`/apolices${qs ? `?${qs}` : ""}`);
+  },
+
+  get: (id: number) => apiRequest<ApoliceResponse>(`/apolices/${id}`),
+
+  remove: (id: number) =>
+    apiRequest<void>(`/apolices/${id}`, { method: "DELETE" }),
+};
+
