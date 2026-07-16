@@ -2,7 +2,14 @@
 
 import * as React from "react"
 import { useState, useMemo } from "react"
-import { ArrowLeft, FileText } from "lucide-react"
+import {
+  ArrowLeft,
+  FileText,
+  Trash2,
+  Pencil,
+  CheckCircle2,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { cotacoesApi, type CotacaoResponse } from "@/services/api"
 
@@ -178,9 +185,10 @@ export default function PropostasPage() {
 
                       {/* Status */}
                       <div className="col-span-1 flex items-center justify-center">
-                        <span className="whitespace-nowrap px-2 py-1 rounded text-[9px] font-bold uppercase bg-green-100 text-green-700">
-                          {t.status}
-                        </span>
+                        <span className={cn(
+                          "whitespace-nowrap px-2 py-1 rounded text-[9px] font-bold uppercase",
+                          t.status === "Em Conclusão" ? "bg-green-100 text-green-700 dark:bg-green-700 dark:text-white" : "bg-orange-100 text-orange-700 dark:bg-orange-600 dark:text-white"
+                        )}>{t.status}</span>
                       </div>
                     </div>
 
@@ -188,9 +196,10 @@ export default function PropostasPage() {
                     <div className="flex xl:hidden flex-col gap-4 text-left p-4">
                       <div className="flex justify-between items-center border-b border-zinc-100 dark:border-zinc-800 pb-2">
                         <span className="font-bold text-brand-red">#{t.id}</span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-green-100 text-green-700">
-                          {t.status}
-                        </span>
+                        <span className={cn(
+                          "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
+                          t.status === "Em Conclusão" ? "bg-green-100 text-green-700 dark:bg-green-700 dark:text-white" : "bg-orange-100 text-orange-700 dark:bg-orange-600 dark:text-white"
+                        )}>{t.status}</span>
                       </div>
                       <div className="flex flex-col gap-1">
                         <span className="font-bold text-[14px] text-zinc-800 dark:text-zinc-200 uppercase leading-tight">{t.tomador_nome}</span>
@@ -258,9 +267,9 @@ export default function PropostasPage() {
           <div className="flex items-center gap-4 mb-4">
             <button
               onClick={() => setView("list")}
-              className="w-8 h-8 flex items-center justify-center rounded-full border border-red-200 text-red-500 bg-white shadow-sm hover:bg-red-50 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 transition-colors"
             >
-              <ArrowLeft className="size-4" />
+              <ArrowLeft className="size-4 opacity-70" />
             </button>
             <h1 className="text-3xl font-light text-zinc-600 dark:text-zinc-300">
               Proposta nº {selected.id}
@@ -270,6 +279,52 @@ export default function PropostasPage() {
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-8 shadow-sm flex flex-col">
             <h2 className="text-[#e85c5c] text-lg font-light tracking-wide mb-6">INFORMAÇÕES DA PROPOSTA</h2>
 
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-6 mb-2 mx-auto max-w-2xl">
+              Declaro, expressamente, ter lido, compreendido e concordado com as condições aqui estabelecidas, incluindo as condições gerais do presente seguro.
+            </p>
+            <p className="text-[13px] font-bold text-zinc-600 dark:text-zinc-500 mb-6">Sujeito a Análise e a Aprovação pela Seguradora</p>
+            
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between gap-3 mt-4 pt-5 border-t border-zinc-200 dark:border-zinc-800">
+              {/* Ação destrutiva, isolada à esquerda */}
+              <button className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30 bg-red-50/60 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors">
+                <Trash2 className="size-4" />
+                Excluir
+              </button>
+
+              {/* Fluxo principal à direita */}
+              <div className="flex items-stretch gap-3">
+                <button className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer">
+                  <Pencil className="size-4" />
+                  Editar
+                </button>
+                <button className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-brand-red hover:bg-brand-red/90 shadow-sm shadow-brand-red/20 transition-colors">
+                  <CheckCircle2 className="size-4" />
+                  Emitir Apólice
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──── DETAILS VIEW: EM ANÁLISE ──── */}
+      {view === "details_analise" && selectedProposta && (
+        <div className="flex flex-col gap-6 w-full">
+          <div className="flex items-center gap-4 mb-4">
+            <button 
+              onClick={() => setView("list")}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 transition-colors"
+            >
+              <ArrowLeft className="size-4 opacity-70" />
+            </button>
+            <h1 className="text-3xl font-light text-zinc-600 dark:text-zinc-300">
+              Cotação nº {selectedProposta.id}
+            </h1>
+          </div>
+
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-8 shadow-sm flex flex-col">
+            <h2 className="text-[#e85c5c] text-lg font-light tracking-wide mb-6">INFORMAÇÕES DA COTAÇÃO</h2>
+            
             <div className="flex flex-col gap-2 text-[13px] text-zinc-600 dark:text-zinc-400 mb-6">
               <p><strong className="text-zinc-800 dark:text-zinc-200 mr-1 font-bold">Proposta nº:</strong> <span className="text-[14px]">{selected.id}</span></p>
               <p><strong className="text-zinc-800 dark:text-zinc-200 mr-1 font-bold">Status:</strong> <span className="text-[14px]">{selected.status}</span></p>
