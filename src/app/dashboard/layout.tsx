@@ -4,6 +4,7 @@ import * as React from "react"
 import SidebarNav from "@/components/sidebar-nav"
 import Topbar from "@/components/topbar"
 import { cn } from "@/lib/utils"
+import { Toaster } from "sonner"
 
 export default function DashboardLayout({
   children,
@@ -128,6 +129,8 @@ export default function DashboardLayout({
           </div>
          </div>
       </main>
+
+      <Toaster position="top-right" richColors duration={5000} />
     </div>
   )
 }

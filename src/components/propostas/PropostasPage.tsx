@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label"
 import {
   AlertDialog,
   AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -34,6 +35,7 @@ import {
   type CotacaoResponse,
   type SeguradoraResponse,
 } from "@/services/api"
+import { toast } from "sonner"
 
 // Formata um decimal ("180.00") como moeda pt-BR. "—" quando não informado.
 function formatBRL(value: string | number | null | undefined): string {
@@ -80,6 +82,9 @@ export default function PropostasPage() {
   // Propostas = cotações com status "Aprovado".
   const [propostas, setPropostas] = useState<CotacaoResponse[]>([])
   const [loading, setLoading] = useState(false)
+
+  // Proposta para exclusão
+  const [deleteTarget, setDeleteTarget] = useState<CotacaoResponse | null>(null)
 
   const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
@@ -154,15 +159,21 @@ export default function PropostasPage() {
     setView("details")
   }
 
-  const handleDelete = async (c: CotacaoResponse) => {
-    if (!confirm(`Excluir a proposta #${c.id}?`)) return
+  const handleDelete = (c: CotacaoResponse) => {
+    setDeleteTarget(c)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
     try {
-      await cotacoesApi.remove(c.id)
+      await cotacoesApi.remove(deleteTarget.id)
       setView("list")
       setSelected(null)
       await loadPropostas(searchQuery.trim())
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro ao excluir a proposta.")
+      toast.error(err instanceof Error ? err.message : "Erro ao excluir a proposta.")
+    } finally {
+      setDeleteTarget(null)
     }
   }
 
@@ -171,12 +182,12 @@ export default function PropostasPage() {
   const handleEmitir = async () => {
     if (!selected || !seguradoraEscolhidaId) return
     if (!numeroApolice.trim()) {
-      alert("Informe o número da apólice.")
+      toast.error("Informe o número da apólice.")
       return
     }
     const valorDecimal = currencyInputToDecimal(valorSeguradoraEmissao)
     if (!valorDecimal) {
-      alert("Informe o valor da seguradora.")
+      toast.error("Informe o valor da seguradora.")
       return
     }
 
@@ -192,7 +203,7 @@ export default function PropostasPage() {
       setShowEmitirModal(false)
       router.push("/dashboard/apolices")
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro ao emitir a apólice.")
+      toast.error(err instanceof Error ? err.message : "Erro ao emitir a apólice.")
     } finally {
       setEmitindo(false)
     }
@@ -202,6 +213,31 @@ export default function PropostasPage() {
     <div className="flex flex-col gap-6">
 
       {/* ──── LIST VIEW ──── */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent className="max-w-sm rounded-2xl p-6 border-zinc-200 dark:border-zinc-800">
+          <AlertDialogHeader>
+            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto mb-2">
+              <Trash2 className="size-5 text-red-500" />
+            </div>
+            <AlertDialogTitle className="text-center font-bold text-zinc-900 dark:text-zinc-50">Excluir proposta?</AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-sm text-zinc-500 mt-1">
+              Você está prestes a excluir a proposta #{deleteTarget?.id}. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex gap-2 justify-center sm:justify-center mt-4 border-t-0 bg-transparent p-0">
+            <AlertDialogCancel className="mt-0 rounded-xl border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm text-zinc-600 dark:text-zinc-300">
+              Voltar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600"
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {view === "list" && (
         <>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
