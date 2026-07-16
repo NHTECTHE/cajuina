@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useState, useMemo } from "react"
 import { 
-  ArrowLeft, FileText, Search, FileDown, DollarSign, RefreshCw, Mail, Phone, FileDigit 
+  ArrowLeft, FileText, Search, FileDown, DollarSign, Mail, Phone, FileDigit
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { apolicesApi, type ApoliceResponse } from "@/services/api"
@@ -34,7 +34,9 @@ export default function ApolicesPage() {
   const [apolices, setApolices] = useState<ApoliceResponse[]>([])
   const [loading, setLoading] = useState(false)
 
-  const [searchQuery, setSearchQuery] = useState("")
+  // Busca geral: a tela filtra pelos campos específicos abaixo, então não há
+  // input ligado a este termo por ora — a API já o aceita quando houver.
+  const [searchQuery] = useState("")
   const [filterNumero, setFilterNumero] = useState("")
   const [filterTomador, setFilterTomador] = useState("")
   const [filterSeguradora, setFilterSeguradora] = useState("")

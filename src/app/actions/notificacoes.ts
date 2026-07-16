@@ -25,8 +25,8 @@ export async function getNotificacoesAction() {
 
     const data = await res.json()
     return { data, error: null }
-  } catch (error: any) {
-    return { data: [], error: error.message }
+  } catch (error: unknown) {
+    return { data: [], error: error instanceof Error ? error.message : "Failed to fetch notifications" }
   }
 }
 
@@ -49,7 +49,7 @@ export async function markNotificacoesAsReadAction() {
     }
 
     return { success: true }
-  } catch (error) {
+  } catch {
     return { success: false }
   }
 }

@@ -40,13 +40,21 @@ interface TopbarProps {
   onSidebarToggle: () => void
 }
 
+// A API (/notificacoes) responde em português: id, titulo, mensagem,
+// status_badge, lida, criado_em. Os campos em inglês são opcionais porque a UI
+// ainda lê os dois formatos (item.titulo || item.title).
 interface NotificationItem {
   id: string
-  title: string
-  description: string
-  time: string
-  status: string
-  read: boolean
+  titulo?: string
+  mensagem?: string
+  status_badge?: string | null
+  lida?: boolean
+  criado_em?: string
+  title?: string
+  description?: string
+  time?: string
+  status?: string
+  read?: boolean
 }
 
 export default function Topbar({ theme, setTheme, onMenuToggle, onSidebarToggle }: TopbarProps) {
@@ -207,7 +215,7 @@ export default function Topbar({ theme, setTheme, onMenuToggle, onSidebarToggle 
                   <p className="text-[10px] font-medium text-zinc-500">Nenhuma notificação recente</p>
                 </div>
               ) : (
-                notifications.slice(0, 4).map((item: any, i: number) => (
+                notifications.slice(0, 4).map((item: NotificationItem, i: number) => (
                   <div
                     key={item.id}
                     onClick={() => {
