@@ -1,11 +1,13 @@
 "use client"
 
 import * as React from "react"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, Suspense } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { 
-  ArrowLeft, FileText, Search, FileDown, DollarSign, Mail, Phone, FileDigit
+  ArrowLeft, FileText, Search, FileDown, DollarSign, Mail, Phone, FileDigit, Pencil, Trash2, Send, Ban
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { apolicesApi, type ApoliceResponse } from "@/services/api"
 import { toast } from "sonner"
 
@@ -28,9 +30,40 @@ function isoToBR(iso: string | null | undefined): string {
 
 
 
-export default function ApolicesPage() {
-  const [view, setView] = useState<"list" | "details">("list")
+function ApolicesPageContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  
+  const initialView = searchParams.get("view") === "details" ? "details" : "list"
+  
+  const [view, setView] = useState<"list" | "details">(initialView)
   const [selected, setSelected] = useState<ApoliceResponse | null>(null)
+
+  useEffect(() => {
+    if (searchParams.get("view") === "details" && searchParams.get("mock") === "1" && !selected) {
+      // Create a mock apolice to show the details view immediately
+      setSelected({
+        id: 9999,
+        numero_apolice: searchParams.get("numero") || "449555",
+        cotacao: "4",
+        tomador_nome: "SERGIO P DE REZENDE ADMINISTRACAO DE SEGUROS",
+        tomador_cnpj: "22.013.182/0001-78",
+        segurado_nome: null,
+        modalidade_nome: "MODALIDADE EXEMPLO",
+        seguradora_nome: "PORTO SEGURO",
+        valor_seguradora: 150.00,
+        data_inicio: null,
+        data_final: null,
+        prazo_dias: null,
+        criado_em: "2026-07-18T12:00:00Z",
+        emitido_por_nome: "ADMIN",
+        edital: null,
+        arquivo_apolice: null,
+        arquivo_boleto: null
+      })
+      setView("details")
+    }
+  }, [searchParams, selected])
 
   const [apolices, setApolices] = useState<ApoliceResponse[]>([])
   const [loading, setLoading] = useState(false)
@@ -353,7 +386,13 @@ export default function ApolicesPage() {
           {/* Header Bar */}
           <div className="flex items-center gap-4">
             <button
-              onClick={() => setView("list")}
+              onClick={() => {
+                if (searchParams.has("mock")) {
+                  router.back()
+                } else {
+                  setView("list")
+                }
+              }}
               className="w-8 h-8 flex items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800/80 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
             >
               <ArrowLeft className="size-4" />
@@ -477,18 +516,15 @@ export default function ApolicesPage() {
                 <table className="w-full text-left whitespace-nowrap">
                   <thead className="border-b border-zinc-200 dark:border-zinc-800 text-[10px] text-zinc-500 uppercase">
                     <tr>
-                      <th className="py-2 font-bold w-1/5">Parte</th>
-                      <th className="py-2 font-bold w-1/5">Valor Previsto</th>
-                      <th className="py-2 font-bold w-1/5">Vencimento</th>
-                      <th className="py-2 font-bold w-1/5">Status Pagamento</th>
-                      <th className="py-2 font-bold w-1/5">Boleto/Recibo</th>
+                      <th className="py-2 font-bold w-1/3">Parte</th>
+                      <th className="py-2 font-bold w-1/3">Valor Previsto</th>
+                      <th className="py-2 font-bold w-1/3">Status Pagamento</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
                     <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
                       <td className="py-3 font-bold text-zinc-800 dark:text-zinc-200">Prêmio Seguradora</td>
                       <td className="py-3 text-zinc-700 dark:text-zinc-300 font-bold">{formatBRL(selected.valor_seguradora)}</td>
-                      <td className="py-3 text-zinc-600 dark:text-zinc-400">—</td>
                       <td className="py-3">
                          <div className="flex items-center gap-2">
                            <div className="w-9 h-4 bg-zinc-300 dark:bg-zinc-700 rounded-full flex items-center px-1 cursor-pointer">
@@ -497,12 +533,10 @@ export default function ApolicesPage() {
                            <span className="font-bold text-[10px] text-zinc-500 uppercase">Pendente</span>
                          </div>
                       </td>
-                      <td className="py-3 text-zinc-500">—</td>
                     </tr>
                     <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 bg-green-50/30 dark:bg-green-900/10">
                       <td className="py-3 font-bold text-green-700 dark:text-green-500">Comissão Prevista</td>
                       <td className="py-3 text-green-700 dark:text-green-500 font-bold">R$ 0,00</td>
-                      <td className="py-3 text-zinc-600 dark:text-zinc-400">—</td>
                       <td className="py-3">
                          <div className="flex items-center gap-2">
                            <div className="w-9 h-4 bg-zinc-300 dark:bg-zinc-700 rounded-full flex items-center px-1 cursor-pointer">
@@ -511,7 +545,6 @@ export default function ApolicesPage() {
                            <span className="font-bold text-[10px] text-zinc-500 uppercase">A Receber</span>
                          </div>
                       </td>
-                      <td className="py-3 text-zinc-500">—</td>
                     </tr>
                   </tbody>
                 </table>
@@ -525,10 +558,6 @@ export default function ApolicesPage() {
                     <span className="text-zinc-700 dark:text-zinc-300 font-black text-sm">{formatBRL(selected.valor_seguradora)}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-zinc-500 font-bold uppercase">Vencimento</span>
-                    <span className="text-zinc-600 dark:text-zinc-400">—</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
                     <span className="text-zinc-500 font-bold uppercase">Status</span>
                     <div className="flex items-center gap-2">
                       <div className="w-9 h-4 bg-zinc-300 dark:bg-zinc-700 rounded-full flex items-center px-1 cursor-pointer">
@@ -536,10 +565,6 @@ export default function ApolicesPage() {
                       </div>
                       <span className="font-bold text-[10px] text-zinc-500 uppercase">Pendente</span>
                     </div>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-zinc-500 font-bold uppercase">Boleto</span>
-                    <span className="text-zinc-500">—</span>
                   </div>
                 </div>
 
@@ -549,10 +574,6 @@ export default function ApolicesPage() {
                     <span className="text-green-700 dark:text-green-500 font-black text-sm">R$ 0,00</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-zinc-500 font-bold uppercase">Vencimento</span>
-                    <span className="text-zinc-600 dark:text-zinc-400">—</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
                     <span className="text-zinc-500 font-bold uppercase">Status</span>
                     <div className="flex items-center gap-2">
                       <div className="w-9 h-4 bg-zinc-300 dark:bg-zinc-700 rounded-full flex items-center px-1 cursor-pointer">
@@ -560,10 +581,6 @@ export default function ApolicesPage() {
                       </div>
                       <span className="font-bold text-[10px] text-zinc-500 uppercase">A Receber</span>
                     </div>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-zinc-500 font-bold uppercase">Recibo</span>
-                    <span className="text-zinc-500">—</span>
                   </div>
                 </div>
               </div>
@@ -644,19 +661,41 @@ export default function ApolicesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 mt-4 text-[9px] sm:text-xs">
-              <button className="w-full sm:w-auto px-2 sm:px-5 py-2.5 sm:py-2 bg-[#e85c5c] text-white font-bold rounded hover:bg-red-600 transition-colors text-center leading-tight">
-                EDITAR
-              </button>
-              <button className="w-full sm:w-auto px-2 sm:px-5 py-2.5 sm:py-2 bg-[#365b9e] text-white font-bold rounded hover:bg-blue-700 transition-colors text-center leading-tight">
-                REENVIAR EMAIL
-              </button>
-              <button className="w-full sm:w-auto px-2 sm:px-5 py-2.5 sm:py-2 bg-orange-400 text-white font-bold rounded hover:bg-orange-500 transition-colors text-center leading-tight">
-                CANCELAR APÓLICE
-              </button>
-              <button className="w-full sm:w-auto px-2 sm:px-5 py-2.5 sm:py-2 bg-zinc-400 text-white font-bold rounded hover:bg-zinc-500 transition-colors text-center leading-tight">
-                EXCLUIR
-              </button>
+            {/* Action Buttons Footer */}
+            <div className="md:col-span-12 flex flex-col sm:flex-row items-center gap-3 mt-8 pt-6 border-t border-zinc-200/50 dark:border-zinc-800/50 w-full">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto bg-red-50 dark:bg-red-500/10 text-red-600 border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/30 font-semibold px-4 py-2.5 h-10.5 rounded-xl cursor-pointer transition-all flex items-center justify-center gap-2 sm:mr-auto"
+              >
+                <Trash2 className="size-4" />
+                Excluir
+              </Button>
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full sm:w-auto border-orange-200 dark:border-orange-500/20 text-orange-600 bg-orange-50 dark:bg-orange-500/10 hover:bg-orange-100 dark:hover:bg-orange-500/30 font-semibold h-10.5 px-6 rounded-xl flex items-center justify-center gap-2"
+                >
+                  <Ban className="size-4" />
+                  Cancelar Apólice
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full sm:w-auto border-blue-200 dark:border-blue-500/20 text-blue-600 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/30 font-semibold h-10.5 px-6 rounded-xl flex items-center justify-center gap-2"
+                >
+                  <Send className="size-4" />
+                  Reenviar Email
+                </Button>
+                <Button
+                  type="button"
+                  className="w-full sm:w-auto bg-brand-red text-white hover:bg-brand-red/90 font-bold px-6 py-2.5 h-10.5 rounded-xl cursor-pointer shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                >
+                  <Pencil className="size-4" />
+                  Editar
+                </Button>
+              </div>
             </div>
 
           </div>
@@ -664,5 +703,13 @@ export default function ApolicesPage() {
       )}
 
     </div>
+  )
+}
+
+export default function ApolicesPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-zinc-500">Carregando...</div>}>
+      <ApolicesPageContent />
+    </Suspense>
   )
 }
