@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useState, useMemo, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { 
+import {
   ArrowLeft, FileText, Search, FileDown, DollarSign, Mail, Phone, FileDigit, Pencil, Trash2, Send, Ban
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -33,9 +33,10 @@ function isoToBR(iso: string | null | undefined): string {
 function ApolicesPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  
-  const initialView = searchParams.get("view") === "details" ? "details" : "list"
-  
+
+  const openId = searchParams.get("id")
+  const initialView = openId || searchParams.get("view") === "details" ? "details" : "list"
+
   const [view, setView] = useState<"list" | "details">(initialView)
   const [selected, setSelected] = useState<ApoliceResponse | null>(() => {
     if (initialView === "details" && searchParams.get("mock") === "1") {
@@ -64,6 +65,30 @@ function ApolicesPageContent() {
 
   const [apolices, setApolices] = useState<ApoliceResponse[]>([])
   const [loading, setLoading] = useState(false)
+
+  // Ao chegar com ?id=, abre direto nos detalhes da apólice indicada
+  // (ex.: logo após a emissão), sem passar pela listagem.
+  React.useEffect(() => {
+    if (!openId) return
+    let active = true
+    ;(async () => {
+      try {
+        const data = await apolicesApi.get(Number(openId))
+        if (active) {
+          setSelected(data)
+          setView("details")
+        }
+      } catch {
+        if (active) setView("list")
+      } finally {
+        if (active) router.replace("/dashboard/apolices")
+      }
+    })()
+    return () => {
+      active = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId])
 
   // Busca geral: a tela filtra pelos campos específicos abaixo, então não há
   // input ligado a este termo por ora — a API já o aceita quando houver.

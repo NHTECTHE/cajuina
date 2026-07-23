@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
 import {
   Search,
   Plus,
@@ -122,7 +121,6 @@ function currencyInputToDecimal(value: string): string | null {
 }
 
 export default function CotacoesPage() {
-  const router = useRouter()
   const [view, setView] = useState<"list" | "form" | "details">("list")
   // Contexto do formulário: criação de nova cotação ou edição de uma existente.
   const [formMode, setFormMode] = useState<"create" | "edit">("create")
@@ -359,15 +357,15 @@ export default function CotacoesPage() {
     }
   }
 
-  // Aprova a cotação selecionada. Aprovada, ela vira proposta: sai desta
-  // listagem e o fluxo segue em Propostas, para onde redirecionamos.
+  // Aprova a cotação selecionada. Permanece na tela de detalhes, apenas
+  // atualizando os dados (status vira "Aprovado").
   const handleAprovar = async () => {
     if (!selectedCotacao) return
     setSaving(true)
     try {
-      await cotacoesApi.aprovar(selectedCotacao.id)
+      const updated = await cotacoesApi.aprovar(selectedCotacao.id)
+      setSelectedCotacao(updated)
       setShowApproveConfirm(false)
-      router.push("/dashboard/propostas")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao aprovar a cotação.")
     } finally {
