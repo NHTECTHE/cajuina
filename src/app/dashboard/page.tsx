@@ -2,16 +2,10 @@
 
 import * as React from "react"
 import { 
-  Users, 
   FileText, 
   Building,
   DollarSign,
-  AlertCircle,
-  Bell,
-  ArrowRight,
-  Eye,
-  Pencil,
-  Trash2
+  AlertCircle
 } from "lucide-react"
 
 export default function DashboardPage() {

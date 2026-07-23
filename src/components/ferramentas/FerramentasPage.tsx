@@ -7,13 +7,9 @@ import {
   Box, 
   Calendar, 
   Receipt, 
-  MonitorSmartphone,
   ClipboardCheck,
-  PiggyBank,
   Building2,
-  FileSignature,
   ChevronRight,
-  X,
   FileText
 } from "lucide-react"
 import { cn } from "@/lib/utils"

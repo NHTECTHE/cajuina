@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useState, useMemo, useEffect, Suspense } from "react"
+import { useState, useMemo, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { 
   ArrowLeft, FileText, Search, FileDown, DollarSign, Mail, Phone, FileDigit, Pencil, Trash2, Send, Ban
@@ -37,12 +37,9 @@ function ApolicesPageContent() {
   const initialView = searchParams.get("view") === "details" ? "details" : "list"
   
   const [view, setView] = useState<"list" | "details">(initialView)
-  const [selected, setSelected] = useState<ApoliceResponse | null>(null)
-
-  useEffect(() => {
-    if (searchParams.get("view") === "details" && searchParams.get("mock") === "1" && !selected) {
-      // Create a mock apolice to show the details view immediately
-      setSelected({
+  const [selected, setSelected] = useState<ApoliceResponse | null>(() => {
+    if (initialView === "details" && searchParams.get("mock") === "1") {
+      return {
         id: 9999,
         numero_apolice: searchParams.get("numero") || "449555",
         cotacao: "4",
@@ -60,10 +57,10 @@ function ApolicesPageContent() {
         edital: null,
         arquivo_apolice: null,
         arquivo_boleto: null
-      })
-      setView("details")
+      }
     }
-  }, [searchParams, selected])
+    return null
+  })
 
   const [apolices, setApolices] = useState<ApoliceResponse[]>([])
   const [loading, setLoading] = useState(false)
