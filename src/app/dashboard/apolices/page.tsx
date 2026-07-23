@@ -1,5 +1,4 @@
 import { Metadata } from "next"
-import { Suspense } from "react"
 import ApolicesPage from "@/components/apolices/ApolicesPage"
 
 export const metadata: Metadata = {
@@ -10,9 +9,7 @@ export const metadata: Metadata = {
 export default function ApolicesRoutePage() {
   return (
     <div className="w-full">
-      <Suspense fallback={null}>
-        <ApolicesPage />
-      </Suspense>
+      <ApolicesPage />
     </div>
   )
 }
