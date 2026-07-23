@@ -57,7 +57,7 @@ function ApolicesPageContent() {
         edital: null,
         arquivo_apolice: null,
         arquivo_boleto: null
-      }
+      } as unknown as ApoliceResponse
     }
     return null
   })
