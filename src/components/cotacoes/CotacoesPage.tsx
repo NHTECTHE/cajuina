@@ -474,15 +474,15 @@ export default function CotacoesPage() {
 
             {/* Cards Table list */}
             <div className="flex flex-col gap-2">
-              <div className="hidden xl:grid grid-cols-10 gap-4 px-5 py-2 text-[9px] font-bold uppercase tracking-wider opacity-65 border-b border-zinc-200/30 dark:border-zinc-800/30">
-                <div className="col-span-1">ID</div>
+              <div className="hidden xl:grid grid-cols-10 gap-4 px-5 py-2 text-[9px] font-bold uppercase tracking-wider opacity-65 border-b border-zinc-200/30 dark:border-zinc-800/30 text-center">
+                <div className="col-span-1 text-left pl-5">ID</div>
                 <div className="col-span-2">Tomador / CNPJ</div>
-                <div className="col-span-2 xl:pl-6">Modalidade / Edital</div>
+                <div className="col-span-2">Modalidade / Edital</div>
                 <div className="col-span-1">Início / Prazo</div>
                 <div className="col-span-1">Data</div>
-                <div className="col-span-1">Valores (IS/Prêmio)</div>
+                <div className="col-span-1">IS</div>
                 <div className="col-span-1">Emitido Por</div>
-                <div className="col-span-1 text-right">Ação</div>
+                <div className="col-span-1">Ação</div>
               </div>
 
               {loadingCotacoes ? (
@@ -500,54 +500,44 @@ export default function CotacoesPage() {
                     className="cursor-pointer group bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl hover:border-brand-red/40 dark:hover:border-brand-red/40 hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50 hover:shadow-md transition-all duration-200 relative"
                   >
                     {/* ===== DESKTOP LAYOUT (INTACT) ===== */}
-                    <div className="hidden xl:grid grid-cols-10 gap-4 items-center p-3.5 px-5">
-                      <div className="col-span-1 text-[11px] font-bold text-zinc-500">#{t.id}</div>
+                    <div className="hidden xl:grid grid-cols-10 gap-4 items-center p-3.5 px-5 text-center">
+                      <div className="col-span-1 text-[11px] font-bold text-zinc-500 text-left pl-5">#{t.id}</div>
 
                       {/* Tomador / CNPJ */}
-                      <div className="col-span-2 flex flex-col gap-1">
+                      <div className="col-span-2 flex flex-col gap-1 items-center justify-center">
                         <span className="font-bold text-xs tracking-tight text-inherit uppercase">{t.tomador_nome}</span>
                         <span className="font-mono text-[10px] text-zinc-500 font-medium">{t.tomador_cnpj}</span>
                       </div>
 
                       {/* Modalidade / Edital */}
-                      <div className="col-span-2 pl-6 flex flex-col gap-1 text-[11px] text-zinc-650 dark:text-zinc-400 font-medium">
-                        <span className="flex items-start gap-1.5">
-                          <span className="leading-tight">{t.modalidade_nome}</span>
-                        </span>
-                        <span className="flex items-start gap-1.5">
-                          <span className="leading-tight text-[10px] uppercase">{t.edital || "—"}</span>
-                        </span>
+                      <div className="col-span-2 flex flex-col gap-1 text-[11px] text-zinc-650 dark:text-zinc-400 font-medium items-center justify-center">
+                        <span className="leading-tight">{t.modalidade_nome}</span>
+                        <span className="leading-tight text-[10px] uppercase">{t.edital || "—"}</span>
                       </div>
 
                       {/* Data Início / Prazo */}
-                      <div className="col-span-1 flex flex-col gap-1 text-[11px] text-zinc-650 dark:text-zinc-400">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-[10px]">Inc: {isoToBR(t.data_inicio)}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-[10px]">Prz: {t.prazo_dias != null ? `${t.prazo_dias} dias` : "—"}</span>
-                        </div>
+                      <div className="col-span-1 flex flex-col gap-1 text-[11px] text-zinc-650 dark:text-zinc-400 items-center justify-center">
+                        <span className="font-medium text-[10px]">Inc: {isoToBR(t.data_inicio)}</span>
+                        <span className="font-medium text-[10px]">Prz: {t.prazo_dias != null ? `${t.prazo_dias} dias` : "—"}</span>
                       </div>
 
                       {/* Data */}
-                      <div className="col-span-1 flex flex-col gap-1 text-[11px] text-zinc-650 dark:text-zinc-400">
+                      <div className="col-span-1 flex flex-col gap-1 text-[11px] text-zinc-650 dark:text-zinc-400 items-center justify-center">
                         <span className="font-medium text-[10px]">{isoToBR(t.criado_em?.slice(0, 10))}</span>
                       </div>
 
                       {/* Valores */}
-                      <div className="col-span-1 flex flex-col gap-1 text-[11px] text-zinc-650 dark:text-zinc-400">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-brand-red dark:text-[#cf7458]">{formatBRL(t.importancia_segurada)}</span>
-                        </div>
+                      <div className="col-span-1 flex flex-col gap-1 text-[11px] text-zinc-650 dark:text-zinc-400 items-center justify-center">
+                        <span className="font-bold text-brand-red dark:text-[#cf7458]">{formatBRL(t.importancia_segurada)}</span>
                       </div>
 
                       {/* Emitido Por */}
-                      <div className="col-span-1 flex items-center text-[11px] text-zinc-650 dark:text-zinc-400">
-                        <span className="font-medium opacity-80 uppercase leading-tight">{t.criado_por_nome ?? "—"}</span>
+                      <div className="col-span-1 flex items-center justify-center text-[11px] text-zinc-650 dark:text-zinc-400">
+                        <span className="font-medium opacity-80 uppercase leading-tight text-center">{t.criado_por_nome ?? "—"}</span>
                       </div>
 
                       {/* Ação */}
-                      <div className="col-span-1 flex items-center justify-end gap-2">
+                      <div className="col-span-1 flex items-center justify-center gap-2">
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDelete(t) }}
                           className="w-7 h-7 bg-red-100 text-red-600 hover:bg-red-600 hover:text-white dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500 dark:hover:text-white rounded flex items-center justify-center cursor-pointer transition-colors shadow-sm"
@@ -873,33 +863,56 @@ export default function CotacoesPage() {
               )}
             </div>
             
+            {/* Boleto Seguradora */}
+            <div className="md:col-span-12 mt-4 bg-white dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl p-6 shadow-sm">
+              <h3 className="text-brand-red uppercase font-normal text-lg mb-6">Boleto Seguradora</h3>
+              
+              <div className="flex flex-col sm:flex-row sm:items-center gap-12">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200">Quantidade dias:</span>
+                  <Input 
+                    type="number" 
+                    defaultValue={7}
+                    className="w-24 h-9 text-right text-sm border-zinc-300 dark:border-zinc-700"
+                  />
+                </div>
+                
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200">Vencimento:</span>
+                  <span className="text-sm text-zinc-400">28/07/2026</span>
+                </div>
+              </div>
+            </div>
+            
             {/* Action Buttons Footer */}
-            <div className="md:col-span-12 flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between gap-3 mt-4 pt-5 border-t border-zinc-200 dark:border-zinc-800">
-              {/* Ação destrutiva, isolada à esquerda */}
-              <button
+            <div className="md:col-span-12 flex flex-col sm:flex-row items-center gap-3 mt-8 pt-6 border-t border-zinc-200/50 dark:border-zinc-800/50 w-full">
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => selectedCotacao && handleDelete(selectedCotacao)}
-                className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30 bg-red-50/60 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors cursor-pointer"
+                className="w-full sm:w-auto bg-red-50 dark:bg-red-500/10 text-red-600 border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/30 font-semibold px-4 py-2.5 h-10.5 rounded-xl cursor-pointer transition-all flex items-center justify-center gap-2 sm:mr-auto"
               >
                 <Trash2 className="size-4" />
                 Excluir
-              </button>
-
-              {/* Fluxo principal à direita */}
-              <div className="flex items-stretch gap-3">
-                <button
+              </Button>
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => selectedCotacao && openEdit(selectedCotacao)}
-                  className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                  className="w-full sm:w-auto border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold h-10.5 px-6 rounded-xl flex items-center justify-center gap-2"
                 >
-                  <Pencil className="size-4" />
+                  <Pencil className="size-4 text-zinc-500 dark:text-zinc-400" />
                   Editar
-                </button>
-                <button
+                </Button>
+                <Button
+                  type="button"
                   onClick={() => setShowApproveConfirm(true)}
-                  className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 transition-colors cursor-pointer"
+                  className="w-full sm:w-auto bg-brand-red text-white hover:bg-brand-red/90 font-bold px-6 py-2.5 h-10.5 rounded-xl cursor-pointer shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   <CheckCircle2 className="size-4" />
                   Aprovar Cotação
-                </button>
+                </Button>
               </div>
             </div>
 

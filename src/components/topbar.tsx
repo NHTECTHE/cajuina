@@ -117,6 +117,7 @@ export default function Topbar({ theme, setTheme, onMenuToggle, onSidebarToggle 
     if (path.startsWith("/dashboard/propostas")) return "Propostas"
     if (path.startsWith("/dashboard/financeiro")) return "Financeiro"
     if (path.startsWith("/dashboard/relatorios")) return "Relatórios"
+    if (path.startsWith("/dashboard/ferramentas")) return "Ferramentas"
     if (path.startsWith("/dashboard/ajustes")) return "Ajustes"
     return "Painel"
   }

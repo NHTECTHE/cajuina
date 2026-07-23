@@ -14,6 +14,7 @@ import {
   Settings,
   LogOut,
   X,
+  Wrench,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -88,6 +89,7 @@ export default function SidebarNav({
     {
       title: "Sistema",
       items: [
+        { label: "Ferramentas", href: "/dashboard/ferramentas", icon: Wrench },
         { label: "Ajustes", href: "/dashboard/ajustes", icon: Settings },
       ]
     }

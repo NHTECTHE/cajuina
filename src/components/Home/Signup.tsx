@@ -116,7 +116,7 @@ export default function Signup() {
   }, []);
 
   return (
-    <section className="w-full bg-white relative flex flex-col overflow-hidden">
+    <section id="cadastro" className="w-full bg-white relative flex flex-col overflow-hidden">
       <Toaster position="top-right" closeButton richColors />
       
       {/* Top Section: Steps and Form */}
