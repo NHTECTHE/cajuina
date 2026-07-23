@@ -1,6 +1,6 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Users, FileText } from 'lucide-react';
+import React from 'react';
+import { ShieldCheck, Users, FileText, ArrowRight } from 'lucide-react';
 import ScrollReveal from '@/components/ui/ScrollReveal';
 
 const stats = [
@@ -10,107 +10,119 @@ const stats = [
 ];
 
 export default function About() {
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % 4);
-    }, 3000); // Change focus every 3 seconds
-    return () => clearInterval(interval);
-  }, []);
-
-  const getPhotoClasses = (index: number, baseZIndex: string) => {
-    const isActive = activeIndex === index;
-    return `transition-all duration-700 ease-in-out ${baseZIndex} ${
-      isActive 
-        ? "opacity-100 brightness-110 lg:drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]" 
-        : "opacity-100 lg:opacity-40 brightness-100 lg:brightness-75 grayscale-0 lg:grayscale-[50%]"
-    }`;
-  };
-
   return (
-    <section id="quem-somos" className="relative pt-16 pb-0 sm:pt-24 sm:pb-32 bg-white lg:bg-transparent lg:bg-gradient-to-b lg:from-[#f8f9fa] lg:to-white overflow-hidden">
-      {/* Subtle background pattern/gradient */}
-      <div className="absolute inset-0 -z-10 hidden lg:block bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-orange-50/50 via-transparent to-transparent opacity-70 overflow-hidden"></div>
-      
+    <section id="quem-somos" className="relative pt-16 pb-16 sm:pt-24 sm:pb-32 bg-[#fcfbfa] overflow-hidden">
+      {/* Decorative curved lines (subtle background details) */}
+      <div className="absolute top-0 right-0 -z-10 opacity-30 pointer-events-none hidden lg:block">
+        <svg width="500" height="500" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M500 0C500 276.14 276.14 500 0 500" stroke="#8b0a0a" strokeWidth="1" />
+        </svg>
+      </div>
+      <div className="absolute bottom-0 left-0 -z-10 opacity-30 pointer-events-none hidden lg:block">
+        <svg width="400" height="400" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0 400C0 179.086 179.086 0 400 0" stroke="#8b0a0a" strokeWidth="1" />
+        </svg>
+      </div>
+
       <div className="mx-auto max-w-7xl px-6 lg:px-8 relative z-10">
-        
-        {/* STATS BLOCK MOVED TO TOP */}
-        <div className="mx-auto mb-16 max-w-2xl sm:mb-20 lg:mb-24 lg:max-w-none relative z-30">
+
+        {/* STATS BLOCK */}
+        <div className="mx-auto mb-20 max-w-2xl lg:max-w-none relative z-30">
           <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-12 lg:max-w-none lg:grid-cols-3">
             {stats.map((stat) => (
-              <div 
-                key={stat.name} 
-                className="group relative flex flex-col bg-brand-red lg:bg-white p-6 rounded-2xl shadow-md lg:shadow-sm border border-brand-red lg:border-zinc-100 hover:shadow-xl hover:border-brand-red/20 transition-all duration-300 hover:-translate-y-1"
+              <div
+                key={stat.name}
+                className="group relative flex flex-col bg-white p-6 rounded-2xl shadow-sm border border-zinc-100 hover:shadow-xl hover:border-red-900/10 transition-all duration-300 hover:-translate-y-1"
               >
-                <dt className="text-sm font-medium leading-6 text-white/90 lg:text-zinc-600 flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 lg:bg-zinc-50 lg:group-hover:bg-brand-red/10 transition-colors duration-300">
-                    <stat.icon className="h-5 w-5 text-white lg:text-zinc-900 lg:group-hover:text-brand-red transition-colors duration-300" aria-hidden="true" />
+                <dt className="text-sm font-medium leading-6 text-zinc-600 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-50 group-hover:bg-[#8b0000]/10 transition-colors duration-300">
+                    <stat.icon className="h-5 w-5 text-zinc-900 group-hover:text-[#8b0000] transition-colors duration-300" aria-hidden="true" />
                   </div>
                   {stat.name}
                 </dt>
                 <dd className="mt-4 flex flex-auto flex-col text-base leading-7">
-                  <p className="flex-auto text-4xl font-bold tracking-tight text-white lg:text-zinc-900 lg:group-hover:text-brand-red transition-colors duration-300">
+                  <p className="flex-auto text-4xl font-bold tracking-tight text-zinc-900 group-hover:text-[#8b0000] transition-colors duration-300">
                     {stat.value}
                   </p>
                 </dd>
-                
-                {/* Decorative glowing dot */}
-                <div className="absolute top-6 right-6 w-2 h-2 rounded-full bg-white/40 lg:bg-brand-red/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-[0_0_8px_rgba(255,255,255,0.6)] lg:shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div>
               </div>
             ))}
           </dl>
         </div>
 
-        {/* NEW LAYOUT: Images on left, Text on right */}
-        <div className="relative flex flex-col lg:flex-row items-stretch lg:items-center justify-end w-full max-w-7xl mx-auto mt-8 lg:mt-24 mb-12">
-          
-          {/* DESKTOP IMAGES (Original 4 photos) */}
-          <ScrollReveal direction="up" duration={1000} once={true} className="hidden lg:flex relative w-[85%] sm:w-[70%] aspect-square mx-auto lg:mx-0 lg:w-[45%] lg:min-h-[600px] lg:aspect-auto items-end justify-center z-20 lg:absolute lg:left-0 lg:top-1/2 lg:-translate-y-[40%] mt-8 lg:mt-0">
-            {/* Background Block */}
-            <div className="absolute inset-0 lg:top-[-20%] lg:bottom-[0%] lg:left-[10%] lg:right-[10%] bg-[#f42626] z-0 rounded-3xl lg:rounded-sm shadow-2xl"></div>
-            
-            {/* The 4 Photos without background */}
-            <div className="absolute inset-0 z-10 w-full h-full rounded-3xl lg:rounded-none overflow-visible">
-              {/* Back Center (Top) - 4foto */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/foto4.webp" alt="Equipe 4" className={`absolute top-[-25%] lg:top-[-42%] left-[25%] lg:left-[18.5%] w-[50%] lg:w-[63%] h-auto object-contain drop-shadow-xl [mask-image:linear-gradient(to_bottom,black_40%,transparent_90%)] lg:[mask-image:linear-gradient(to_bottom,black_40%,transparent_90%)] ${getPhotoClasses(0, 'z-10')}`} />
-              {/* Middle Left - foto 3 */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/foto3.webp" alt="Equipe 3" className={`absolute bottom-[0%] left-[-5%] lg:left-[-6%] w-[55%] lg:w-[68%] h-auto object-contain drop-shadow-xl scale-x-[-1] ${getPhotoClasses(1, 'z-20')}`} />
-              {/* Middle Right - foto 1 */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/foto1.webp" alt="Equipe 1" className={`absolute bottom-[0%] right-[-5%] lg:right-[-6%] w-[55%] lg:w-[68%] h-auto object-contain drop-shadow-xl ${getPhotoClasses(2, 'z-20')}`} />
-              {/* Front Center (Bottom) - foto 2 */}
-              <div className="absolute inset-0 overflow-hidden z-30 pointer-events-none rounded-3xl lg:rounded-none">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/foto2.webp" alt="Equipe 2" className={`absolute bottom-[0%] lg:bottom-[-12%] left-[25%] lg:left-[18%] w-[50%] lg:w-[66%] h-auto object-contain drop-shadow-2xl ${getPhotoClasses(3, 'z-30')}`} />
+        {/* NEW LAYOUT (Matched to design image) */}
+        <div className="relative flex flex-col lg:flex-row items-center justify-between w-full max-w-7xl mx-auto gap-16 lg:gap-8 mt-12">
+
+          {/* LEFT SIDE: IMAGES & SHAPES */}
+          <ScrollReveal direction="right" duration={1000} once={true} className="relative w-full lg:w-[45%] flex flex-col items-center lg:items-start pt-12">
+            <div className="relative w-full max-w-[500px] mx-auto lg:ml-0 lg:mr-auto">
+              {/* Yellow Shape */}
+              <div className="absolute -left-6 lg:-left-16 top-16 bottom-0 w-[60%] lg:w-[70%] bg-[#dcb10d] rounded-[2rem] lg:rounded-[3rem] lg:rounded-bl-none z-0"></div>
+
+              {/* Dark Red Shape */}
+              <div className="absolute left-4 lg:left-0 right-[-1rem] lg:right-[-2rem] bottom-0 h-[100%] bg-[#8b0000] rounded-[3rem] lg:rounded-[4rem] lg:rounded-r-[6rem] z-10"></div>
+
+              {/* Image Clipper Wrapper (Only for fotoW bottom curve) */}
+              <div className="absolute left-4 lg:left-0 right-[-1rem] lg:right-[-2rem] bottom-0 top-[-20%] z-20 rounded-b-[3rem] lg:rounded-bl-[4rem] lg:rounded-br-[6rem] overflow-hidden pointer-events-none">
+                {/* Inner container to restore original parent coordinate system */}
+                <div className="absolute bottom-0 -left-4 lg:left-0 right-4 lg:right-8 h-[450px] sm:h-[550px] lg:h-[650px] pointer-events-auto">
+                  {/* Right Image (fotoW) - CLIPPED BOTTOM PART */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/fotoW.webp" alt="W" className="absolute bottom-[-1rem] lg:bottom-[-3rem] right-[-10%] lg:right-[-28%] w-[95%] lg:w-[110%] h-auto object-contain z-20 drop-shadow-xl" />
+                </div>
               </div>
+
+              {/* Container for unclipped images and layout height */}
+              <div className="relative z-30 flex items-end justify-center h-[450px] sm:h-[550px] lg:h-[650px] w-full pointer-events-auto">
+                {/* Right Image (fotoW) - UNCLIPPED TOP PART (Allows arms to pop out) */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/fotoW.webp" alt="W" className="absolute bottom-[-1rem] lg:bottom-[-3rem] right-[-10%] lg:right-[-28%] w-[95%] lg:w-[120%] h-auto object-contain z-20 drop-shadow-xl [clip-path:inset(0_0_15%_0)]" />
+
+                {/* Left Image (foto4) - Front */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/foto4.webp" alt="N" className="absolute bottom-0 left-[-20%] lg:left-[-14%] w-[85%] lg:w-[93%] h-auto object-contain z-30 drop-shadow-2xl" />
+              </div>
+            </div>
+
+
+          </ScrollReveal>
+
+          {/* RIGHT SIDE: TEXT BLOCK */}
+          <ScrollReveal direction="left" duration={1000} delay={200} once={true} className="w-full lg:w-[50%] flex flex-col justify-center">
+            {/* Eyebrow */}
+            <div className="mb-6 flex flex-col items-center lg:items-start">
+              <h3 className="text-xs font-bold tracking-[0.2em] text-[#8b0000] uppercase mb-3">Quem Somos</h3>
+              <div className="h-[1px] w-12 bg-[#8b0000]"></div>
+            </div>
+
+            {/* Main heading */}
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-zinc-900 leading-[1.1] mb-8 text-center lg:text-left">
+              Segurança que<br className="hidden sm:block" />
+              nasce da experiência<span className="text-[#8b0000]">.</span>
+            </h2>
+
+            {/* Paragraph */}
+            <p className="text-lg sm:text-xl text-zinc-600 mb-10 max-w-xl leading-relaxed text-center lg:text-left mx-auto lg:mx-0">
+              Há mais de 20 anos, a Cajuína Seguros une conhecimento, agilidade e proximidade para encontrar a proteção ideal para cada negócio.
+            </p>
+
+            {/* Highlighted text */}
+            <div className="flex items-center gap-5 mb-12 justify-center lg:justify-start">
+              <div className="w-1 h-12 bg-[#dcb10d]"></div>
+              <p className="text-lg sm:text-xl text-zinc-700 font-medium">Especialistas em Seguro Garantia.</p>
+            </div>
+
+            {/* Button */}
+            <div className="flex justify-center lg:justify-start">
+              <a href="#cadastro" className="bg-[#e53e3e] hover:bg-[#8b0000] transition-all duration-300 text-white font-bold py-4 px-8 rounded-xl flex items-center gap-4 group shadow-lg shadow-[#8b0000]/20 hover:shadow-xl hover:-translate-y-1">
+                FAÇA SEU CADASTRO
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" strokeWidth={1.5} />
+              </a>
             </div>
           </ScrollReveal>
 
-          {/* TEXT BLOCK WITH MOBILE IMAGE INSIDE */}
-          <div className="-mx-6 lg:mx-0 lg:w-[75%] lg:ml-auto bg-[#fdcf3c] pt-12 pb-12 sm:py-20 lg:py-40 px-6 sm:px-14 lg:pl-[25%] lg:pr-20 rounded-none lg:rounded-[2rem] lg:rounded-r-[3rem] lg:rounded-l-none flex flex-col justify-center shadow-none lg:shadow-xl z-0 mt-0 lg:mt-0 transition-all">
-            <ScrollReveal direction="up" duration={1000} delay={200} once={true}>
-              <h2 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-[#f42626] mb-6 tracking-tight drop-shadow-sm text-center lg:text-left">
-                Quem somos
-              </h2>
-              <p className="text-[#f42626] text-lg sm:text-xl lg:text-2xl leading-relaxed font-bold text-center lg:text-left">
-                Somos uma Corretora de Seguros dedicada a viabilizar os seus negócios. Desempenhamos um trabalho de excelência e expertise no segmento, entregando as melhores soluções com segurança e agilidade.
-              </p>
-            </ScrollReveal>
-
-            {/* MOBILE IMAGE (cajuina.png) - INSIDE YELLOW BLOCK */}
-            <ScrollReveal direction="up" duration={1000} once={true} className="flex lg:hidden relative w-full aspect-[2/1] mt-8 z-20">
-              <div className="absolute inset-0 z-10 w-full h-full">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/cajuina.webp" alt="Equipe Cajuína" className="w-full h-full object-cover object-[center_45%] rounded-[1.5rem] shadow-xl border-4 border-white/20" />
-              </div>
-            </ScrollReveal>
-          </div>
-          
         </div>
-        
+
       </div>
     </section>
   );

@@ -18,9 +18,7 @@ export default function Contact() {
       title: "Endereço",
       content: (
         <>
-          R. Mato Grosso - 720 - Porenquanto<br />
-          Torre 2 - Sala 612 - Empresarial Shopping Rio Poty<br />
-          Teresina - PI
+          Av. João XXIII, 250 - Terreo - Noivos, Teresina - PI, 64045-000
         </>
       ),
       link: "https://www.google.com/maps/search/?api=1&query=Cajuína+Corretora+de+Seguros+Teresina",
