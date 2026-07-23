@@ -178,7 +178,8 @@ export default function PropostasPage() {
   }
 
   // Emite a apólice. Emitida, a proposta sai desta listagem (status vira
-  // "Emitido") e o fluxo segue em Apólices, para onde redirecionamos.
+  // "Emitido") e vamos direto para os detalhes da apólice recém-criada,
+  // sem passar pela listagem de apólices.
   const handleEmitir = async () => {
     if (!selected || !seguradoraEscolhidaId) return
     if (!numeroApolice.trim()) {
@@ -193,7 +194,7 @@ export default function PropostasPage() {
 
     setEmitindo(true)
     try {
-      await cotacoesApi.emitir(selected.id, {
+      const apolice = await cotacoesApi.emitir(selected.id, {
         seguradora: seguradoraEscolhidaId,
         numero_apolice: numeroApolice.trim(),
         valor_seguradora: valorDecimal,
@@ -201,7 +202,7 @@ export default function PropostasPage() {
         arquivo_boleto: arquivoBoleto,
       })
       setShowEmitirModal(false)
-      router.push("/dashboard/apolices")
+      router.push(`/dashboard/apolices?id=${apolice.id}`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao emitir a apólice.")
     } finally {
