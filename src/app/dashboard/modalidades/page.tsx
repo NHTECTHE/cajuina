@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, FolderTree, Plus, Search, Trash2, Power, PowerOff,
-  Loader2, AlertCircle, CheckCircle2, X, Edit, Save, Edit2, Building2, ChevronRight, ArrowRight, Layers } from "lucide-react"
+  Loader2, AlertCircle, CheckCircle2, X, Edit2, ChevronRight, ArrowRight, Layers } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   type Modalidade,

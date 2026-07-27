@@ -45,7 +45,6 @@ export default function CodigosModalidadePage() {
   async function load() {
     if (!modId || isNaN(modId)) return
     
-    setLoading(true)
     const res = await getMatrizAction()
     
     if (res.data) {
@@ -71,7 +70,7 @@ export default function CodigosModalidadePage() {
     setLoading(false)
   }
 
-  React.useEffect(() => { load() }, [modId]) // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => { load() }, [modId]) // eslint-disable-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
 
   React.useEffect(() => {
     if (!toast) return

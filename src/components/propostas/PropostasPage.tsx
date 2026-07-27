@@ -7,9 +7,7 @@ import {
   ArrowLeft,
   FileText,
   Trash2,
-  CheckCircle2,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -90,9 +88,7 @@ export default function PropostasPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState<number>(10)
 
-  // Seguradoras cadastradas (exibidas na tela de detalhes, igual à de Cotações)
   const [seguradoras, setSeguradoras] = useState<SeguradoraResponse[]>([])
-  const [loadingSeguradoras, setLoadingSeguradoras] = useState(false)
   const [seguradoraEscolhidaId, setSeguradoraEscolhidaId] = useState<number | null>(null)
 
   // Aviso exibido ao tentar emitir sem ter escolhido uma seguradora.
@@ -128,23 +124,12 @@ export default function PropostasPage() {
   }, [view, searchQuery, loadPropostas])
 
   React.useEffect(() => {
-    if (view !== "details") return
     let active = true
-    ;(async () => {
-      if (active) setLoadingSeguradoras(true)
-      try {
-        const data = await seguradorasApi.list({ ativo: true })
-        if (active) setSeguradoras(data)
-      } catch {
-        if (active) setSeguradoras([])
-      } finally {
-        if (active) setLoadingSeguradoras(false)
-      }
-    })()
-    return () => {
-      active = false
-    }
-  }, [view])
+    seguradorasApi.list({ ativo: true }).then((data) => {
+      if (active) setSeguradoras(data)
+    }).catch(() => {})
+    return () => { active = false }
+  }, [])
 
   const paginated = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage
@@ -181,7 +166,11 @@ export default function PropostasPage() {
   // "Emitido") e vamos direto para os detalhes da apólice recém-criada,
   // sem passar pela listagem de apólices.
   const handleEmitir = async () => {
-    if (!selected || !seguradoraEscolhidaId) return
+    if (!selected) return
+    if (!seguradoraEscolhidaId) {
+      toast.error("Selecione a seguradora que está emitindo a apólice.")
+      return
+    }
     if (!numeroApolice.trim()) {
       toast.error("Informe o número da apólice.")
       return
@@ -569,6 +558,21 @@ export default function PropostasPage() {
           </DialogHeader>
 
           <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Seguradora:</Label>
+              <select
+                value={seguradoraEscolhidaId ?? ""}
+                onChange={(e) => setSeguradoraEscolhidaId(Number(e.target.value) || null)}
+                className="h-10 w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red"
+              >
+                <option value="">Selecione uma seguradora...</option>
+                {seguradoras.map((seg) => (
+                  <option key={seg.id} value={seg.id}>
+                    {seg.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
                 <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Nº Apólice:</Label>

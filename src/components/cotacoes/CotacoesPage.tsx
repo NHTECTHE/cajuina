@@ -31,13 +31,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
   tomadoresApi,
   seguradosApi,
   modalidadesApi,
@@ -238,48 +231,8 @@ export default function CotacoesPage() {
   const [cotacoes, setCotacoes] = useState<CotacaoResponse[]>([])
   const [loadingCotacoes, setLoadingCotacoes] = useState(false)
   const router = useRouter()
-  
-  // Estados para emissão
   const [seguradoraEscolhidaId, setSeguradoraEscolhidaId] = useState<number | null>(null)
-  const [showSeguradoraAviso, setShowSeguradoraAviso] = useState(false)
-  const [showEmitirModal, setShowEmitirModal] = useState(false)
-  const [numeroApolice, setNumeroApolice] = useState("")
-  const [valorSeguradoraEmissao, setValorSeguradoraEmissao] = useState("")
-  const [arquivoApolice, setArquivoApolice] = useState<File | null>(null)
-  const [arquivoBoleto, setArquivoBoleto] = useState<File | null>(null)
-  const [emitindo, setEmitindo] = useState(false)
   
-  const handleEmitir = async () => {
-    if (!selectedCotacao || !seguradoraEscolhidaId) return
-    if (!numeroApolice.trim()) {
-      toast.error("Informe o número da apólice.")
-      return
-    }
-    const valorDecimal = Number(valorSeguradoraEmissao.replace(/\./g, "").replace(",", "."))
-    if (!valorDecimal) {
-      toast.error("Informe o valor da seguradora.")
-      return
-    }
-
-    setEmitindo(true)
-    try {
-      await cotacoesApi.emitir(selectedCotacao.id, {
-        seguradora: seguradoraEscolhidaId,
-        numero_apolice: numeroApolice.trim(),
-        valor_seguradora: valorDecimal.toString(),
-        arquivo_apolice: arquivoApolice,
-        arquivo_boleto: arquivoBoleto,
-      })
-      setShowEmitirModal(false)
-      router.push(`/dashboard/propostas`)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao emitir.")
-    } finally {
-      setEmitindo(false)
-    }
-  }
-
-
   // Busca a lista de cotações. Reutilizada após criar/editar/excluir.
   // Só lista as em aberto: uma vez aprovada, a cotação vira proposta e passa a
   // ser listada em Propostas (status "Aprovado") ou em Apólices ("Emitido").
@@ -1000,7 +953,7 @@ export default function CotacoesPage() {
                   <button
                     onClick={() => {
                       if (!seguradoraEscolhidaId) {
-                        setShowSeguradoraAviso(true)
+                        toast.error("Escolha uma seguradora.")
                         return
                       }
                       // Navigate to Propostas page where they can review and emit
