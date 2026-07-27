@@ -74,9 +74,9 @@ export default function SidebarNav({
       title: "Operações",
       items: [
         { label: "Tomador", href: "/dashboard/tomador", icon: Users },
-        { label: "Apólices", href: "/dashboard/apolices", icon: ShieldCheck },
         { label: "Cotações", href: "/dashboard/cotacoes", icon: Coins },
         { label: "Propostas", href: "/dashboard/propostas", icon: FileText },
+        { label: "Apólices", href: "/dashboard/apolices", icon: ShieldCheck },
       ]
     },
     {

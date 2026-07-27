@@ -4,12 +4,9 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
 
 export default function CartaNomeacaoPage() {
   const router = useRouter()
-  const [empresa, setEmpresa] = React.useState("cajuina")
 
   const handleContinuar = (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,27 +42,10 @@ export default function CartaNomeacaoPage() {
                 className="w-full text-zinc-600 dark:text-zinc-300 border-b-2 border-t-0 border-l-0 border-r-0 border-zinc-200 dark:border-zinc-800 rounded-none shadow-none focus-visible:ring-0 focus-visible:border-[#e85c5c] px-0 placeholder:text-zinc-400 placeholder:text-xs"
               />
 
-              <div className="flex justify-center mb-4">
-                <RadioGroup 
-                  value={empresa} 
-                  onValueChange={setEmpresa}
-                  className="flex items-center gap-8"
-                >
-                  <div className="flex items-center space-x-2 cursor-pointer">
-                    <RadioGroupItem value="seguritec" id="r1" className="text-purple-600 border-zinc-300 data-[state=checked]:border-purple-600 data-[state=checked]:bg-purple-600" />
-                    <Label htmlFor="r1" className="text-xs text-zinc-500 dark:text-zinc-400 font-normal cursor-pointer">Seguritec</Label>
-                  </div>
-                  <div className="flex items-center space-x-2 cursor-pointer">
-                    <RadioGroupItem value="cajuina" id="r2" className="text-purple-600 border-zinc-300 data-[state=checked]:border-purple-600 data-[state=checked]:bg-purple-600" />
-                    <Label htmlFor="r2" className="text-xs text-zinc-500 dark:text-zinc-400 font-normal cursor-pointer">Cajuína</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
               <div className="flex justify-end mt-2">
                 <button 
                   type="submit"
-                  className="px-6 py-2.5 bg-[#e85c5c] hover:bg-[#cf5151] text-white text-xs font-bold uppercase tracking-wide rounded transition-colors shadow-sm"
+                  className="px-6 py-2.5 bg-[#e85c5c] hover:bg-[#cf5151] text-white text-xs font-bold uppercase tracking-wide rounded transition-colors shadow-sm cursor-pointer"
                 >
                   Continuar
                 </button>

@@ -210,7 +210,7 @@ export default function SeguradoraDetailPage() {
             Configuração
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Taxa Comissão (%)">
+            <Field label="Comissão (%)">
               <input className={inputCls} type="number" step="0.01" min="0" max="100"
                 placeholder="0,00"
                 value={form.taxa_comissao ?? ""}

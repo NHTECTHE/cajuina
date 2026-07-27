@@ -28,7 +28,7 @@ export async function listAtividadesAction() {
   try {
     const headers = await getAuthHeaders()
     const res = await fetch(`${API_URL}/atividades/`, { headers, cache: 'no-store' })
-    if (!res.ok) throw new Error("Falha ao buscar atividades")
+    if (!res.ok) return { error: "Falha ao buscar atividades" }
     
     const json = await res.json()
     return { data: json.data as Atividade[] }
