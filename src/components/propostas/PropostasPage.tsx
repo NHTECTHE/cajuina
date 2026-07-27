@@ -77,7 +77,9 @@ function isoToBR(iso: string | null | undefined): string {
 export default function PropostasPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [view, setView] = useState<"list" | "details">("list")
+  const [view, setView] = useState<"list" | "details">(() => {
+    return searchParams?.get("abrirModal") === "true" || searchParams?.get("id") ? "details" : "list"
+  })
   const [selected, setSelected] = useState<CotacaoResponse | null>(null)
   const [showFormaEmissaoModal, setShowFormaEmissaoModal] = useState(false)
 
@@ -142,7 +144,7 @@ export default function PropostasPage() {
   React.useEffect(() => {
     const abrirModal = searchParams.get("abrirModal")
     const idParam = searchParams.get("id")
-    if (abrirModal === "true" && idParam) {
+    if (idParam) {
       const numId = Number(idParam)
       const target = propostas.find(p => p.id === numId)
       if (target) {
@@ -151,7 +153,7 @@ export default function PropostasPage() {
           const stored = typeof window !== "undefined" ? localStorage.getItem(`seguradora_cotacao_${target.id}`) : null
           setSeguradoraEscolhidaId(stored ? Number(stored) : null)
           setView("details")
-          setShowFormaEmissaoModal(true)
+          if (abrirModal === "true") setShowFormaEmissaoModal(true)
           router.replace("/dashboard/propostas", { scroll: false })
         }, 0)
       } else {
@@ -160,7 +162,7 @@ export default function PropostasPage() {
           const stored = typeof window !== "undefined" ? localStorage.getItem(`seguradora_cotacao_${data.id}`) : null
           setSeguradoraEscolhidaId(stored ? Number(stored) : null)
           setView("details")
-          setShowFormaEmissaoModal(true)
+          if (abrirModal === "true") setShowFormaEmissaoModal(true)
           router.replace("/dashboard/propostas", { scroll: false })
         }).catch(() => {})
       }
@@ -439,6 +441,14 @@ export default function PropostasPage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* ──── DETAILS LOADING ──── */}
+      {view === "details" && !selected && (
+        <div className="flex flex-col items-center justify-center p-16 w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm">
+          <div className="size-8 rounded-full border-2 border-brand-red border-t-transparent animate-spin mb-4" />
+          <p className="text-xs text-zinc-500 font-medium">Carregando detalhes da proposta...</p>
+        </div>
       )}
 
       {/* ──── DETAILS VIEW (NOVO LAYOUT DE CONFIRMAÇÃO) ──── */}
