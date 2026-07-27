@@ -240,7 +240,14 @@ export default function CotacoesPage() {
     setLoadingCotacoes(true)
     try {
       const data = await cotacoesApi.list({ ...(search ? { search } : {}) })
-      setCotacoes(data.filter(c => c.status !== "Emitido"))
+      setCotacoes(data.filter(c => {
+        if (c.status === "Emitido") return false
+        if (c.status === "Aprovado" && typeof window !== "undefined") {
+          const jaEnviado = localStorage.getItem(`enviado_proposta_${c.id}`) === "true" || localStorage.getItem(`forma_emissao_${c.id}`) !== null
+          if (jaEnviado) return false
+        }
+        return true
+      }))
     } catch {
       setCotacoes([])
     } finally {
@@ -956,13 +963,16 @@ export default function CotacoesPage() {
                         toast.error("Escolha uma seguradora.")
                         return
                       }
-                      // Navigate to Propostas page where they can review and emit
-                      router.push('/dashboard/propostas')
+                      if (selectedCotacao && typeof window !== "undefined") {
+                        localStorage.setItem(`seguradora_cotacao_${selectedCotacao.id}`, String(seguradoraEscolhidaId))
+                        localStorage.setItem(`enviado_proposta_${selectedCotacao.id}`, "true")
+                      }
+                      router.push(`/dashboard/propostas?id=${selectedCotacao?.id}&abrirModal=true`)
                     }}
                     className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 transition-colors cursor-pointer"
                   >
                     <CheckCircle2 className="size-4" />
-                    Emitir
+                    Enviar para Emissão
                   </button>
                 )}
               </div>

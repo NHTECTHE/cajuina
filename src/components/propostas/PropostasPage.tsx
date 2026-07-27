@@ -2,11 +2,13 @@
 
 import * as React from "react"
 import { useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   ArrowLeft,
   FileText,
   Trash2,
+  Pencil,
+  CheckCircle2,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -74,8 +76,10 @@ function isoToBR(iso: string | null | undefined): string {
 
 export default function PropostasPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [view, setView] = useState<"list" | "details">("list")
   const [selected, setSelected] = useState<CotacaoResponse | null>(null)
+  const [showFormaEmissaoModal, setShowFormaEmissaoModal] = useState(false)
 
   // Propostas = cotações com status "Aprovado".
   const [propostas, setPropostas] = useState<CotacaoResponse[]>([])
@@ -109,7 +113,11 @@ export default function PropostasPage() {
         status: "Aprovado",
         search: search || undefined,
       })
-      setPropostas(data)
+      const enviadas = data.filter(c => {
+        if (typeof window === "undefined") return true
+        return localStorage.getItem(`enviado_proposta_${c.id}`) === "true" || localStorage.getItem(`forma_emissao_${c.id}`) !== null
+      })
+      setPropostas(enviadas)
     } catch {
       setPropostas([])
     } finally {
@@ -131,6 +139,34 @@ export default function PropostasPage() {
     return () => { active = false }
   }, [])
 
+  React.useEffect(() => {
+    const abrirModal = searchParams.get("abrirModal")
+    const idParam = searchParams.get("id")
+    if (abrirModal === "true" && idParam) {
+      const numId = Number(idParam)
+      const target = propostas.find(p => p.id === numId)
+      if (target) {
+        setTimeout(() => {
+          setSelected(target)
+          const stored = typeof window !== "undefined" ? localStorage.getItem(`seguradora_cotacao_${target.id}`) : null
+          setSeguradoraEscolhidaId(stored ? Number(stored) : null)
+          setView("details")
+          setShowFormaEmissaoModal(true)
+          router.replace("/dashboard/propostas", { scroll: false })
+        }, 0)
+      } else {
+        cotacoesApi.get(numId).then((data) => {
+          setSelected(data)
+          const stored = typeof window !== "undefined" ? localStorage.getItem(`seguradora_cotacao_${data.id}`) : null
+          setSeguradoraEscolhidaId(stored ? Number(stored) : null)
+          setView("details")
+          setShowFormaEmissaoModal(true)
+          router.replace("/dashboard/propostas", { scroll: false })
+        }).catch(() => {})
+      }
+    }
+  }, [searchParams, propostas, router])
+
   const paginated = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage
     return propostas.slice(start, start + itemsPerPage)
@@ -140,7 +176,8 @@ export default function PropostasPage() {
 
   const handleRowClick = (proposta: CotacaoResponse) => {
     setSelected(proposta)
-    setSeguradoraEscolhidaId(null)
+    const stored = typeof window !== "undefined" ? localStorage.getItem(`seguradora_cotacao_${proposta.id}`) : null
+    setSeguradoraEscolhidaId(stored ? Number(stored) : null)
     setView("details")
   }
 
@@ -167,10 +204,7 @@ export default function PropostasPage() {
   // sem passar pela listagem de apólices.
   const handleEmitir = async () => {
     if (!selected) return
-    if (!seguradoraEscolhidaId) {
-      toast.error("Selecione a seguradora que está emitindo a apólice.")
-      return
-    }
+    const seguradoraId = seguradoraEscolhidaId || Number(typeof window !== "undefined" ? localStorage.getItem(`seguradora_cotacao_${selected.id}`) : null) || seguradoras[0]?.id || 1
     if (!numeroApolice.trim()) {
       toast.error("Informe o número da apólice.")
       return
@@ -184,7 +218,7 @@ export default function PropostasPage() {
     setEmitindo(true)
     try {
       const apolice = await cotacoesApi.emitir(selected.id, {
-        seguradora: seguradoraEscolhidaId,
+        seguradora: seguradoraId,
         numero_apolice: numeroApolice.trim(),
         valor_seguradora: valorDecimal,
         arquivo_apolice: arquivoApolice,
@@ -512,19 +546,22 @@ export default function PropostasPage() {
               <div className="flex items-center gap-3 mx-auto">
                 <button 
                   onClick={() => handleDelete(selected)}
-                  className="bg-[#f97316] hover:bg-[#ea580c] text-white text-[11px] font-bold px-8 py-2.5 rounded-lg uppercase tracking-wide transition-colors"
+                  className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl border border-red-200 dark:border-red-900/50 bg-white dark:bg-zinc-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 font-semibold text-xs transition-all active:scale-[0.98] shadow-sm cursor-pointer"
                 >
+                  <Trash2 className="size-4" />
                   Excluir
                 </button>
                 <button 
-                  className="bg-zinc-500 hover:bg-zinc-600 text-white text-[11px] font-bold px-8 py-2.5 rounded-lg uppercase tracking-wide transition-colors"
+                  className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-semibold text-xs transition-all active:scale-[0.98] shadow-sm cursor-pointer"
                 >
+                  <Pencil className="size-4 text-zinc-500 dark:text-zinc-400" />
                   Editar
                 </button>
                 <button 
                   onClick={() => setShowEmitirModal(true)}
-                  className="bg-[#e85c5c] hover:bg-[#d44848] text-white text-[11px] font-bold px-8 py-2.5 rounded-lg uppercase tracking-wide transition-colors"
+                  className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl bg-brand-red text-white hover:bg-brand-red/90 font-bold text-xs shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] cursor-pointer"
                 >
+                  <CheckCircle2 className="size-4" />
                   Emitir
                 </button>
               </div>
@@ -558,21 +595,6 @@ export default function PropostasPage() {
           </DialogHeader>
 
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Seguradora:</Label>
-              <select
-                value={seguradoraEscolhidaId ?? ""}
-                onChange={(e) => setSeguradoraEscolhidaId(Number(e.target.value) || null)}
-                className="h-10 w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red"
-              >
-                <option value="">Selecione uma seguradora...</option>
-                {seguradoras.map((seg) => (
-                  <option key={seg.id} value={seg.id}>
-                    {seg.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
                 <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Nº Apólice:</Label>
@@ -619,21 +641,21 @@ export default function PropostasPage() {
             </div>
           </div>
 
-          <DialogFooter className="sm:justify-between">
+          <DialogFooter className="sm:justify-between gap-3 mt-4">
             <button
               type="button"
               disabled
               title="Emissão via API da seguradora ainda não disponível"
-              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-[12px] font-bold uppercase tracking-wide text-zinc-400 border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 cursor-not-allowed"
+              className="inline-flex items-center justify-center gap-2 h-10.5 px-5 rounded-xl text-xs font-semibold text-zinc-400 border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 cursor-not-allowed"
             >
               Emitir com API
             </button>
-            <div className="flex gap-2">
+            <div className="flex gap-2.5">
               <button
                 type="button"
                 onClick={() => setShowEmitirModal(false)}
                 disabled={emitindo}
-                className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all active:scale-[0.98] shadow-sm cursor-pointer disabled:opacity-60"
               >
                 Cancelar
               </button>
@@ -641,12 +663,58 @@ export default function PropostasPage() {
                 type="button"
                 onClick={handleEmitir}
                 disabled={emitindo}
-                className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 transition-colors cursor-pointer disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl text-xs font-bold text-white bg-green-600 hover:bg-green-700 transition-all active:scale-[0.98] shadow-md shadow-green-600/20 cursor-pointer disabled:opacity-60"
               >
-                {emitindo ? "Emitindo..." : "Emitir"}
+                <CheckCircle2 className="size-4" />
+                {emitindo ? "Emitindo..." : "Confirmar Emissão"}
               </button>
             </div>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ──── MODAL FORMA DE EMISSÃO ──── */}
+      <Dialog open={showFormaEmissaoModal} onOpenChange={setShowFormaEmissaoModal}>
+        <DialogContent className="sm:max-w-md rounded-2xl p-6 text-center border-zinc-200 dark:border-zinc-800">
+          <DialogHeader className="flex flex-col items-center justify-center">
+            <div className="w-16 h-16 rounded-full border-2 border-dashed border-zinc-200 dark:border-zinc-700 flex items-center justify-center mx-auto mb-3 text-2xl font-light text-zinc-400">
+              ?
+            </div>
+            <DialogTitle className="text-lg font-bold text-zinc-900 dark:text-zinc-50 text-center">
+              Forma de Emissão
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-1">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center">
+              Como deseja realizar esta emissão?
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-3 mt-4">
+            <button
+              type="button"
+              onClick={() => {
+                if (selected && typeof window !== "undefined") {
+                  localStorage.setItem(`forma_emissao_${selected.id}`, "api")
+                }
+                setShowFormaEmissaoModal(false)
+              }}
+              className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl text-xs font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-md shadow-green-600/20 transition-all active:scale-[0.98] cursor-pointer flex-1"
+            >
+              Utilizar API
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (selected && typeof window !== "undefined") {
+                  localStorage.setItem(`forma_emissao_${selected.id}`, "manual")
+                }
+                setShowFormaEmissaoModal(false)
+              }}
+              className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl text-xs font-bold uppercase tracking-wide text-white bg-brand-red hover:bg-brand-red/90 shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] cursor-pointer flex-1"
+            >
+              Cadastrar Manualmente
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
 
