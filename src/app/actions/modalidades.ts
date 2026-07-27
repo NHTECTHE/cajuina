@@ -28,7 +28,7 @@ export async function listModalidadesAction(search = "") {
     if (search) url.searchParams.append("search", search)
     
     const res = await fetch(url.toString(), { headers, cache: 'no-store' })
-    if (!res.ok) throw new Error("Falha ao buscar modalidades")
+    if (!res.ok) return { error: "Falha ao buscar modalidades" }
     
     const json = await res.json()
     return { data: json.data as Modalidade[] }
@@ -88,10 +88,63 @@ export async function deleteModalidadeAction(id: number) {
       headers,
     })
     
-    if (!res.ok) throw new Error("Erro ao excluir modalidade")
+    if (!res.ok) return { error: "Erro ao excluir modalidade" }
     return { success: true }
   } catch (error) {
     console.error("deleteModalidadeAction error:", error)
     return { error: error instanceof Error ? error.message : "Erro desconhecido" }
   }
 }
+
+export interface SeguradoraSimples {
+  id: number
+  nome: string
+}
+
+export interface ModalidadeMatrizLinha {
+  id: number
+  nome: string
+  codigos: Record<string, string> // seguradora_id -> codigo
+}
+
+export interface MatrizPayload {
+  seguradoras: SeguradoraSimples[]
+  modalidades: ModalidadeMatrizLinha[]
+}
+
+export async function getMatrizAction() {
+  try {
+    const headers = await getAuthHeaders()
+    const res = await fetch(`${API_URL}/modalidades/matriz/`, { headers, cache: 'no-store' })
+    if (!res.ok) return { error: "Falha ao buscar matriz de modalidades" }
+    
+    const json = await res.json()
+    console.log("Matriz API response:", json); return { data: json.data as MatrizPayload }
+  } catch (error) {
+    console.error("getMatrizAction error:", error)
+    return { error: error instanceof Error ? error.message : "Erro desconhecido" }
+  }
+}
+
+export async function updateMatrizAction(linhas: { modalidade: number; itens: { seguradora: number; codigo_seguradora: string; ativo: boolean }[] }[]) {
+  try {
+    const headers = await getAuthHeaders()
+    const res = await fetch(`${API_URL}/modalidades/matriz/`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ linhas }),
+    })
+    
+    const json = await res.json()
+    if (!res.ok) {
+      const msg = typeof json === 'object' ? Object.values(json).flat().join(", ") : "Erro ao atualizar matriz"
+      return { error: msg }
+    }
+    console.log("Matriz API response:", json); return { data: json.data as MatrizPayload }
+  } catch (error) {
+    console.error("updateMatrizAction error:", error)
+    return { error: error instanceof Error ? error.message : "Erro desconhecido" }
+  }
+}
+
+

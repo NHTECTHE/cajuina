@@ -345,7 +345,7 @@ export default function PropostasPage() {
                       {/* Status */}
                       <div className="col-span-1 flex items-center justify-center">
                         <span className="whitespace-nowrap px-2 py-1 rounded text-[9px] font-bold uppercase bg-green-100 text-green-700 dark:bg-green-700 dark:text-white">
-                          {t.status}
+                          {t.status === "Aprovado" ? "EM CONCLUSÃO" : t.status}
                         </span>
                       </div>
                     </div>
@@ -355,7 +355,7 @@ export default function PropostasPage() {
                       <div className="flex justify-between items-center border-b border-zinc-100 dark:border-zinc-800 pb-2">
                         <span className="font-bold text-brand-red dark:text-[#cf7458]">#{t.id}</span>
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-green-100 text-green-700">
-                          {t.status}
+                          {t.status === "Aprovado" ? "EM CONCLUSÃO" : t.status}
                         </span>
                       </div>
                       <div className="flex flex-col gap-1">
@@ -418,141 +418,128 @@ export default function PropostasPage() {
         </>
       )}
 
-      {/* ──── DETAILS VIEW (mesma estrutura da tela de Cotações) ──── */}
+      {/* ──── DETAILS VIEW (NOVO LAYOUT DE CONFIRMAÇÃO) ──── */}
       {view === "details" && selected && (
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center gap-4 mb-4">
+        <div className="flex flex-col gap-6 p-8 w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm">
+          <div className="flex items-center gap-4 mb-2">
             <button
               onClick={() => setView("list")}
               className="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 transition-colors"
             >
               <ArrowLeft className="size-4 opacity-70" />
             </button>
-            <h1 className="text-3xl font-light text-zinc-600 dark:text-zinc-300">
-              Proposta nº {selected.id}
-            </h1>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 max-w-5xl mx-auto w-full">
-
-            {/* Informações da Proposta */}
-            <div className="md:col-span-12 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
-              <h2 className="text-[#e85c5c] dark:text-[#cf7458] text-lg font-light tracking-wide mb-6">INFORMAÇÕES DA PROPOSTA</h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
-                <div className="flex flex-col gap-3 text-[13px] text-zinc-600 dark:text-zinc-400">
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Tomador:</strong> {`${selected.tomador_nome} - ${selected.tomador_cnpj}`}</p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Modalidade:</strong> {selected.modalidade_nome}</p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Edital/Contrato:</strong> <span className="uppercase break-all">{selected.edital || "—"}</span></p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Valor da Cobertura:</strong> {formatBRL(selected.importancia_segurada)}</p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Segurado:</strong> {selected.segurado_nome ? `${selected.segurado_nome}${selected.segurado_cnpj ? ` - ${selected.segurado_cnpj}` : ""}` : "—"}</p>
-                  <div className="mt-4 flex flex-col gap-3 border-t border-zinc-100 dark:border-zinc-800 pt-4">
-                    <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Realizado por:</strong> {selected.criado_por_nome ?? "—"}</p>
-                    <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Observações:</strong> {selected.observacoes || "—"}</p>
-                  </div>
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold text-zinc-800 dark:text-zinc-100">Deseja Prosseguir com a Emissão?</h1>
+            <p className="text-[13px] text-zinc-500 mt-1">Confirme os dados abaixo antes de emitir a cotação.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* ENVOLVIDOS */}
+            <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800/60 rounded-xl p-6">
+              <h3 className="text-[#e85c5c] font-bold text-xs uppercase tracking-wider mb-5">ENVOLVIDOS</h3>
+              <div className="flex flex-col gap-4">
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">TOMADOR</span>
+                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5 uppercase">{selected.tomador_cnpj} - {selected.tomador_nome}</p>
                 </div>
-
-                <div className="flex flex-col gap-3 text-[13px] text-zinc-600 dark:text-zinc-400">
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Vigência de:</strong> {isoToBR(selected.data_inicio)}</p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Até:</strong> {isoToBR(selected.data_final)}</p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Total de Dias:</strong> {selected.prazo_dias != null ? `${selected.prazo_dias} Dias` : "—"}</p>
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">SEGURADO</span>
+                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5 uppercase">{selected.segurado_cnpj || "—"} - {selected.segurado_nome || "—"}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">SEGURADORA</span>
+                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5 uppercase">JUNTO SEGUROS</p>
                 </div>
               </div>
             </div>
 
-            {/* Seguradoras Grid */}
-            <div className="md:col-span-12 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
-              <h2 className="text-[#e85c5c] dark:text-[#cf7458] text-lg font-light tracking-wide mb-6">SEGURADORAS</h2>
-
-              {loadingSeguradoras ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {Array.from({ length: 4 }).map((_, idx) => (
-                    <div key={idx} className="bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-40 border border-zinc-200 dark:border-zinc-700/50 animate-pulse" />
-                  ))}
+            {/* DETALHES DA APÓLICE */}
+            <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800/60 rounded-xl p-6">
+              <h3 className="text-[#e85c5c] font-bold text-xs uppercase tracking-wider mb-5">DETALHES DA APÓLICE</h3>
+              <div className="flex flex-col gap-4">
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">MODALIDADE</span>
+                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5 uppercase">{selected.modalidade_nome}</p>
                 </div>
-              ) : seguradoras.length === 0 ? (
-                <p className="text-[13px] text-zinc-500 dark:text-zinc-400 py-4">
-                  Nenhuma seguradora cadastrada.
-                </p>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {seguradoras.map((seg) => {
-                    const escolhida = seguradoraEscolhidaId === seg.id
-                    return (
-                      <div
-                        key={seg.id}
-                        onClick={() => setSeguradoraEscolhidaId(seg.id)}
-                        className={cn(
-                          "relative bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-40 flex flex-col items-center justify-between p-4 border transition-all cursor-pointer hover:shadow-md",
-                          escolhida
-                            ? "border-brand-red ring-2 ring-brand-red/30"
-                            : "border-zinc-200 dark:border-zinc-700/50"
-                        )}
-                      >
-                        {escolhida && (
-                          <span className="absolute -top-2 -right-2 bg-brand-red text-white rounded-full p-1 shadow-sm">
-                            <CheckCircle2 className="size-3.5" />
-                          </span>
-                        )}
-                        <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide text-center leading-tight">{seg.nome}</span>
-
-                        <div className="flex-1 flex items-center justify-center py-1">
-                          {seg.logo ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={seg.logo} alt={`Logo ${seg.nome}`} className="max-w-full max-h-14 object-contain" />
-                          ) : (
-                            <div className="text-2xl font-black text-brand-red/80 dark:text-[#cf7458]">{seg.nome.charAt(0)}</div>
-                          )}
-                        </div>
-
-                        <div className="w-full flex flex-col gap-1 text-[10.5px] text-zinc-600 dark:text-zinc-400 border-t border-zinc-200/70 dark:border-zinc-700/50 pt-2">
-                          <div className="flex items-center justify-between">
-                            <span className="uppercase font-medium opacity-70">Taxa</span>
-                            <span className="font-bold text-zinc-800 dark:text-zinc-200">
-                              {seg.taxa_comissao != null ? `${Number(seg.taxa_comissao).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "—"}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="uppercase font-medium opacity-70">Prêmio mín.</span>
-                            <span className="font-bold text-zinc-800 dark:text-zinc-200">{formatBRL(seg.premio_minimo)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">EDITAL / CONTRATO</span>
+                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5 uppercase">{selected.edital || "—"}</p>
                 </div>
-              )}
+              </div>
             </div>
 
-            {/* Action Buttons Footer */}
-            <div className="md:col-span-12 flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between gap-3 mt-4 pt-5 border-t border-zinc-200 dark:border-zinc-800">
-              <button
-                onClick={() => handleDelete(selected)}
-                className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30 bg-red-50/60 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors cursor-pointer"
-              >
-                <Trash2 className="size-4" />
-                Excluir
-              </button>
-
-              <button
-                onClick={() => {
-                  if (!seguradoraEscolhidaId) {
-                    setShowSeguradoraAviso(true)
-                    return
-                  }
-                  setNumeroApolice("")
-                  setValorSeguradoraEmissao("")
-                  setArquivoApolice(null)
-                  setArquivoBoleto(null)
-                  setShowEmitirModal(true)
-                }}
-                className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 transition-colors cursor-pointer"
-              >
-                <CheckCircle2 className="size-4" />
-                Emitir
-              </button>
+            {/* VALORES E VENCIMENTO */}
+            <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800/60 rounded-xl p-6">
+              <h3 className="text-[#e85c5c] font-bold text-xs uppercase tracking-wider mb-5">VALORES E VENCIMENTO</h3>
+              <div className="flex items-start justify-between">
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">VALOR DA COBERTURA</span>
+                  <p className="text-lg text-[#e85c5c] font-bold mt-1">{formatBRL(selected.importancia_segurada)}</p>
+                </div>
+                <div>
+                  <div className="mb-4">
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wide">VALOR (PRÊMIO)</span>
+                    <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5">R$ 150,00</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wide">VENCIMENTO</span>
+                    <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5">20/07/2026</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
+            {/* VIGÊNCIA */}
+            <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800/60 rounded-xl p-6">
+              <h3 className="text-[#e85c5c] font-bold text-xs uppercase tracking-wider mb-5">VIGÊNCIA</h3>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">INÍCIO</span>
+                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5">{isoToBR(selected.data_inicio)}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">TOTAL DE DIAS</span>
+                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5">{selected.prazo_dias != null ? `${selected.prazo_dias} Dias` : "—"}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">FIM</span>
+                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5">{isoToBR(selected.data_final)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 flex flex-col items-center">
+            <p className="text-[11px] text-zinc-500 mb-8 text-center max-w-3xl">
+              Declaro, expressamente, ter lido, compreendido e concordado com as condições aqui estabelecidas, incluindo as condições gerais do presente seguro.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row items-center justify-between w-full relative mb-10">
+              <span className="text-[11px] text-zinc-500 font-medium absolute left-0 hidden sm:block">
+                Sujeito a Análise e a Aprovação pela Seguradora
+              </span>
+              <div className="flex items-center gap-3 mx-auto">
+                <button 
+                  onClick={() => handleDelete(selected)}
+                  className="bg-[#f97316] hover:bg-[#ea580c] text-white text-[11px] font-bold px-8 py-2.5 rounded-lg uppercase tracking-wide transition-colors"
+                >
+                  Excluir
+                </button>
+                <button 
+                  className="bg-zinc-500 hover:bg-zinc-600 text-white text-[11px] font-bold px-8 py-2.5 rounded-lg uppercase tracking-wide transition-colors"
+                >
+                  Editar
+                </button>
+                <button 
+                  onClick={() => setShowEmitirModal(true)}
+                  className="bg-[#e85c5c] hover:bg-[#d44848] text-white text-[11px] font-bold px-8 py-2.5 rounded-lg uppercase tracking-wide transition-colors"
+                >
+                  Emitir
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

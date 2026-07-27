@@ -78,7 +78,7 @@ export default function SeguradorasPage() {
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40">
-                  {["", "Nome", "Meta", "Prêmio Mínimo", "Taxa Comissão", "Dia Venc."].map(h => (
+                  {["", "Nome", "Meta", "Prêmio Mínimo", "Comissão", "Dia Venc."].map(h => (
                     <th key={h} className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                       {h}
                     </th>
