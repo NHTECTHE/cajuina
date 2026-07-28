@@ -41,6 +41,10 @@ import {
   type CotacaoResponse,
   type CotacaoPayload,
 } from "@/services/api"
+import {
+  listTomadorSeguradorasAction,
+  type TomadorSeguradora,
+} from "@/app/actions/tomador-seguradoras"
 import { toast } from "sonner"
 
 // ─── Helpers de data (ISO yyyy-mm-dd, sem problema de fuso) ───────────────────
@@ -175,6 +179,11 @@ export default function CotacoesPage() {
   const [seguradoras, setSeguradoras] = useState<SeguradoraResponse[]>([])
   const [loadingSeguradoras, setLoadingSeguradoras] = useState(false)
 
+  // Condições comerciais do tomador desta cotação, indexadas por seguradora.
+  // A taxa e o prêmio mínimo exibidos são os do tomador (cadastrados na aba
+  // Taxas), com fallback para os valores da própria seguradora.
+  const [vinculosTomador, setVinculosTomador] = useState<Record<number, TomadorSeguradora>>({})
+
   React.useEffect(() => {
     if (view !== "details") return
     let active = true
@@ -193,6 +202,24 @@ export default function CotacoesPage() {
       active = false
     }
   }, [view])
+
+  // Busca as condições do tomador em cada seguradora ao abrir os detalhes.
+  React.useEffect(() => {
+    const tomadorId = selectedCotacao?.tomador
+    if (view !== "details" || !tomadorId) return
+    let active = true
+    listTomadorSeguradorasAction(tomadorId).then((result) => {
+      if (!active) return
+      if (!result.data) {
+        setVinculosTomador({})
+        return
+      }
+      const porSeguradora: Record<number, TomadorSeguradora> = {}
+      for (const v of result.data) porSeguradora[v.seguradora] = v
+      setVinculosTomador(porSeguradora)
+    })
+    return () => { active = false }
+  }, [view, selectedCotacao?.tomador])
 
   const handleDataInicioChange = (value: string) => {
     setDataInicio(value)
@@ -886,15 +913,24 @@ export default function CotacoesPage() {
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {seguradoras.map((seg) => {
+                    const vinculo = vinculosTomador[seg.id]
+                    // Condições do tomador têm precedência sobre as da seguradora.
+                    const taxa = vinculo?.apto ? vinculo.taxa : seg.taxa_comissao
+                    const premioMinimo = vinculo?.apto ? vinculo.premio_minimo_efetivo : seg.premio_minimo
+                    // Sem taxa cadastrada para este tomador, a seguradora não pode ser escolhida.
+                    const apto = vinculo?.apto ?? false
                     const isAprovado = selectedCotacao?.status === "Aprovado"
+                    const selecionavel = isAprovado && apto
                     const escolhida = seguradoraEscolhidaId === seg.id
                     return (
                     <div
                       key={seg.id}
-                      onClick={() => isAprovado && setSeguradoraEscolhidaId(seg.id)}
+                      onClick={() => selecionavel && setSeguradoraEscolhidaId(seg.id)}
+                      title={isAprovado && !apto ? "Tomador sem taxa cadastrada para esta seguradora." : undefined}
                       className={cn(
                         "relative bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-40 flex flex-col items-center justify-between p-4 border transition-all",
-                        isAprovado ? "cursor-pointer hover:border-brand-red/50 hover:bg-red-50/50 dark:hover:bg-red-500/10" : "opacity-70 border-zinc-200 dark:border-zinc-700/50",
+                        selecionavel ? "cursor-pointer hover:border-brand-red/50 hover:bg-red-50/50 dark:hover:bg-red-500/10" : "opacity-70 border-zinc-200 dark:border-zinc-700/50",
+                        isAprovado && !apto ? "cursor-not-allowed" : "",
                         escolhida ? "ring-2 ring-brand-red border-brand-red bg-red-50/50 dark:bg-red-500/10 shadow-sm" : ""
                       )}
                     >
@@ -913,12 +949,12 @@ export default function CotacoesPage() {
                         <div className="flex items-center justify-between">
                           <span className="uppercase font-medium opacity-70">Taxa</span>
                           <span className="font-bold text-zinc-800 dark:text-zinc-200">
-                            {seg.taxa_comissao != null ? `${Number(seg.taxa_comissao).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "—"}
+                            {taxa != null ? `${Number(taxa).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "—"}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="uppercase font-medium opacity-70">Prêmio mín.</span>
-                          <span className="font-bold text-zinc-800 dark:text-zinc-200">{formatBRL(seg.premio_minimo)}</span>
+                          <span className="font-bold text-zinc-800 dark:text-zinc-200">{formatBRL(premioMinimo)}</span>
                         </div>
                       </div>
                     </div>
