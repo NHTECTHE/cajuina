@@ -203,7 +203,7 @@ export interface SeguradoraResponse {
   meta: string | null;
   premio_minimo: string;
   taxa_comissao: string | null;
-  dia_vencimento: number | null;
+  vencimento_dias: number | null;
   ativo: boolean;
   criado_em: string;
   atualizado_em: string;
@@ -218,6 +218,36 @@ export const seguradorasApi = {
     return apiRequest<SeguradoraResponse[]>(`/seguradoras${qs ? `?${qs}` : ""}`);
   },
 };
+
+export interface TomadorSeguradoraResponse {
+  id: number;
+  seguradora: number;
+  seguradora_nome: string;
+  seguradora_ativo: boolean;
+  taxa: string;
+  premio_minimo: string | null;
+  premio_minimo_efetivo: string;
+  dias_vencimento: number | null;
+  dias_vencimento_efetivo: number | null;
+  apto: boolean;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+// Busca o vínculo comercial do tomador com uma seguradora específica.
+// Retorna null quando não há vínculo cadastrado (o par ainda não foi taxado).
+export async function getTomadorSeguradoraVinculo(
+  tomadorId: number,
+  seguradoraId: number,
+): Promise<TomadorSeguradoraResponse | null> {
+  try {
+    return await apiRequest<TomadorSeguradoraResponse>(
+      `/tomadores/${tomadorId}/seguradoras/${seguradoraId}`,
+    );
+  } catch {
+    return null;
+  }
+}
 
 // ─── Cotações ────────────────────────────────────────────────────────────────
 
@@ -294,6 +324,7 @@ export const cotacoesApi = {
     form.append("seguradora", String(data.seguradora));
     form.append("numero_apolice", data.numero_apolice);
     form.append("valor_seguradora", data.valor_seguradora);
+    if (data.vencimento_boleto) form.append("vencimento_boleto", data.vencimento_boleto);
     if (data.arquivo_apolice) form.append("arquivo_apolice", data.arquivo_apolice);
     if (data.arquivo_boleto) form.append("arquivo_boleto", data.arquivo_boleto);
 
@@ -310,6 +341,7 @@ export interface EmitirPayload {
   seguradora: number;
   numero_apolice: string;
   valor_seguradora: string;
+  vencimento_boleto?: string | null;
   arquivo_apolice?: File | null;
   arquivo_boleto?: File | null;
 }
@@ -328,6 +360,7 @@ export interface ApoliceResponse {
   seguradora_nome: string;
   numero_apolice: string;
   valor_seguradora: string;
+  vencimento_boleto: string | null;
   arquivo_apolice: string | null;
   arquivo_boleto: string | null;
   emitido_por: number | null;

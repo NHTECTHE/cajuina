@@ -32,6 +32,7 @@ import {
 import {
   cotacoesApi,
   seguradorasApi,
+  getTomadorSeguradoraVinculo,
   type CotacaoResponse,
   type SeguradoraResponse,
 } from "@/services/api"
@@ -106,7 +107,32 @@ export default function PropostasPage() {
   const [valorSeguradoraEmissao, setValorSeguradoraEmissao] = useState("")
   const [arquivoApolice, setArquivoApolice] = useState<File | null>(null)
   const [arquivoBoleto, setArquivoBoleto] = useState<File | null>(null)
+  const [vencimentoBoleto, setVencimentoBoleto] = useState("")
   const [emitindo, setEmitindo] = useState(false)
+
+  // Pré-preenche o vencimento do boleto com hoje + dias_vencimento_efetivo do
+  // par tomador x seguradora assim que o modal de emissão abre.
+  React.useEffect(() => {
+    if (!showEmitirModal || !selected) return
+    const seguradoraId = seguradoraEscolhidaId || Number(typeof window !== "undefined" ? localStorage.getItem(`seguradora_cotacao_${selected.id}`) : null) || seguradoras[0]?.id || 1
+    let active = true
+    getTomadorSeguradoraVinculo(selected.tomador, seguradoraId)
+      .then((vinculo) => {
+        if (!active) return
+        const dias = vinculo?.dias_vencimento_efetivo
+        if (dias == null) {
+          setVencimentoBoleto("")
+          return
+        }
+        const data = new Date()
+        data.setDate(data.getDate() + dias)
+        setVencimentoBoleto(data.toISOString().slice(0, 10))
+      })
+      .catch(() => {
+        if (active) setVencimentoBoleto("")
+      })
+    return () => { active = false }
+  }, [showEmitirModal, selected, seguradoraEscolhidaId, seguradoras])
 
   const loadPropostas = React.useCallback(async (search: string) => {
     setLoading(true)
@@ -115,11 +141,7 @@ export default function PropostasPage() {
         status: "Aprovado",
         search: search || undefined,
       })
-      const enviadas = data.filter(c => {
-        if (typeof window === "undefined") return true
-        return localStorage.getItem(`enviado_proposta_${c.id}`) === "true" || localStorage.getItem(`forma_emissao_${c.id}`) !== null
-      })
-      setPropostas(enviadas)
+      setPropostas(data)
     } catch {
       setPropostas([])
     } finally {
@@ -223,6 +245,7 @@ export default function PropostasPage() {
         seguradora: seguradoraId,
         numero_apolice: numeroApolice.trim(),
         valor_seguradora: valorDecimal,
+        vencimento_boleto: vencimentoBoleto || null,
         arquivo_apolice: arquivoApolice,
         arquivo_boleto: arquivoBoleto,
       })
@@ -627,6 +650,16 @@ export default function PropostasPage() {
                   />
                 </div>
               </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Vencimento do Boleto:</Label>
+              <Input
+                type="date"
+                className="h-10 border-zinc-300"
+                value={vencimentoBoleto}
+                onChange={(e) => setVencimentoBoleto(e.target.value)}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

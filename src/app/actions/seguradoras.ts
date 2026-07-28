@@ -23,7 +23,7 @@ export interface Seguradora {
   meta: string | null
   premio_minimo: string
   taxa_comissao: string | null
-  dia_vencimento: number | null
+  vencimento_dias: number | null
   ativo?: boolean
   api_usuario?: string
   api_senha?: string

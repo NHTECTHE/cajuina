@@ -111,7 +111,7 @@ export default function SeguradorasPage() {
                       {s.taxa_comissao ? `${Number(s.taxa_comissao).toFixed(2)}%` : "—"}
                     </td>
                     <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">
-                      {s.dia_vencimento ? `Dia ${s.dia_vencimento}` : "—"}
+                      {s.vencimento_dias ? `${s.vencimento_dias} dias` : "—"}
                     </td>
                   </tr>
                 ))}

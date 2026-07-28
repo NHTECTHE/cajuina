@@ -1544,7 +1544,7 @@ export default function TomadorPage() {
                       </div>
                       <div className="w-full flex items-center justify-between text-xs">
                         <span className="opacity-60">Venc</span>
-                        <span className="font-semibold">{s.dia_vencimento ?? "-"}</span>
+                        <span className="font-semibold">{s.vencimento_dias != null ? `${s.vencimento_dias}d` : "-"}</span>
                       </div>
                       <div className="w-full flex items-center justify-between text-xs">
                         <span className="opacity-60">P. M.</span>

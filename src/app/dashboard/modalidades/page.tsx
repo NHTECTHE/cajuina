@@ -354,9 +354,6 @@ export default function ModalidadesPage() {
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">Modalidades</h1>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-brand-red/10 text-brand-red">
-                {modalidades.length}
-              </span>
             </div>
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
               Gerencie as modalidades e clique para mapear os códigos das seguradoras

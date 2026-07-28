@@ -45,7 +45,7 @@ export default function SeguradoraDetailPage() {
           meta: s.meta,
           premio_minimo: s.premio_minimo,
           taxa_comissao: s.taxa_comissao,
-          dia_vencimento: s.dia_vencimento,
+          vencimento_dias: s.vencimento_dias,
           ativo: s.ativo,
           api_usuario: s.api_usuario ?? "",
           api_senha: s.api_senha ?? "",
@@ -71,7 +71,7 @@ export default function SeguradoraDetailPage() {
     const payload = {
       ...form,
       taxa_comissao: form.taxa_comissao === "" ? null : form.taxa_comissao,
-      dia_vencimento: form.dia_vencimento === null ? null : Number(form.dia_vencimento),
+      vencimento_dias: form.vencimento_dias === null ? null : Number(form.vencimento_dias),
     }
 
     const res = await updateSeguradoraAction(id, payload, logoFile)
@@ -216,11 +216,11 @@ export default function SeguradoraDetailPage() {
                 value={form.taxa_comissao ?? ""}
                 onChange={e => set("taxa_comissao", e.target.value || null)} />
             </Field>
-            <Field label="Dia Vencimento">
-              <input className={inputCls} type="number" min="1" max="31"
-                placeholder="1 – 31"
-                value={form.dia_vencimento ?? ""}
-                onChange={e => set("dia_vencimento", e.target.value ? Number(e.target.value) : null)} />
+            <Field label="Vencimento">
+              <input className={inputCls} type="number" min="1" max="30"
+                placeholder="1 – 30 dias"
+                value={form.vencimento_dias ?? ""}
+                onChange={e => set("vencimento_dias", e.target.value ? Number(e.target.value) : null)} />
             </Field>
             <Field label="Seguradora Ativa">
               <div className="flex items-center h-9">

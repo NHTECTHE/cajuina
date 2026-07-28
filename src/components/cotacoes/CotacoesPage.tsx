@@ -36,6 +36,7 @@ import {
   modalidadesApi,
   seguradorasApi,
   cotacoesApi,
+  getTomadorSeguradoraVinculo,
   type SeguradoraResponse,
   type CotacaoResponse,
   type CotacaoPayload,
@@ -147,11 +148,6 @@ export default function CotacoesPage() {
   // Cotação para excluir (estado para o modal de confirmação)
   const [deleteTarget, setDeleteTarget] = useState<CotacaoResponse | null>(null)
 
-  // Seleciona a cotação em foco.
-  const selectCotacao = (c: CotacaoResponse | null) => {
-    setSelectedCotacao(c)
-  }
-
   const fetchTomadores = React.useCallback(async (search: string): Promise<AsyncComboboxOption[]> => {
     const data = await tomadoresApi.list({ search })
     return data.map((t) => ({ value: t.id, label: t.nome, hint: t.cnpj }))
@@ -232,7 +228,37 @@ export default function CotacoesPage() {
   const [loadingCotacoes, setLoadingCotacoes] = useState(false)
   const router = useRouter()
   const [seguradoraEscolhidaId, setSeguradoraEscolhidaId] = useState<number | null>(null)
-  
+
+  // Boleto Seguradora (tela de detalhes, cotação aprovada): quantidade de dias
+  // até o vencimento, pré-preenchida a partir do vínculo tomador x seguradora
+  // escolhida (default 7 dias quando a seguradora não tem prazo cadastrado).
+  const [diasVencimento, setDiasVencimento] = useState(7)
+
+  React.useEffect(() => {
+    if (selectedCotacao?.status !== "Aprovado" || !seguradoraEscolhidaId) return
+    // Fallback quando não há vínculo tomador x seguradora cadastrado (a API
+    // retorna 404 nesse caso): usa o vencimento_dias da própria seguradora.
+    const seguradoraFallback = seguradoras.find(s => s.id === seguradoraEscolhidaId)?.vencimento_dias ?? 7
+    let active = true
+    getTomadorSeguradoraVinculo(selectedCotacao.tomador, seguradoraEscolhidaId)
+      .then((vinculo) => {
+        if (!active) return
+        setDiasVencimento(vinculo?.dias_vencimento_efetivo ?? seguradoraFallback)
+      })
+      .catch(() => {
+        if (active) setDiasVencimento(seguradoraFallback)
+      })
+    return () => { active = false }
+  }, [selectedCotacao?.status, selectedCotacao?.tomador, seguradoraEscolhidaId, seguradoras])
+
+  // Seleciona a cotação em foco. Limpa a seguradora/prazo de boleto escolhidos
+  // para a cotação anterior, evitando que vazem para a próxima selecionada.
+  const selectCotacao = (c: CotacaoResponse | null) => {
+    setSelectedCotacao(c)
+    setSeguradoraEscolhidaId(null)
+    setDiasVencimento(7)
+  }
+
   // Busca a lista de cotações. Reutilizada após criar/editar/excluir.
   // Só lista as em aberto: uma vez aprovada, a cotação vira proposta e passa a
   // ser listada em Propostas (status "Aprovado") ou em Apólices ("Emitido").
@@ -909,15 +935,18 @@ export default function CotacoesPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-12">
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200">Quantidade dias:</span>
-                    <Input 
-                      type="number" 
-                      defaultValue={7}
+                    <Input
+                      type="number"
+                      value={diasVencimento}
+                      onChange={(e) => setDiasVencimento(Number(e.target.value) || 0)}
                       className="w-24 h-9 text-right text-sm border-zinc-300 dark:border-zinc-700"
                     />
                   </div>
                   <div className="flex flex-col">
                     <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200">Vencimento:</span>
-                    <span className="text-sm text-zinc-400">28/07/2026</span>
+                    <span className="text-sm text-zinc-400">
+                      {isoToBR(addDays(new Date().toISOString().slice(0, 10), diasVencimento))}
+                    </span>
                   </div>
                 </div>
               </div>
