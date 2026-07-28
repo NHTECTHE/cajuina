@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "fix_*.js",
+    "test_*.ts",
+    "crop_*.py",
   ]),
 ]);
 

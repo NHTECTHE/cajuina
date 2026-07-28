@@ -2,14 +2,14 @@
 
 import * as React from "react"
 import { useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   ArrowLeft,
   FileText,
   Trash2,
+  Pencil,
   CheckCircle2,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -32,6 +32,7 @@ import {
 import {
   cotacoesApi,
   seguradorasApi,
+  getTomadorSeguradoraVinculo,
   type CotacaoResponse,
   type SeguradoraResponse,
 } from "@/services/api"
@@ -76,8 +77,12 @@ function isoToBR(iso: string | null | undefined): string {
 
 export default function PropostasPage() {
   const router = useRouter()
-  const [view, setView] = useState<"list" | "details">("list")
+  const searchParams = useSearchParams()
+  const [view, setView] = useState<"list" | "details">(() => {
+    return searchParams?.get("abrirModal") === "true" || searchParams?.get("id") ? "details" : "list"
+  })
   const [selected, setSelected] = useState<CotacaoResponse | null>(null)
+  const [showFormaEmissaoModal, setShowFormaEmissaoModal] = useState(false)
 
   // Propostas = cotações com status "Aprovado".
   const [propostas, setPropostas] = useState<CotacaoResponse[]>([])
@@ -90,9 +95,7 @@ export default function PropostasPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState<number>(10)
 
-  // Seguradoras cadastradas (exibidas na tela de detalhes, igual à de Cotações)
   const [seguradoras, setSeguradoras] = useState<SeguradoraResponse[]>([])
-  const [loadingSeguradoras, setLoadingSeguradoras] = useState(false)
   const [seguradoraEscolhidaId, setSeguradoraEscolhidaId] = useState<number | null>(null)
 
   // Aviso exibido ao tentar emitir sem ter escolhido uma seguradora.
@@ -104,7 +107,39 @@ export default function PropostasPage() {
   const [valorSeguradoraEmissao, setValorSeguradoraEmissao] = useState("")
   const [arquivoApolice, setArquivoApolice] = useState<File | null>(null)
   const [arquivoBoleto, setArquivoBoleto] = useState<File | null>(null)
+  const [vencimentoBoleto, setVencimentoBoleto] = useState("")
   const [emitindo, setEmitindo] = useState(false)
+
+  // Calcula o vencimento do boleto (hoje + dias_vencimento_efetivo do par
+  // tomador x seguradora). Roda ao abrir a proposta, pois a data é exibida
+  // tanto nos detalhes quanto no modal de emissão.
+  React.useEffect(() => {
+    if (!selected) return
+    // A seguradora escolhida vem da própria cotação; o localStorage é fallback
+    // para propostas anteriores à persistência desse campo.
+    const seguradoraId = selected.seguradora
+      || seguradoraEscolhidaId
+      || Number(typeof window !== "undefined" ? localStorage.getItem(`seguradora_cotacao_${selected.id}`) : null)
+      || seguradoras[0]?.id
+      || 1
+    let active = true
+    getTomadorSeguradoraVinculo(selected.tomador, seguradoraId)
+      .then((vinculo) => {
+        if (!active) return
+        const dias = vinculo?.dias_vencimento_efetivo
+        if (dias == null) {
+          setVencimentoBoleto("")
+          return
+        }
+        const data = new Date()
+        data.setDate(data.getDate() + dias)
+        setVencimentoBoleto(data.toISOString().slice(0, 10))
+      })
+      .catch(() => {
+        if (active) setVencimentoBoleto("")
+      })
+    return () => { active = false }
+  }, [selected, seguradoraEscolhidaId, seguradoras])
 
   const loadPropostas = React.useCallback(async (search: string) => {
     setLoading(true)
@@ -128,23 +163,40 @@ export default function PropostasPage() {
   }, [view, searchQuery, loadPropostas])
 
   React.useEffect(() => {
-    if (view !== "details") return
     let active = true
-    ;(async () => {
-      if (active) setLoadingSeguradoras(true)
-      try {
-        const data = await seguradorasApi.list({ ativo: true })
-        if (active) setSeguradoras(data)
-      } catch {
-        if (active) setSeguradoras([])
-      } finally {
-        if (active) setLoadingSeguradoras(false)
+    seguradorasApi.list({ ativo: true }).then((data) => {
+      if (active) setSeguradoras(data)
+    }).catch(() => {})
+    return () => { active = false }
+  }, [])
+
+  React.useEffect(() => {
+    const abrirModal = searchParams.get("abrirModal")
+    const idParam = searchParams.get("id")
+    if (idParam) {
+      const numId = Number(idParam)
+      const target = propostas.find(p => p.id === numId)
+      if (target) {
+        setTimeout(() => {
+          setSelected(target)
+          const stored = typeof window !== "undefined" ? localStorage.getItem(`seguradora_cotacao_${target.id}`) : null
+          setSeguradoraEscolhidaId(stored ? Number(stored) : null)
+          setView("details")
+          if (abrirModal === "true") setShowFormaEmissaoModal(true)
+          router.replace("/dashboard/propostas", { scroll: false })
+        }, 0)
+      } else {
+        cotacoesApi.get(numId).then((data) => {
+          setSelected(data)
+          const stored = typeof window !== "undefined" ? localStorage.getItem(`seguradora_cotacao_${data.id}`) : null
+          setSeguradoraEscolhidaId(stored ? Number(stored) : null)
+          setView("details")
+          if (abrirModal === "true") setShowFormaEmissaoModal(true)
+          router.replace("/dashboard/propostas", { scroll: false })
+        }).catch(() => {})
       }
-    })()
-    return () => {
-      active = false
     }
-  }, [view])
+  }, [searchParams, propostas, router])
 
   const paginated = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage
@@ -155,7 +207,8 @@ export default function PropostasPage() {
 
   const handleRowClick = (proposta: CotacaoResponse) => {
     setSelected(proposta)
-    setSeguradoraEscolhidaId(null)
+    const stored = typeof window !== "undefined" ? localStorage.getItem(`seguradora_cotacao_${proposta.id}`) : null
+    setSeguradoraEscolhidaId(stored ? Number(stored) : null)
     setView("details")
   }
 
@@ -181,7 +234,8 @@ export default function PropostasPage() {
   // "Emitido") e vamos direto para os detalhes da apólice recém-criada,
   // sem passar pela listagem de apólices.
   const handleEmitir = async () => {
-    if (!selected || !seguradoraEscolhidaId) return
+    if (!selected) return
+    const seguradoraId = seguradoraEscolhidaId || Number(typeof window !== "undefined" ? localStorage.getItem(`seguradora_cotacao_${selected.id}`) : null) || seguradoras[0]?.id || 1
     if (!numeroApolice.trim()) {
       toast.error("Informe o número da apólice.")
       return
@@ -195,9 +249,10 @@ export default function PropostasPage() {
     setEmitindo(true)
     try {
       const apolice = await cotacoesApi.emitir(selected.id, {
-        seguradora: seguradoraEscolhidaId,
+        seguradora: seguradoraId,
         numero_apolice: numeroApolice.trim(),
         valor_seguradora: valorDecimal,
+        vencimento_boleto: vencimentoBoleto || null,
         arquivo_apolice: arquivoApolice,
         arquivo_boleto: arquivoBoleto,
       })
@@ -345,7 +400,7 @@ export default function PropostasPage() {
                       {/* Status */}
                       <div className="col-span-1 flex items-center justify-center">
                         <span className="whitespace-nowrap px-2 py-1 rounded text-[9px] font-bold uppercase bg-green-100 text-green-700 dark:bg-green-700 dark:text-white">
-                          {t.status}
+                          {t.status === "Aprovado" ? "EM CONCLUSÃO" : t.status}
                         </span>
                       </div>
                     </div>
@@ -355,7 +410,7 @@ export default function PropostasPage() {
                       <div className="flex justify-between items-center border-b border-zinc-100 dark:border-zinc-800 pb-2">
                         <span className="font-bold text-brand-red dark:text-[#cf7458]">#{t.id}</span>
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-green-100 text-green-700">
-                          {t.status}
+                          {t.status === "Aprovado" ? "EM CONCLUSÃO" : t.status}
                         </span>
                       </div>
                       <div className="flex flex-col gap-1">
@@ -418,141 +473,139 @@ export default function PropostasPage() {
         </>
       )}
 
-      {/* ──── DETAILS VIEW (mesma estrutura da tela de Cotações) ──── */}
+      {/* ──── DETAILS LOADING ──── */}
+      {view === "details" && !selected && (
+        <div className="flex flex-col items-center justify-center p-16 w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm">
+          <div className="size-8 rounded-full border-2 border-brand-red border-t-transparent animate-spin mb-4" />
+          <p className="text-xs text-zinc-500 font-medium">Carregando detalhes da proposta...</p>
+        </div>
+      )}
+
+      {/* ──── DETAILS VIEW (NOVO LAYOUT DE CONFIRMAÇÃO) ──── */}
       {view === "details" && selected && (
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center gap-4 mb-4">
+        <div className="flex flex-col gap-6 p-8 w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm">
+          <div className="flex items-center gap-4 mb-2">
             <button
               onClick={() => setView("list")}
               className="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 transition-colors"
             >
               <ArrowLeft className="size-4 opacity-70" />
             </button>
-            <h1 className="text-3xl font-light text-zinc-600 dark:text-zinc-300">
-              Proposta nº {selected.id}
-            </h1>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 max-w-5xl mx-auto w-full">
-
-            {/* Informações da Proposta */}
-            <div className="md:col-span-12 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
-              <h2 className="text-[#e85c5c] dark:text-[#cf7458] text-lg font-light tracking-wide mb-6">INFORMAÇÕES DA PROPOSTA</h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
-                <div className="flex flex-col gap-3 text-[13px] text-zinc-600 dark:text-zinc-400">
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Tomador:</strong> {`${selected.tomador_nome} - ${selected.tomador_cnpj}`}</p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Modalidade:</strong> {selected.modalidade_nome}</p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Edital/Contrato:</strong> <span className="uppercase break-all">{selected.edital || "—"}</span></p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Valor da Cobertura:</strong> {formatBRL(selected.importancia_segurada)}</p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Segurado:</strong> {selected.segurado_nome ? `${selected.segurado_nome}${selected.segurado_cnpj ? ` - ${selected.segurado_cnpj}` : ""}` : "—"}</p>
-                  <div className="mt-4 flex flex-col gap-3 border-t border-zinc-100 dark:border-zinc-800 pt-4">
-                    <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Realizado por:</strong> {selected.criado_por_nome ?? "—"}</p>
-                    <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Observações:</strong> {selected.observacoes || "—"}</p>
-                  </div>
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold text-zinc-800 dark:text-zinc-100">Deseja Prosseguir com a Emissão?</h1>
+            <p className="text-[13px] text-zinc-500 mt-1">Confirme os dados abaixo antes de emitir a cotação.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* ENVOLVIDOS */}
+            <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800/60 rounded-xl p-6">
+              <h3 className="text-[#e85c5c] font-bold text-xs uppercase tracking-wider mb-5">ENVOLVIDOS</h3>
+              <div className="flex flex-col gap-4">
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">TOMADOR</span>
+                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5 uppercase">{selected.tomador_cnpj} - {selected.tomador_nome}</p>
                 </div>
-
-                <div className="flex flex-col gap-3 text-[13px] text-zinc-600 dark:text-zinc-400">
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Vigência de:</strong> {isoToBR(selected.data_inicio)}</p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Até:</strong> {isoToBR(selected.data_final)}</p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Total de Dias:</strong> {selected.prazo_dias != null ? `${selected.prazo_dias} Dias` : "—"}</p>
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">SEGURADO</span>
+                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5 uppercase">{selected.segurado_cnpj || "—"} - {selected.segurado_nome || "—"}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">SEGURADORA</span>
+                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5 uppercase">{selected.seguradora_nome ?? "—"}</p>
                 </div>
               </div>
             </div>
 
-            {/* Seguradoras Grid */}
-            <div className="md:col-span-12 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 shadow-sm">
-              <h2 className="text-[#e85c5c] dark:text-[#cf7458] text-lg font-light tracking-wide mb-6">SEGURADORAS</h2>
-
-              {loadingSeguradoras ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {Array.from({ length: 4 }).map((_, idx) => (
-                    <div key={idx} className="bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-40 border border-zinc-200 dark:border-zinc-700/50 animate-pulse" />
-                  ))}
+            {/* DETALHES DA APÓLICE */}
+            <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800/60 rounded-xl p-6">
+              <h3 className="text-[#e85c5c] font-bold text-xs uppercase tracking-wider mb-5">DETALHES DA APÓLICE</h3>
+              <div className="flex flex-col gap-4">
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">MODALIDADE</span>
+                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5 uppercase">{selected.modalidade_nome}</p>
                 </div>
-              ) : seguradoras.length === 0 ? (
-                <p className="text-[13px] text-zinc-500 dark:text-zinc-400 py-4">
-                  Nenhuma seguradora cadastrada.
-                </p>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {seguradoras.map((seg) => {
-                    const escolhida = seguradoraEscolhidaId === seg.id
-                    return (
-                      <div
-                        key={seg.id}
-                        onClick={() => setSeguradoraEscolhidaId(seg.id)}
-                        className={cn(
-                          "relative bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-40 flex flex-col items-center justify-between p-4 border transition-all cursor-pointer hover:shadow-md",
-                          escolhida
-                            ? "border-brand-red ring-2 ring-brand-red/30"
-                            : "border-zinc-200 dark:border-zinc-700/50"
-                        )}
-                      >
-                        {escolhida && (
-                          <span className="absolute -top-2 -right-2 bg-brand-red text-white rounded-full p-1 shadow-sm">
-                            <CheckCircle2 className="size-3.5" />
-                          </span>
-                        )}
-                        <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide text-center leading-tight">{seg.nome}</span>
-
-                        <div className="flex-1 flex items-center justify-center py-1">
-                          {seg.logo ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={seg.logo} alt={`Logo ${seg.nome}`} className="max-w-full max-h-14 object-contain" />
-                          ) : (
-                            <div className="text-2xl font-black text-brand-red/80 dark:text-[#cf7458]">{seg.nome.charAt(0)}</div>
-                          )}
-                        </div>
-
-                        <div className="w-full flex flex-col gap-1 text-[10.5px] text-zinc-600 dark:text-zinc-400 border-t border-zinc-200/70 dark:border-zinc-700/50 pt-2">
-                          <div className="flex items-center justify-between">
-                            <span className="uppercase font-medium opacity-70">Taxa</span>
-                            <span className="font-bold text-zinc-800 dark:text-zinc-200">
-                              {seg.taxa_comissao != null ? `${Number(seg.taxa_comissao).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "—"}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="uppercase font-medium opacity-70">Prêmio mín.</span>
-                            <span className="font-bold text-zinc-800 dark:text-zinc-200">{formatBRL(seg.premio_minimo)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">EDITAL / CONTRATO</span>
+                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5 uppercase">{selected.edital || "—"}</p>
                 </div>
-              )}
+              </div>
             </div>
 
-            {/* Action Buttons Footer */}
-            <div className="md:col-span-12 flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between gap-3 mt-4 pt-5 border-t border-zinc-200 dark:border-zinc-800">
-              <button
-                onClick={() => handleDelete(selected)}
-                className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30 bg-red-50/60 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors cursor-pointer"
-              >
-                <Trash2 className="size-4" />
-                Excluir
-              </button>
-
-              <button
-                onClick={() => {
-                  if (!seguradoraEscolhidaId) {
-                    setShowSeguradoraAviso(true)
-                    return
-                  }
-                  setNumeroApolice("")
-                  setValorSeguradoraEmissao("")
-                  setArquivoApolice(null)
-                  setArquivoBoleto(null)
-                  setShowEmitirModal(true)
-                }}
-                className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 transition-colors cursor-pointer"
-              >
-                <CheckCircle2 className="size-4" />
-                Emitir
-              </button>
+            {/* VALORES E VENCIMENTO */}
+            <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800/60 rounded-xl p-6">
+              <h3 className="text-[#e85c5c] font-bold text-xs uppercase tracking-wider mb-5">VALORES E VENCIMENTO</h3>
+              <div className="flex items-start justify-between">
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">VALOR DA COBERTURA</span>
+                  <p className="text-lg text-[#e85c5c] font-bold mt-1">{formatBRL(selected.importancia_segurada)}</p>
+                </div>
+                <div>
+                  <div className="mb-4">
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wide">VALOR (PRÊMIO)</span>
+                    <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5">{formatBRL(selected.premio)}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wide">VENCIMENTO</span>
+                    <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5">{isoToBR(vencimentoBoleto)}</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
+            {/* VIGÊNCIA */}
+            <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800/60 rounded-xl p-6">
+              <h3 className="text-[#e85c5c] font-bold text-xs uppercase tracking-wider mb-5">VIGÊNCIA</h3>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">INÍCIO</span>
+                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5">{isoToBR(selected.data_inicio)}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">TOTAL DE DIAS</span>
+                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5">{selected.prazo_dias != null ? `${selected.prazo_dias} Dias` : "—"}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">FIM</span>
+                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5">{isoToBR(selected.data_final)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 flex flex-col items-center">
+            <p className="text-[11px] text-zinc-500 mb-8 text-center max-w-3xl">
+              Declaro, expressamente, ter lido, compreendido e concordado com as condições aqui estabelecidas, incluindo as condições gerais do presente seguro.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row items-center justify-between w-full relative mb-10">
+              <span className="text-[11px] text-zinc-500 font-medium absolute left-0 hidden sm:block">
+                Sujeito a Análise e a Aprovação pela Seguradora
+              </span>
+              <div className="flex items-center gap-3 mx-auto">
+                <button 
+                  onClick={() => handleDelete(selected)}
+                  className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl border border-red-200 dark:border-red-900/50 bg-white dark:bg-zinc-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 font-semibold text-xs transition-all active:scale-[0.98] shadow-sm cursor-pointer"
+                >
+                  <Trash2 className="size-4" />
+                  Excluir
+                </button>
+                <button 
+                  className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-semibold text-xs transition-all active:scale-[0.98] shadow-sm cursor-pointer"
+                >
+                  <Pencil className="size-4 text-zinc-500 dark:text-zinc-400" />
+                  Editar
+                </button>
+                <button 
+                  onClick={() => setShowEmitirModal(true)}
+                  className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl bg-brand-red text-white hover:bg-brand-red/90 font-bold text-xs shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  <CheckCircle2 className="size-4" />
+                  Emitir
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -606,6 +659,16 @@ export default function PropostasPage() {
               </div>
             </div>
 
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Vencimento do Boleto:</Label>
+              <Input
+                type="date"
+                className="h-10 border-zinc-300"
+                value={vencimentoBoleto}
+                onChange={(e) => setVencimentoBoleto(e.target.value)}
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
                 <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Apólice:</Label>
@@ -628,21 +691,21 @@ export default function PropostasPage() {
             </div>
           </div>
 
-          <DialogFooter className="sm:justify-between">
+          <DialogFooter className="sm:justify-between gap-3 mt-4">
             <button
               type="button"
               disabled
               title="Emissão via API da seguradora ainda não disponível"
-              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-[12px] font-bold uppercase tracking-wide text-zinc-400 border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 cursor-not-allowed"
+              className="inline-flex items-center justify-center gap-2 h-10.5 px-5 rounded-xl text-xs font-semibold text-zinc-400 border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 cursor-not-allowed"
             >
               Emitir com API
             </button>
-            <div className="flex gap-2">
+            <div className="flex gap-2.5">
               <button
                 type="button"
                 onClick={() => setShowEmitirModal(false)}
                 disabled={emitindo}
-                className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-[12px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all active:scale-[0.98] shadow-sm cursor-pointer disabled:opacity-60"
               >
                 Cancelar
               </button>
@@ -650,12 +713,58 @@ export default function PropostasPage() {
                 type="button"
                 onClick={handleEmitir}
                 disabled={emitindo}
-                className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 transition-colors cursor-pointer disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl text-xs font-bold text-white bg-green-600 hover:bg-green-700 transition-all active:scale-[0.98] shadow-md shadow-green-600/20 cursor-pointer disabled:opacity-60"
               >
-                {emitindo ? "Emitindo..." : "Emitir"}
+                <CheckCircle2 className="size-4" />
+                {emitindo ? "Emitindo..." : "Confirmar Emissão"}
               </button>
             </div>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ──── MODAL FORMA DE EMISSÃO ──── */}
+      <Dialog open={showFormaEmissaoModal} onOpenChange={setShowFormaEmissaoModal}>
+        <DialogContent className="sm:max-w-md rounded-2xl p-6 text-center border-zinc-200 dark:border-zinc-800">
+          <DialogHeader className="flex flex-col items-center justify-center">
+            <div className="w-16 h-16 rounded-full border-2 border-dashed border-zinc-200 dark:border-zinc-700 flex items-center justify-center mx-auto mb-3 text-2xl font-light text-zinc-400">
+              ?
+            </div>
+            <DialogTitle className="text-lg font-bold text-zinc-900 dark:text-zinc-50 text-center">
+              Forma de Emissão
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-1">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center">
+              Como deseja realizar esta emissão?
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-3 mt-4">
+            <button
+              type="button"
+              onClick={() => {
+                if (selected && typeof window !== "undefined") {
+                  localStorage.setItem(`forma_emissao_${selected.id}`, "api")
+                }
+                setShowFormaEmissaoModal(false)
+              }}
+              className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl text-xs font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-md shadow-green-600/20 transition-all active:scale-[0.98] cursor-pointer flex-1"
+            >
+              Utilizar API
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (selected && typeof window !== "undefined") {
+                  localStorage.setItem(`forma_emissao_${selected.id}`, "manual")
+                }
+                setShowFormaEmissaoModal(false)
+              }}
+              className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl text-xs font-bold uppercase tracking-wide text-white bg-brand-red hover:bg-brand-red/90 shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] cursor-pointer flex-1"
+            >
+              Cadastrar Manualmente
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
 

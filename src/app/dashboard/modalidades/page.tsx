@@ -3,14 +3,14 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, FolderTree, Plus, Search, Trash2, Power, PowerOff,
-  Loader2, AlertCircle, CheckCircle2, X } from "lucide-react"
+  Loader2, AlertCircle, CheckCircle2, X, Edit2, ChevronRight, ArrowRight, Layers } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   type Modalidade,
   listModalidadesAction,
   createModalidadeAction,
   updateModalidadeAction,
-  deleteModalidadeAction,
+  deleteModalidadeAction
 } from "@/app/actions/modalidades"
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -267,11 +267,13 @@ function ToggleConfirm({ modalidade, onConfirm, onClose, loading }: {
 }
 
 
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ModalidadesPage() {
   const router = useRouter()
   const [modalidades, setModalidades] = React.useState<Modalidade[]>([])
+  
   const [loading, setLoading] = React.useState(true)
   const [search, setSearch] = React.useState("")
   const [modal, setModal] = React.useState<"create" | Modalidade | null>(null)
@@ -318,6 +320,8 @@ export default function ModalidadesPage() {
     } else {
       setToast({ type: "success", message: "Modalidade excluída." })
       setModalidades(prev => prev.filter(s => s.id !== deleteTarget.id))
+      // It's also good to reload to refresh the matrix
+      load()
     }
   }
 
@@ -335,39 +339,48 @@ export default function ModalidadesPage() {
       load()
     }
   }
+  
+
 
   return (
-    <div className="flex-1 flex flex-col gap-5 p-6">
+    <div className="flex-1 flex flex-col gap-5 p-6 h-full">
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer shrink-0">
+          <button onClick={() => router.back()} className="w-9 h-9 flex items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer shrink-0 shadow-xs">
             <ArrowLeft className="size-4" />
           </button>
           <div>
-          <h1 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">Modalidades</h1>
-          <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-            {modalidades.length} {modalidades.length === 1 ? "modalidade cadastrada" : "modalidades cadastradas"}
-          </p>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">Modalidades</h1>
+            </div>
+            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+              Gerencie as modalidades e clique para mapear os códigos das seguradoras
+            </p>
+          </div>
         </div>
+        
+        <div className="flex items-center gap-3 self-start sm:self-auto">
+          <button onClick={() => setModal("create")}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold bg-brand-red text-white hover:bg-brand-red/90 active:scale-[0.98] transition-all cursor-pointer shadow-md shadow-brand-red/20">
+            <Plus className="size-4" /> Nova Modalidade
+          </button>
         </div>
-        <button onClick={() => setModal("create")}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold bg-brand-red text-white hover:bg-brand-red/90 active:scale-[0.98] transition-all cursor-pointer shadow-sm shadow-brand-red/20 self-start sm:self-auto">
-          <Plus className="size-4" /> Nova Modalidade
-        </button>
       </div>
 
-      {/* Search */}
-      <form onSubmit={handleSearch} className="relative max-w-sm">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
-        <input
-          className={cn(inputCls, "pl-10 pr-4")}
-          placeholder="Buscar por nome..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-      </form>
+      {/* Search Bar */}
+      <div className="flex items-center justify-between">
+         <form onSubmit={handleSearch} className="relative w-full max-w-md">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-zinc-400 pointer-events-none" />
+          <input
+            className={cn(inputCls, "pl-10 pr-4 bg-white dark:bg-zinc-900 shadow-xs")}
+            placeholder="Buscar modalidade por nome..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </form>
+      </div>
 
       {/* Toast */}
       {toast && (
@@ -376,84 +389,231 @@ export default function ModalidadesPage() {
         </div>
       )}
 
-      {/* Table */}
-      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900/50 shadow-sm">
+      {/* Table Matrix */}
+      <div className="flex-1 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900/50 shadow-sm flex flex-col relative">
+        
         {loading ? (
-          <div className="flex items-center justify-center py-16">
+          <div className="flex-1 flex items-center justify-center py-16">
             <Loader2 className="size-6 animate-spin text-brand-red opacity-60" />
           </div>
         ) : modalidades.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3 text-zinc-400">
-            <FolderTree className="size-10 opacity-30" />
-            <p className="text-[13px]">Nenhuma modalidade encontrada.</p>
+          <div className="flex-1 flex flex-col items-center justify-center py-16 gap-3 text-zinc-400">
+            <div className="w-16 h-16 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400">
+              <Layers className="size-8 opacity-40" />
+            </div>
+            <p className="text-[14px] font-semibold text-zinc-600 dark:text-zinc-400">Nenhuma modalidade encontrada.</p>
+            <p className="text-[12px] text-zinc-400 max-w-sm text-center">Cadastre modalidades para começar a mapear os códigos nas seguradoras.</p>
             <button onClick={() => setModal("create")}
-              className="text-[12px] font-semibold text-brand-red hover:underline cursor-pointer">
-              Cadastrar a primeira modalidade
+              className="mt-2 flex items-center gap-2 px-4 py-2 rounded-xl text-[12.5px] font-bold bg-brand-red text-white hover:bg-brand-red/90 transition-all cursor-pointer shadow-sm shadow-brand-red/20">
+              <Plus className="size-3.5" /> Cadastrar a primeira modalidade
             </button>
           </div>
         ) : (
           <>
-            {/* Mobile Cards */}
-            <div className="md:hidden flex flex-col p-4 gap-3">
+            {/* 1. Visualização em Cards Responsivos (Celulares e Tablets - lg:hidden) */}
+            <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4 p-4">
               {modalidades.map((m) => (
-                <div 
-                  key={m.id} 
-                  onClick={() => setModal(m)}
-                  className="cursor-pointer flex flex-col p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20 active:scale-[0.98] transition-all shadow-sm gap-3 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/40"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-[14px] text-zinc-900 dark:text-zinc-100">{m.nome}</span>
-                    <div className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest", m.ativo ? "bg-emerald-100 text-emerald-700" : "bg-zinc-100 text-zinc-600")}>
+                <div key={m.id}
+                  onClick={() => router.push("/dashboard/modalidades/" + m.id)}
+                  className="flex flex-col justify-between gap-3 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xs hover:border-brand-red/40 hover:shadow-md transition-all cursor-pointer group">
+                  
+                  {/* Cabeçalho do Card: Ícone + ID + Status */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 shadow-2xs",
+                        m.ativo
+                          ? "bg-red-50 dark:bg-red-950/40 text-brand-red border border-red-100 dark:border-red-900/40"
+                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 border border-zinc-200 dark:border-zinc-700"
+                      )}>
+                        <FolderTree className="size-5.5" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-mono text-zinc-400 dark:text-zinc-500 font-bold text-[11px]">
+                          #{m.id}
+                        </span>
+                        <span className={cn(
+                          "text-[15px] font-bold transition-colors group-hover:text-brand-red line-clamp-1",
+                          m.ativo ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500 line-through decoration-zinc-400"
+                        )}>
+                          {m.nome}
+                        </span>
+                      </div>
+                    </div>
+
+                    <span className={cn(
+                      "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border shrink-0",
+                      m.ativo
+                        ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60"
+                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700"
+                    )}>
+                      <span className={cn("size-1.5 rounded-full", m.ativo ? "bg-emerald-500 animate-pulse" : "bg-zinc-400")} />
                       {m.ativo ? "Ativo" : "Inativo"}
+                    </span>
+                  </div>
+
+                  {/* Corpo do Card: Subtítulo Interativo */}
+                  <div className="py-1">
+                    <div className="flex items-center gap-1.5 text-[12px] text-zinc-500 dark:text-zinc-400 font-medium group-hover:text-brand-red transition-colors">
+                      <span>Clique para configurar os códigos</span>
+                      <ArrowRight className="size-3.5 text-brand-red transition-transform group-hover:translate-x-1" />
                     </div>
                   </div>
-                  <div className="flex items-center justify-end gap-2 border-t border-zinc-100 dark:border-zinc-800/60 pt-3">
-                    <button onClick={(e) => { e.stopPropagation(); setToggleTarget(m); }} title={m.ativo ? "Inativar" : "Ativar"} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors", m.ativo ? "text-orange-600 bg-orange-50 hover:bg-orange-100" : "text-emerald-600 bg-emerald-50 hover:bg-emerald-100")}>
-                      {m.ativo ? <PowerOff className="size-3.5" /> : <Power className="size-3.5" />}
-                      {m.ativo ? "Inativar" : "Ativar"}
-                    </button>
+
+                  {/* Rodapé do Card: Ações (sem propagar o clique para o card) */}
+                  <div className="flex items-center justify-between pt-3 border-t border-zinc-100 dark:border-zinc-800/80 mt-1" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1 text-[12px] font-bold text-brand-red">
+                      <span>Mapear Códigos</span>
+                      <ChevronRight className="size-4" />
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setModal(m)}
+                        className="p-2 rounded-lg text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                        title="Editar modalidade"
+                      >
+                        <Edit2 className="size-4" />
+                      </button>
+
+                      <button
+                        onClick={() => setToggleTarget(m)}
+                        className={cn(
+                          "p-2 rounded-lg transition-colors cursor-pointer",
+                          m.ativo
+                            ? "text-zinc-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                            : "text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                        )}
+                        title={m.ativo ? "Inativar modalidade" : "Ativar modalidade"}
+                      >
+                        {m.ativo ? <PowerOff className="size-4" /> : <Power className="size-4" />}
+                      </button>
+
+                      <button
+                        onClick={() => setDeleteTarget(m)}
+                        className="p-2 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                        title="Excluir modalidade"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Desktop Table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-[13px]">
-                <thead>
-                  <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40">
-                    <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Status</th>
-                    <th className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 w-full">Nome</th>
-                    <th className="text-right px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {modalidades.map((m, i) => (
-                    <tr key={m.id}
-                      onClick={() => setModal(m)}
-                      className={cn(
-                        "cursor-pointer border-b border-zinc-100 dark:border-zinc-800/60 transition-colors",
-                        i % 2 === 0 ? "" : "bg-zinc-50/40 dark:bg-zinc-800/20",
-                        "hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
+            {/* 2. Visualização em Tabela para Desktop (hidden lg:block) */}
+            <div className="hidden lg:block flex-1 overflow-auto">
+              <table className="w-full text-[13px] whitespace-nowrap">
+                <thead className="sticky top-0 z-20 bg-zinc-50/90 dark:bg-zinc-900/90 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800">
+                  <tr>
+                    <th className="text-left px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 w-[80px]">
+                      ID
+                    </th>
+                    <th className="text-left px-4 py-3.5 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                      Modalidade
+                    </th>
+                    <th className="text-center px-4 py-3.5 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 w-[120px]">
+                    Status
+                  </th>
+                  <th className="text-right px-6 py-3.5 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 w-[200px]">
+                    Ações
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                {modalidades.map((m) => (
+                  <tr key={m.id}
+                    onClick={() => router.push("/dashboard/modalidades/" + m.id)}
+                    className="hover:bg-zinc-50/80 dark:hover:bg-zinc-800/50 transition-all cursor-pointer group">
+                    
+                    {/* ID Column */}
+                    <td className="px-6 py-4 font-mono text-zinc-400 dark:text-zinc-500 font-semibold text-[12.5px]">
+                      #{m.id}
+                    </td>
+
+                    {/* Modalidade Name & Subtitle */}
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-3.5">
+                        <div className={cn(
+                          "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 shadow-2xs",
+                          m.ativo
+                            ? "bg-red-50 dark:bg-red-950/40 text-brand-red border border-red-100 dark:border-red-900/40"
+                            : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 border border-zinc-200 dark:border-zinc-700"
+                        )}>
+                          <FolderTree className="size-5" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className={cn(
+                            "text-[14px] font-bold transition-colors group-hover:text-brand-red",
+                            m.ativo ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500 line-through decoration-zinc-400"
+                          )}>
+                            {m.nome}
+                          </span>
+                          <span className="text-[11.5px] text-zinc-400 dark:text-zinc-500 flex items-center gap-1 mt-0.5 font-medium">
+                            <span>Clique para configurar códigos</span>
+                            <ArrowRight className="size-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-red" />
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Status Column */}
+                    <td className="px-4 py-4 text-center">
+                      <span className={cn(
+                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border shadow-2xs",
+                        m.ativo
+                          ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60"
+                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700"
                       )}>
-                      <td className="px-4 py-3">
-                        <div className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest", m.ativo ? "bg-emerald-100 text-emerald-700" : "bg-zinc-100 text-zinc-600")}>
-                          {m.ativo ? "Ativo" : "Inativo"}
+                        <span className={cn("size-1.5 rounded-full", m.ativo ? "bg-emerald-500 animate-pulse" : "bg-zinc-400")} />
+                        {m.ativo ? "Ativo" : "Inativo"}
+                      </span>
+                    </td>
+
+                    {/* Actions Column */}
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center gap-1 text-[12px] font-semibold text-brand-red opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0 mr-2">
+                          <span>Mapear</span>
+                          <ChevronRight className="size-4" />
                         </div>
-                      </td>
-                      <td className="px-4 py-3 font-semibold text-zinc-900 dark:text-zinc-100">{m.nome}</td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button onClick={(e) => { e.stopPropagation(); setToggleTarget(m); }} title={m.ativo ? "Inativar" : "Ativar"} className={cn("p-1.5 rounded-lg transition-colors", m.ativo ? "text-orange-500 hover:bg-orange-50" : "text-emerald-500 hover:bg-emerald-50")}>
-                             {m.ativo ? <PowerOff className="size-4" /> : <Power className="size-4" />}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setModal(m); }}
+                          className="p-2 rounded-lg text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
+                          title="Editar modalidade"
+                        >
+                          <Edit2 className="size-4" />
+                        </button>
+
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setToggleTarget(m); }}
+                          className={cn(
+                            "p-2 rounded-lg transition-colors cursor-pointer",
+                            m.ativo
+                              ? "text-zinc-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                              : "text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                          )}
+                          title={m.ativo ? "Inativar modalidade" : "Ativar modalidade"}
+                        >
+                          {m.ativo ? <PowerOff className="size-4" /> : <Power className="size-4" />}
+                        </button>
+
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setDeleteTarget(m); }}
+                          className="p-2 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                          title="Excluir modalidade"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           </>
         )}
       </div>

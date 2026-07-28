@@ -12,7 +12,7 @@ const EMPTY_FORM = {
   meta: null as string | null,
   premio_minimo: "",
   taxa_comissao: null as string | null,
-  dia_vencimento: null as number | null,
+  vencimento_dias: null as number | null,
   api_usuario: "",
   api_senha: "",
   api_ou_name: "",
@@ -38,7 +38,7 @@ export default function NovaSeguradoraPage() {
     const payload = {
       ...form,
       taxa_comissao: form.taxa_comissao === "" ? null : form.taxa_comissao,
-      dia_vencimento: form.dia_vencimento === null ? null : Number(form.dia_vencimento),
+      vencimento_dias: form.vencimento_dias === null ? null : Number(form.vencimento_dias),
     }
 
     const res = await createSeguradoraAction(
@@ -114,17 +114,17 @@ export default function NovaSeguradoraPage() {
             Configuração
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Taxa Comissão (%)">
+            <Field label="Comissão (%)">
               <input className={inputCls} type="number" step="0.01" min="0" max="100"
                 placeholder="0,00"
                 value={form.taxa_comissao ?? ""}
                 onChange={e => set("taxa_comissao", e.target.value || null)} />
             </Field>
-            <Field label="Dia Vencimento">
-              <input className={inputCls} type="number" min="1" max="31"
-                placeholder="1 – 31"
-                value={form.dia_vencimento ?? ""}
-                onChange={e => set("dia_vencimento", e.target.value ? Number(e.target.value) : null)} />
+            <Field label="Vencimento">
+              <input className={inputCls} type="number" min="1" max="30"
+                placeholder="1 – 30 dias"
+                value={form.vencimento_dias ?? ""}
+                onChange={e => set("vencimento_dias", e.target.value ? Number(e.target.value) : null)} />
             </Field>
           </div>
         </div>

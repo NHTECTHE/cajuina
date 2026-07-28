@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { useState, useMemo, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import {
   Search,
   Plus,
@@ -49,6 +48,10 @@ import {
 import { toast } from "sonner"
 import { lookupCnpj, tomadoresApi, type TomadorResponse } from "@/services/api"
 import { listSeguradorasAction, type Seguradora } from "@/app/actions/seguradoras"
+import {
+  listTomadorSeguradorasAction,
+  saveTomadorSeguradorasAction,
+} from "@/app/actions/tomador-seguradoras"
 import { listProdutoresAction, type Produtor } from "@/app/actions/produtores"
 import { listCorretoresAction, type Corretor } from "@/app/actions/corretores"
 import {
@@ -97,7 +100,6 @@ interface SocioRow {
 }
 
 export default function TomadorPage() {
-  const router = useRouter()
   const [tomadores, setTomadores] = useState<TomadorResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -107,10 +109,21 @@ export default function TomadorPage() {
   // Apolices state
   const [selectedApoliceType, setSelectedApoliceType] = useState<"garantia" | "engenharia" | null>(null)
 
-  // Taxas tab — read-only list of insurers and their commercial rates
+  // Taxas tab — condições comerciais do tomador em cada seguradora
   const [seguradoras, setSeguradoras] = useState<Seguradora[]>([])
   const [seguradorasLoaded, setSeguradorasLoaded] = useState(false)
   const loadingSeguradoras = currentTab === "taxas" && !seguradorasLoaded
+
+  // Vínculos já salvos (tomador × seguradora) e o rascunho editável da tela.
+  // A chave do rascunho é o id da seguradora; "" significa "herda da seguradora".
+  const [taxasDraft, setTaxasDraft] = useState<Record<number, { taxa: string; premio_minimo: string }>>({})
+  const [taxasLoadedFor, setTaxasLoadedFor] = useState<number | null>(null)
+  const [savingTaxas, setSavingTaxas] = useState(false)
+
+  // Seguradoras que aceitam condições: ativas e já persistidas (com id).
+  const seguradorasTaxaveis = seguradoras.filter(
+    (s): s is Seguradora & { id: number } => s.ativo !== false && s.id != null,
+  )
 
   // Produtores / Corretores — cadastros used to populate the form comboboxes
   const [produtores, setProdutores] = useState<Produtor[]>([])
@@ -404,6 +417,77 @@ export default function TomadorPage() {
     })
     return () => { cancelled = true }
   }, [currentTab, seguradorasLoaded])
+
+  // Condições já salvas deste tomador. Recarrega ao trocar de tomador; em
+  // cadastro novo (editingId null) não há vínculo para buscar.
+  useEffect(() => {
+    if (currentTab !== "taxas" || editingId === null || taxasLoadedFor === editingId) return
+    let cancelled = false
+    listTomadorSeguradorasAction(editingId).then((result) => {
+      if (cancelled) return
+      if (result.data) {
+        const draft: Record<number, { taxa: string; premio_minimo: string }> = {}
+        for (const v of result.data) {
+          draft[v.seguradora] = {
+            taxa: v.taxa ?? "",
+            premio_minimo: v.premio_minimo ?? "",
+          }
+        }
+        setTaxasDraft(draft)
+      } else if (result.error) {
+        toast.error(result.error)
+      }
+      setTaxasLoadedFor(editingId)
+    })
+    return () => { cancelled = true }
+  }, [currentTab, editingId, taxasLoadedFor])
+
+  // Converte o texto do input para o decimal que a API espera ("1.50").
+  // Aceita tanto o que o usuário digita em pt-BR ("1.234,56") quanto o que volta
+  // da API já no formato americano ("1234.56"), que é o que preenche o campo
+  // depois de salvar ou recarregar. Retorna null quando vazio, o que faz o
+  // backend herdar o valor da seguradora.
+  function taxaInputToDecimal(value: string): string | null {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+    // Só tratamos "." como separador de milhar quando há vírgula decimal junto.
+    const cleaned = trimmed.includes(",")
+      ? trimmed.replace(/\./g, "").replace(",", ".")
+      : trimmed
+    const num = Number(cleaned)
+    return Number.isFinite(num) ? num.toFixed(2) : null
+  }
+
+  async function handleSaveTaxas() {
+    if (editingId === null) return
+
+    const itens = seguradorasTaxaveis.map((s) => {
+      const draft = taxasDraft[s.id] ?? { taxa: "", premio_minimo: "" }
+      return {
+        seguradora: s.id,
+        // taxa é obrigatória no model; em branco vira "0.00" (vínculo não-apto)
+        taxa: taxaInputToDecimal(draft.taxa) ?? "0.00",
+        premio_minimo: taxaInputToDecimal(draft.premio_minimo),
+      }
+    })
+
+    setSavingTaxas(true)
+    const result = await saveTomadorSeguradorasAction(editingId, itens)
+    setSavingTaxas(false)
+
+    if (result.error) {
+      toast.error(result.error)
+      return
+    }
+    if (result.data) {
+      const draft: Record<number, { taxa: string; premio_minimo: string }> = {}
+      for (const v of result.data) {
+        draft[v.seguradora] = { taxa: v.taxa ?? "", premio_minimo: v.premio_minimo ?? "" }
+      }
+      setTaxasDraft(draft)
+      toast.success("Taxas salvas com sucesso.")
+    }
+  }
 
   useEffect(() => {
     if (view !== "form" || cadastrosLoaded) return
@@ -1512,52 +1596,97 @@ export default function TomadorPage() {
                   <span>Taxas por Seguradora</span>
                 </h3>
                 <p className="text-xs opacity-60">
-                  Taxa de comissão, vencimento e prêmio mínimo cadastrados para cada seguradora. Para alterar esses valores, acesse o cadastro da seguradora.
+                  Defina a taxa de comissão e o prêmio mínimo deste tomador em cada seguradora.
+                  Deixe em branco para herdar o valor cadastrado na seguradora (exibido em cinza).
                 </p>
               </div>
 
-              {loadingSeguradoras ? (
+              {editingId === null ? (
+                <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6">
+                  <p className="text-xs opacity-60 text-center">
+                    Salve o cadastro do tomador antes de definir as taxas.
+                  </p>
+                </div>
+              ) : loadingSeguradoras ? (
                 <div className="flex items-center justify-center py-12">
                   <span className="w-5 h-5 border-2 border-brand-red border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {seguradoras.filter((s) => s.ativo !== false).map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => router.push(`/dashboard/seguradoras/${s.id}`)}
-                      className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200/50 dark:border-zinc-800/40 p-4 shadow-sm hover:shadow-md hover:border-brand-red/40 transition-shadow flex flex-col items-center text-center gap-1 cursor-pointer"
-                    >
-                      <h4 className="font-bold text-xs uppercase tracking-wide mb-2">{s.nome}</h4>
-                      <div className="w-16 h-16 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/60 flex items-center justify-center overflow-hidden mb-3">
-                        {s.logo ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={s.logo} alt={s.nome} className="w-full h-full object-contain" />
-                        ) : (
-                          <Building className="size-6 text-zinc-300 dark:text-zinc-600" />
-                        )}
-                      </div>
-                      <div className="w-full flex items-center justify-between text-xs">
-                        <span className="opacity-60">Taxa</span>
-                        <span className="font-semibold">{s.taxa_comissao ? `${s.taxa_comissao}%` : "-"}</span>
-                      </div>
-                      <div className="w-full flex items-center justify-between text-xs">
-                        <span className="opacity-60">Venc</span>
-                        <span className="font-semibold">{s.dia_vencimento ?? "-"}</span>
-                      </div>
-                      <div className="w-full flex items-center justify-between text-xs">
-                        <span className="opacity-60">P. M.</span>
-                        <span className="font-semibold">
-                          {Number(s.premio_minimo).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                  {seguradoras.filter((s) => s.ativo !== false).length === 0 && (
-                    <p className="col-span-full text-center text-xs opacity-50 py-12">Nenhuma seguradora cadastrada.</p>
+                <>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {seguradorasTaxaveis.map((s) => {
+                      const draft = taxasDraft[s.id] ?? { taxa: "", premio_minimo: "" }
+                      return (
+                        <div
+                          key={s.id}
+                          className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200/50 dark:border-zinc-800/40 p-4 shadow-sm flex flex-col items-center text-center gap-1"
+                        >
+                          <h4 className="font-bold text-xs uppercase tracking-wide mb-2">{s.nome}</h4>
+                          <div className="w-16 h-16 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/60 flex items-center justify-center overflow-hidden mb-3">
+                            {s.logo ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={s.logo} alt={s.nome} className="w-full h-full object-contain" />
+                            ) : (
+                              <Building className="size-6 text-zinc-300 dark:text-zinc-600" />
+                            )}
+                          </div>
+
+                          <label className="w-full flex items-center justify-between text-xs gap-2">
+                            <span className="opacity-60 shrink-0">Taxa</span>
+                            <span className="relative flex-1 max-w-[92px]">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={draft.taxa}
+                                placeholder={s.taxa_comissao ? String(s.taxa_comissao) : "0,00"}
+                                onChange={(e) => setTaxasDraft((prev) => ({
+                                  ...prev,
+                                  [s.id]: { ...draft, taxa: e.target.value },
+                                }))}
+                                className="w-full h-7 rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent pl-2 pr-5 text-right text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand-red/40"
+                              />
+                              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] opacity-50">%</span>
+                            </span>
+                          </label>
+
+                          <label className="w-full flex items-center justify-between text-xs gap-2">
+                            <span className="opacity-60 shrink-0">P. M.</span>
+                            <span className="relative flex-1 max-w-[92px]">
+                              <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] opacity-50">R$</span>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={draft.premio_minimo}
+                                placeholder={s.premio_minimo ? String(s.premio_minimo) : "0,00"}
+                                onChange={(e) => setTaxasDraft((prev) => ({
+                                  ...prev,
+                                  [s.id]: { ...draft, premio_minimo: e.target.value },
+                                }))}
+                                className="w-full h-7 rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent pl-6 pr-2 text-right text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand-red/40"
+                              />
+                            </span>
+                          </label>
+                        </div>
+                      )
+                    })}
+                    {seguradorasTaxaveis.length === 0 && (
+                      <p className="col-span-full text-center text-xs opacity-50 py-12">Nenhuma seguradora cadastrada.</p>
+                    )}
+                  </div>
+
+                  {seguradorasTaxaveis.length > 0 && (
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleSaveTaxas}
+                        disabled={savingTaxas}
+                        className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-xl text-xs font-bold text-white bg-brand-red hover:bg-brand-red/90 shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {savingTaxas ? "Salvando..." : "Salvar Taxas"}
+                      </button>
+                    </div>
                   )}
-                </div>
+                </>
               )}
 
             </div>

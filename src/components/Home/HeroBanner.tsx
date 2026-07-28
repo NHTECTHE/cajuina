@@ -283,12 +283,6 @@ export default function HeroBanner() {
                     : "pointer-events-none absolute z-0"
                 }`}
               >
-                {/* Tagline */}
-                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${slide.taglineBg} border ${slide.taglineBorder} text-sm font-semibold ${slide.taglineText} mb-6 w-max transition-all duration-700 ease-out ${index === currentSlide && isLoaded ? "opacity-100 translate-y-0 delay-[500ms]" : "opacity-0 translate-y-8"}`}>
-                  <span className={`w-2 h-2 rounded-full ${slide.accentColor} animate-pulse`}></span>
-                  Cajuína Corretora
-                </div>
-                
                 {/* Title Line by Line */}
                 <h1 className={`text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold ${slide.baseText} leading-[1.1] mb-6 tracking-tight`}>
                   <div className="overflow-hidden pb-2">
