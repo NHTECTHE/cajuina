@@ -110,11 +110,18 @@ export default function PropostasPage() {
   const [vencimentoBoleto, setVencimentoBoleto] = useState("")
   const [emitindo, setEmitindo] = useState(false)
 
-  // Pré-preenche o vencimento do boleto com hoje + dias_vencimento_efetivo do
-  // par tomador x seguradora assim que o modal de emissão abre.
+  // Calcula o vencimento do boleto (hoje + dias_vencimento_efetivo do par
+  // tomador x seguradora). Roda ao abrir a proposta, pois a data é exibida
+  // tanto nos detalhes quanto no modal de emissão.
   React.useEffect(() => {
-    if (!showEmitirModal || !selected) return
-    const seguradoraId = seguradoraEscolhidaId || Number(typeof window !== "undefined" ? localStorage.getItem(`seguradora_cotacao_${selected.id}`) : null) || seguradoras[0]?.id || 1
+    if (!selected) return
+    // A seguradora escolhida vem da própria cotação; o localStorage é fallback
+    // para propostas anteriores à persistência desse campo.
+    const seguradoraId = selected.seguradora
+      || seguradoraEscolhidaId
+      || Number(typeof window !== "undefined" ? localStorage.getItem(`seguradora_cotacao_${selected.id}`) : null)
+      || seguradoras[0]?.id
+      || 1
     let active = true
     getTomadorSeguradoraVinculo(selected.tomador, seguradoraId)
       .then((vinculo) => {
@@ -132,7 +139,7 @@ export default function PropostasPage() {
         if (active) setVencimentoBoleto("")
       })
     return () => { active = false }
-  }, [showEmitirModal, selected, seguradoraEscolhidaId, seguradoras])
+  }, [selected, seguradoraEscolhidaId, seguradoras])
 
   const loadPropostas = React.useCallback(async (search: string) => {
     setLoading(true)
@@ -506,7 +513,7 @@ export default function PropostasPage() {
                 </div>
                 <div>
                   <span className="text-[10px] text-zinc-500 uppercase tracking-wide">SEGURADORA</span>
-                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5 uppercase">JUNTO SEGUROS</p>
+                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5 uppercase">{selected.seguradora_nome ?? "—"}</p>
                 </div>
               </div>
             </div>
@@ -537,11 +544,11 @@ export default function PropostasPage() {
                 <div>
                   <div className="mb-4">
                     <span className="text-[10px] text-zinc-500 uppercase tracking-wide">VALOR (PRÊMIO)</span>
-                    <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5">R$ 150,00</p>
+                    <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5">{formatBRL(selected.premio)}</p>
                   </div>
                   <div>
                     <span className="text-[10px] text-zinc-500 uppercase tracking-wide">VENCIMENTO</span>
-                    <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5">20/07/2026</p>
+                    <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5">{isoToBR(vencimentoBoleto)}</p>
                   </div>
                 </div>
               </div>

@@ -221,6 +221,19 @@ export default function CotacoesPage() {
     return () => { active = false }
   }, [view, selectedCotacao?.tomador])
 
+  // Grava a seguradora escolhida na cotação. O backend recalcula o prêmio a
+  // partir da taxa do tomador nessa seguradora e devolve a cotação atualizada.
+  const handleEscolherSeguradora = async (seguradoraId: number) => {
+    if (!selectedCotacao) return
+    setSeguradoraEscolhidaId(seguradoraId)
+    try {
+      const atualizada = await cotacoesApi.update(selectedCotacao.id, { seguradora: seguradoraId })
+      setSelectedCotacao(atualizada)
+    } catch {
+      toast.error("Não foi possível salvar a seguradora escolhida.")
+    }
+  }
+
   const handleDataInicioChange = (value: string) => {
     setDataInicio(value)
     // Mantém o Prazo se já foi informado e recalcula o Final; senão recalcula o Prazo a partir do Final.
@@ -278,11 +291,11 @@ export default function CotacoesPage() {
     return () => { active = false }
   }, [selectedCotacao?.status, selectedCotacao?.tomador, seguradoraEscolhidaId, seguradoras])
 
-  // Seleciona a cotação em foco. Limpa a seguradora/prazo de boleto escolhidos
-  // para a cotação anterior, evitando que vazem para a próxima selecionada.
+  // Seleciona a cotação em foco. A seguradora escolhida vem da própria cotação
+  // (persistida no banco); o prazo de boleto é recalculado pelo efeito acima.
   const selectCotacao = (c: CotacaoResponse | null) => {
     setSelectedCotacao(c)
-    setSeguradoraEscolhidaId(null)
+    setSeguradoraEscolhidaId(c?.seguradora ?? null)
     setDiasVencimento(7)
   }
 
@@ -925,7 +938,7 @@ export default function CotacoesPage() {
                     return (
                     <div
                       key={seg.id}
-                      onClick={() => selecionavel && setSeguradoraEscolhidaId(seg.id)}
+                      onClick={() => selecionavel && handleEscolherSeguradora(seg.id)}
                       title={isAprovado && !apto ? "Tomador sem taxa cadastrada para esta seguradora." : undefined}
                       className={cn(
                         "relative bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-40 flex flex-col items-center justify-between p-4 border transition-all",

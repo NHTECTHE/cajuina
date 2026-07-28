@@ -255,6 +255,7 @@ export interface CotacaoPayload {
   tomador: number;
   modalidade: number;
   segurado?: number | null;
+  seguradora?: number | null;
   edital?: string;
   data_inicio?: string | null;
   prazo_dias?: number | null;
@@ -276,11 +277,14 @@ export interface CotacaoResponse {
   segurado: number | null;
   segurado_nome: string | null;
   segurado_cnpj: string | null;
+  seguradora: number | null;
+  seguradora_nome: string | null;
   edital: string;
   data_inicio: string | null;
   prazo_dias: number | null;
   data_final: string | null;
   importancia_segurada: string | null;
+  premio: string | null;
   observacoes: string;
   criado_por: number | null;
   criado_por_nome: string | null;
