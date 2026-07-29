@@ -168,7 +168,6 @@ export default function CotacoesPage() {
 
   // Confirmação de aprovação da cotação (tela de detalhes).
   const [showApproveConfirm, setShowApproveConfirm] = useState(false)
-  const [copiedMessage, setCopiedMessage] = useState(false)
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
 
@@ -375,7 +374,7 @@ Em caso de dúvidas, entre em contato com o nosso suporte:
       await navigator.clipboard.writeText(generatedMessage)
       setIsMessageModalOpen(false)
       setShowSuccessModal(true)
-    } catch (err) {
+    } catch {
       toast.error("Erro ao copiar a mensagem.")
     }
   }

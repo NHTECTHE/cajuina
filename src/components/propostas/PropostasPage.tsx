@@ -186,7 +186,7 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
       await navigator.clipboard.writeText(generatedMessage)
       setIsMessageModalOpen(false)
       setShowSuccessModal(true)
-    } catch (err) {
+    } catch {
       toast.error("Erro ao copiar a mensagem.")
     }
   }
