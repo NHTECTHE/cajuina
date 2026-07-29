@@ -980,7 +980,7 @@ export default function CotacoesPage() {
              
             {selectedCotacao?.status === "Aprovado" && (
               <div className="md:col-span-12 mt-4 bg-white dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl p-6 shadow-sm">
-                <h3 className="text-brand-red uppercase font-normal text-lg mb-6">Boleto Seguradora</h3>
+                <h3 className="text-brand-red uppercase font-normal text-lg mb-6 dark:text-[#cf7458]">Boleto Seguradora</h3>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-12">
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200">Quantidade dias:</span>

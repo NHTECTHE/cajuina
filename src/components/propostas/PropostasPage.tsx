@@ -148,7 +148,12 @@ export default function PropostasPage() {
         status: "Aprovado",
         search: search || undefined,
       })
-      setPropostas(data)
+      setPropostas(data.filter(c => {
+        if (typeof window !== "undefined") {
+          return localStorage.getItem(`enviado_proposta_${c.id}`) === "true" || localStorage.getItem(`forma_emissao_${c.id}`) !== null
+        }
+        return false
+      }))
     } catch {
       setPropostas([])
     } finally {
@@ -501,7 +506,7 @@ export default function PropostasPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* ENVOLVIDOS */}
             <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800/60 rounded-xl p-6">
-              <h3 className="text-[#e85c5c] font-bold text-xs uppercase tracking-wider mb-5">ENVOLVIDOS</h3>
+              <h3 className="text-[#e85c5c] font-bold text-xs uppercase tracking-wider mb-5 dark:text-[#cf7458]">ENVOLVIDOS</h3>
               <div className="flex flex-col gap-4">
                 <div>
                   <span className="text-[10px] text-zinc-500 uppercase tracking-wide">TOMADOR</span>
@@ -520,7 +525,7 @@ export default function PropostasPage() {
 
             {/* DETALHES DA APÓLICE */}
             <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800/60 rounded-xl p-6">
-              <h3 className="text-[#e85c5c] font-bold text-xs uppercase tracking-wider mb-5">DETALHES DA APÓLICE</h3>
+              <h3 className="text-[#e85c5c] font-bold text-xs uppercase tracking-wider mb-5 dark:text-[#cf7458]">DETALHES DA APÓLICE</h3>
               <div className="flex flex-col gap-4">
                 <div>
                   <span className="text-[10px] text-zinc-500 uppercase tracking-wide">MODALIDADE</span>
@@ -535,11 +540,11 @@ export default function PropostasPage() {
 
             {/* VALORES E VENCIMENTO */}
             <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800/60 rounded-xl p-6">
-              <h3 className="text-[#e85c5c] font-bold text-xs uppercase tracking-wider mb-5">VALORES E VENCIMENTO</h3>
+              <h3 className="text-[#e85c5c] font-bold text-xs uppercase tracking-wider mb-5 dark:text-[#cf7458]">VALORES E VENCIMENTO</h3>
               <div className="flex items-start justify-between">
                 <div>
                   <span className="text-[10px] text-zinc-500 uppercase tracking-wide">VALOR DA COBERTURA</span>
-                  <p className="text-lg text-[#e85c5c] font-bold mt-1">{formatBRL(selected.importancia_segurada)}</p>
+                  <p className="text-lg text-[#e85c5c] font-bold mt-1 dark:text-[#cf7458]">{formatBRL(selected.importancia_segurada)}</p>
                 </div>
                 <div>
                   <div className="mb-4">
@@ -556,7 +561,7 @@ export default function PropostasPage() {
 
             {/* VIGÊNCIA */}
             <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800/60 rounded-xl p-6">
-              <h3 className="text-[#e85c5c] font-bold text-xs uppercase tracking-wider mb-5">VIGÊNCIA</h3>
+              <h3 className="text-[#e85c5c] font-bold text-xs uppercase tracking-wider mb-5 dark:text-[#cf7458]">VIGÊNCIA</h3>
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <span className="text-[10px] text-zinc-500 uppercase tracking-wide">INÍCIO</span>
