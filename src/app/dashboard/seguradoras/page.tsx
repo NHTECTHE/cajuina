@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Building2, Plus, Search, Loader2 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, getMediaUrl } from "@/lib/utils"
 import { type Seguradora, listSeguradorasAction } from "@/app/actions/seguradoras"
 import { formatBRL, inputCls } from "./_components"
 
@@ -98,7 +98,7 @@ export default function SeguradorasPage() {
                       <div className="w-8 h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/60 flex items-center justify-center overflow-hidden">
                         {s.logo ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={s.logo} alt={s.nome} className="w-full h-full object-contain" />
+                          <img src={getMediaUrl(s.logo)} alt={s.nome} className="w-full h-full object-contain" />
                         ) : (
                           <Building2 className="size-4 text-zinc-300 dark:text-zinc-600" />
                         )}

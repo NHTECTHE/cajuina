@@ -9,7 +9,21 @@ import {
   Trash2,
   Pencil,
   CheckCircle2,
+  Copy,
+  Check,
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+
+const WhatsAppIcon = ({ className }: { className?: string }) => (
+  <svg 
+    className={className} 
+    viewBox="0 0 24 24" 
+    fill="currentColor"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M12.015 2.015c-5.503 0-9.98 4.477-9.98 9.98 0 1.758.46 3.473 1.332 4.981l-1.349 4.929 5.044-1.323a9.92 9.92 0 004.953 1.328h.004c5.498 0 9.977-4.477 9.977-9.98 0-2.665-1.038-5.168-2.923-7.054a9.926 9.926 0 00-7.058-2.926zM12.015 20.3c-1.488 0-2.946-.4-4.225-1.157l-.303-.18-3.136.822.836-3.056-.197-.314a8.312 8.312 0 01-1.272-4.437c0-4.59 3.738-8.328 8.33-8.328 2.224 0 4.314.867 5.886 2.439a8.271 8.271 0 012.437 5.892c-.001 4.59-3.74 8.328-8.33 8.328zm4.562-6.223c-.25-.125-1.481-.732-1.71-.815-.229-.084-.397-.125-.563.125-.167.25-.646.815-.792.981-.146.167-.292.188-.542.063-.25-.125-1.057-.39-2.015-1.243-.745-.664-1.248-1.485-1.394-1.735-.146-.25-.015-.386.11-.511.112-.113.25-.292.375-.438.125-.146.167-.25.25-.417.084-.167.042-.313-.021-.438-.063-.125-.563-1.356-.771-1.856-.203-.485-.411-.42-.563-.427-.146-.007-.313-.007-.48-.007-.167 0-.438.063-.667.313-.229.25-.875.855-.875 2.085 0 1.23.896 2.419 1.021 2.585.125.167 1.764 2.693 4.275 3.776.598.258 1.064.412 1.428.528.601.191 1.147.164 1.576.1.48-.073 1.481-.605 1.69-1.189.208-.584.208-1.085.146-1.189-.062-.104-.229-.167-.479-.292z"/>
+  </svg>
+)
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -83,6 +97,8 @@ export default function PropostasPage() {
   })
   const [selected, setSelected] = useState<CotacaoResponse | null>(null)
   const [showFormaEmissaoModal, setShowFormaEmissaoModal] = useState(false)
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
 
   // Propostas = cotações com status "Aprovado".
   const [propostas, setPropostas] = useState<CotacaoResponse[]>([])
@@ -140,6 +156,40 @@ export default function PropostasPage() {
       })
     return () => { active = false }
   }, [selected, seguradoraEscolhidaId, seguradoras])
+
+  const generatedMessage = useMemo(() => {
+    if (!selected) return ""
+    return `Olá, ${selected.tomador_nome}!
+
+CNPJ ${selected.tomador_cnpj}
+
+Obrigado pela sua preferência pela CAJUINA CORRETORA DE SEGUROS EIRELI. Informamos que a sua cotação foi APROVADA e encontra-se pronta para emissão da apólice. Seguem os dados:
+
+Segurado: ${selected.segurado_nome ? `${selected.segurado_nome} - ${selected.segurado_cnpj}` : '—'}
+Edital/Contrato: ${selected.edital || '—'}
+Modalidade: ${selected.modalidade_nome || '—'}
+IS: ${formatBRL(selected.importancia_segurada)}
+Prazo: ${selected.prazo_dias != null ? `${selected.prazo_dias} Dias` : '—'}
+Início: ${isoToBR(selected.data_inicio)}
+Fim: ${isoToBR(selected.data_final)}
+Valor (Prêmio): ${formatBRL(selected.premio)}
+Seguradora: ${selected.seguradora_nome || '—'}
+Vencimento do Boleto: ${isoToBR(vencimentoBoleto) || '—'}
+
+Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o nosso suporte:
+
+(86) 3081-0282`
+  }, [selected, vencimentoBoleto])
+
+  const handleCopyMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(generatedMessage)
+      setIsMessageModalOpen(false)
+      setShowSuccessModal(true)
+    } catch {
+      toast.error("Erro ao copiar a mensagem.")
+    }
+  }
 
   const loadPropostas = React.useCallback(async (search: string) => {
     setLoading(true)
@@ -489,12 +539,19 @@ export default function PropostasPage() {
       {/* ──── DETAILS VIEW (NOVO LAYOUT DE CONFIRMAÇÃO) ──── */}
       {view === "details" && selected && (
         <div className="flex flex-col gap-6 p-8 w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm">
-          <div className="flex items-center gap-4 mb-2">
+          <div className="flex items-center justify-between mb-2">
             <button
               onClick={() => setView("list")}
               className="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 transition-colors"
             >
               <ArrowLeft className="size-4 opacity-70" />
+            </button>
+            <button 
+              onClick={() => setIsMessageModalOpen(true)}
+              className="w-8 h-8 rounded-full border border-green-200 text-green-500 flex items-center justify-center bg-white shadow-sm hover:bg-green-50 transition-colors"
+              title="Mensagem para o cliente"
+            >
+              <WhatsAppIcon className="size-4" />
             </button>
           </div>
 
@@ -612,6 +669,52 @@ export default function PropostasPage() {
               </div>
             </div>
           </div>
+
+          {/* Modal Mensagem para o Cliente */}
+          <Dialog open={isMessageModalOpen} onOpenChange={setIsMessageModalOpen}>
+            <DialogContent aria-describedby={undefined} className="sm:max-w-[450px] bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+              <DialogHeader>
+                <DialogTitle className="text-[#e85c5c] dark:text-[#cf7458] text-lg font-bold tracking-wide">
+                  MENSAGEM PARA O CLIENTE
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700/50 relative max-h-[300px] overflow-y-auto">
+                <pre className="text-[13px] text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap font-sans">
+                  {generatedMessage}
+                </pre>
+              </div>
+              
+              <div className="mt-2 flex justify-end">
+                <Button 
+                  onClick={handleCopyMessage}
+                  variant="outline"
+                  className="gap-2 text-zinc-600 dark:text-zinc-300 border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                >
+                  <Copy className="size-4" />
+                  <span>Copiar mensagem</span>
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Modal de Sucesso */}
+          <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+            <DialogContent aria-describedby={undefined} className="sm:max-w-[400px] flex flex-col items-center justify-center p-8 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 [&>button]:hidden">
+              <div className="w-16 h-16 rounded-full border-[3px] border-[#a5d6a7] bg-white flex items-center justify-center mb-4">
+                <Check className="size-8 text-[#4caf50]" strokeWidth={3} />
+              </div>
+              <DialogTitle className="text-[17px] font-bold text-zinc-800 dark:text-zinc-100 mb-6 text-center">
+                Copiado com sucesso
+              </DialogTitle>
+              <Button 
+                onClick={() => setShowSuccessModal(false)}
+                className="bg-[#2196f3] hover:bg-[#1976d2] text-white font-medium px-8 h-10 min-w-[120px] rounded-md transition-colors"
+              >
+                OK
+              </Button>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
 

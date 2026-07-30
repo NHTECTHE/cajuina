@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { AlertCircle, CheckCircle2, Building2, Pencil } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, getMediaUrl } from "@/lib/utils"
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -110,7 +110,7 @@ export function LogoPicker({ currentUrl, onChange }: {
       <div className="w-16 h-16 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/60 flex items-center justify-center overflow-hidden shrink-0">
         {displayUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={displayUrl} alt="Logo da seguradora" className="w-full h-full object-contain" />
+          <img src={getMediaUrl(displayUrl)} alt="Logo da seguradora" className="w-full h-full object-contain" />
         ) : (
           <Building2 className="size-6 text-zinc-300 dark:text-zinc-600" />
         )}
@@ -154,7 +154,7 @@ export function LogoAvatar({ currentUrl, onChange, size = 56 }: {
       className="group relative shrink-0 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/60 flex items-center justify-center overflow-hidden cursor-pointer">
       {displayUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={displayUrl} alt="Logo da seguradora" className="w-full h-full object-contain" />
+        <img src={getMediaUrl(displayUrl)} alt="Logo da seguradora" className="w-full h-full object-contain" />
       ) : (
         <Building2 className="size-6 text-zinc-300 dark:text-zinc-600" />
       )}
