@@ -286,7 +286,9 @@ export default function ModalidadesPage() {
   async function load(q = search) {
     setLoading(true)
     const res = await listModalidadesAction(q)
-    if (res.data) setModalidades(res.data)
+    if (res.data) {
+      setModalidades(res.data.sort((a, b) => (a.id || 0) - (b.id || 0)))
+    }
     setLoading(false)
   }
 
