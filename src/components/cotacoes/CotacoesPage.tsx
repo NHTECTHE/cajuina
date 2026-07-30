@@ -169,6 +169,7 @@ export default function CotacoesPage() {
   // Confirmação de aprovação da cotação (tela de detalhes).
   const [showApproveConfirm, setShowApproveConfirm] = useState(false)
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
 
   // Cotação para excluir (estado para o modal de confirmação)
@@ -316,13 +317,34 @@ export default function CotacoesPage() {
   const generatedMessage = useMemo(() => {
     if (!selectedCotacao) return ""
     
+    const seguradorasDisponiveis = seguradoras
+      .filter(seg => vinculosTomador[seg.id]?.apto)
+      .map(seg => {
+        const vinculo = vinculosTomador[seg.id]
+        const taxa = Number(vinculo.taxa) || 0
+        const premioMinimo = Number(vinculo.premio_minimo_efetivo) || 0
+        const isValor = Number(selectedCotacao.importancia_segurada) || 0
+        
+        let calcPremio = (isValor * taxa) / 100
+        const prazo = selectedCotacao.prazo_dias || 365
+        if (prazo > 365) {
+          calcPremio = calcPremio * (prazo / 365)
+        }
+        const premio = Math.max(premioMinimo, calcPremio)
+        return `${seg.nome}: ${formatBRL(premio)}`
+      })
+
+    const valoresTexto = seguradorasDisponiveis.length > 0
+      ? `*Valores das Seguradoras*\n${seguradorasDisponiveis.join('\n')}`
+      : `*Valores das Seguradoras*\n\nNenhuma seguradora disponível`
+
     if (selectedCotacao.status === "Aprovado") {
       return `Olá, ${selectedCotacao.tomador_nome}!
-
 CNPJ ${selectedCotacao.tomador_cnpj}
 
 Obrigado pela sua preferência pela CAJUINA CORRETORA DE SEGUROS EIRELI. Informamos que a sua cotação foi APROVADA e encontra-se pronta para emissão da apólice. Seguem os dados:
 
+*Dados da Cotação*
 Segurado: ${selectedCotacao.segurado_nome ? `${selectedCotacao.segurado_nome} - ${selectedCotacao.segurado_cnpj}` : '—'}
 Edital/Contrato: ${selectedCotacao.edital || '—'}
 Modalidade: ${selectedCotacao.modalidade_nome || '—'}
@@ -330,8 +352,9 @@ IS: ${formatBRL(selectedCotacao.importancia_segurada)}
 Prazo: ${selectedCotacao.prazo_dias != null ? `${selectedCotacao.prazo_dias} Dias` : '—'}
 Início: ${isoToBR(selectedCotacao.data_inicio)}
 Fim: ${isoToBR(selectedCotacao.data_final)}
-Valor (Prêmio): ${formatBRL(selectedCotacao.premio)}
-Seguradora: ${seguradoras.find(s => s.id === seguradoraEscolhidaId)?.nome || '—'}
+
+${valoresTexto}
+
 Vencimento do Boleto: ${isoToBR(addDays(new Date().toISOString().slice(0, 10), diasVencimento)) || '—'}
 
 Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o nosso suporte:
@@ -345,6 +368,7 @@ CNPJ ${selectedCotacao.tomador_cnpj}
 
 Obrigado pela sua preferência pela CAJUINA CORRETORA DE SEGUROS EIRELI. Atendendo ao solicitado, segue abaixo os dados de sua Cotação.
 
+*Dados da Cotação*
 Segurado: ${selectedCotacao.segurado_nome ? `${selectedCotacao.segurado_nome} - ${selectedCotacao.segurado_cnpj}` : '—'}
 Edital/Contrato: ${selectedCotacao.edital || '—'}
 Modalidade: ${selectedCotacao.modalidade_nome || '—'}
@@ -352,7 +376,8 @@ IS: ${formatBRL(selectedCotacao.importancia_segurada)}
 Prazo: ${selectedCotacao.prazo_dias != null ? `${selectedCotacao.prazo_dias} Dias` : '—'}
 Início: ${isoToBR(selectedCotacao.data_inicio)}
 Fim: ${isoToBR(selectedCotacao.data_final)}
-Valor: ${formatBRL(selectedCotacao.premio) || 'A definir'}
+
+${valoresTexto}
 
 Pix: garantia@cajuinaseguros.com.br
 
@@ -367,7 +392,78 @@ A aceitação da cotação estará sujeita à análise de risco pelas Seguradora
 Em caso de dúvidas, entre em contato com o nosso suporte:
 
 (86) 3081-0282`
-  }, [selectedCotacao, diasVencimento, seguradoraEscolhidaId, seguradoras])
+  }, [selectedCotacao, diasVencimento, seguradoraEscolhidaId, seguradoras, vinculosTomador])
+
+  const emailMessage = useMemo(() => {
+    if (!selectedCotacao) return ""
+
+    const seguradorasList = seguradoras
+      .filter(seg => vinculosTomador[seg.id]?.apto)
+      .map(seg => {
+        const vinculo = vinculosTomador[seg.id]
+        const taxa = Number(vinculo.taxa) || 0
+        const premioMinimo = Number(vinculo.premio_minimo_efetivo) || 0
+        const isValor = Number(selectedCotacao.importancia_segurada) || 0
+        
+        let calcPremio = (isValor * taxa) / 100
+        const prazo = selectedCotacao.prazo_dias || 365
+        if (prazo > 365) {
+          calcPremio = calcPremio * (prazo / 365)
+        }
+        const premio = Math.max(premioMinimo, calcPremio)
+        return `${seg.nome}: ${formatBRL(premio)}`
+      }).join('\n')
+
+    return `Cotação de Seguro Garantia
+
+Olá, ${selectedCotacao.tomador_nome}!
+
+Segue abaixo os dados da sua cotação.
+
+**Dados da Cotação**
+Cliente:
+${selectedCotacao.tomador_nome} - ${selectedCotacao.tomador_cnpj}
+
+Edital / Contrato:
+${selectedCotacao.edital || '—'}
+
+Modalidade:
+${selectedCotacao.modalidade_nome || '—'}
+
+Importância Segurada:
+${formatBRL(selectedCotacao.importancia_segurada)}
+
+Prazo:
+${selectedCotacao.prazo_dias != null ? `${selectedCotacao.prazo_dias} Dias` : '—'}
+
+**Valores das Seguradoras**
+
+${seguradorasList || 'Nenhuma seguradora disponível'}
+
+Clique no link abaixo para aprovar sua cotação:
+
+http://local.cajuinaseguros.com.br/cotacao/${selectedCotacao.id}/aprovar
+
+Caso tenha qualquer dúvida, estamos à disposição.
+
+Atenciosamente,
+
+CAJUINA CORRETORA DE SEGUROS EIRELI
+
+Telefone: (86) 3081-0282
+
+E-mail: garantia@cajuinaseguros.com.br`
+  }, [selectedCotacao, seguradoras, vinculosTomador])
+
+  const handleCopyEmailMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(emailMessage)
+      setIsEmailModalOpen(false)
+      setShowSuccessModal(true)
+    } catch {
+      toast.error("Erro ao copiar a mensagem de e-mail.")
+    }
+  }
 
   const handleCopyMessage = async () => {
     try {
@@ -970,8 +1066,14 @@ Em caso de dúvidas, entre em contato com o nosso suporte:
               >
                 <WhatsAppIcon className="size-4" />
               </button>
-              <button className="w-8 h-8 rounded-full border border-blue-200 text-blue-500 flex items-center justify-center bg-white shadow-sm hover:bg-blue-50"><Mail className="size-4" /></button>
-              <button className="w-8 h-8 rounded-full border border-green-200 text-green-500 flex items-center justify-center bg-white shadow-sm hover:bg-green-50"><MessageCircle className="size-4" /></button>
+              <button 
+                onClick={() => setIsEmailModalOpen(true)}
+                className="w-8 h-8 rounded-full border border-blue-200 text-blue-500 flex items-center justify-center bg-white shadow-sm hover:bg-blue-50 transition-colors"
+                title="E-mail para o cliente"
+              >
+                <Mail className="size-4" />
+              </button>
+              
             </div>
           </div>
 
@@ -1021,6 +1123,34 @@ Em caso de dúvidas, entre em contato com o nosso suporte:
                 <div className="mt-2 flex justify-end">
                   <Button 
                     onClick={handleCopyMessage}
+                    variant="outline"
+                    className="gap-2 text-zinc-600 dark:text-zinc-300 border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  >
+                    <Copy className="size-4" />
+                    <span>Copiar mensagem</span>
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Modal Mensagem de E-mail */}
+            <Dialog open={isEmailModalOpen} onOpenChange={setIsEmailModalOpen}>
+              <DialogContent aria-describedby={undefined} className="sm:max-w-[550px] bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+                <DialogHeader>
+                  <DialogTitle className="text-blue-500 text-lg font-bold tracking-wide">
+                    MENSAGEM DE E-MAIL
+                  </DialogTitle>
+                </DialogHeader>
+                
+                <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700/50 relative max-h-[400px] overflow-y-auto">
+                  <pre className="text-[13px] text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap font-sans">
+                    {emailMessage}
+                  </pre>
+                </div>
+                
+                <div className="mt-2 flex justify-end">
+                  <Button 
+                    onClick={handleCopyEmailMessage}
                     variant="outline"
                     className="gap-2 text-zinc-600 dark:text-zinc-300 border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                   >
