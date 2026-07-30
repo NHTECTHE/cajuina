@@ -9,7 +9,6 @@ import {
   FileText,
   ArrowLeft,
   FileDown,
-  MessageCircle,
   Mail,
   Trash2,
   Pencil,
@@ -392,7 +391,7 @@ A aceitação da cotação estará sujeita à análise de risco pelas Seguradora
 Em caso de dúvidas, entre em contato com o nosso suporte:
 
 (86) 3081-0282`
-  }, [selectedCotacao, diasVencimento, seguradoraEscolhidaId, seguradoras, vinculosTomador])
+  }, [selectedCotacao, diasVencimento, seguradoras, vinculosTomador])
 
   const emailMessage = useMemo(() => {
     if (!selectedCotacao) return ""
