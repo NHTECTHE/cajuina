@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { TableSkeleton } from "@/components/ui/skeleton"
 import { useState, useMemo, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import {
@@ -64,7 +65,7 @@ function ApolicesPageContent() {
   })
 
   const [apolices, setApolices] = useState<ApoliceResponse[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   // Ao chegar com ?id=, abre direto nos detalhes da apólice indicada
   // (ex.: logo após a emissão), sem passar pela listagem.
@@ -234,12 +235,7 @@ function ApolicesPageContent() {
               </div>
 
               {loading ? (
-                <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl p-12 text-center mt-4">
-                  <div className="flex flex-col items-center justify-center max-w-xs mx-auto">
-                    <FileText className="size-5 text-zinc-400 mb-3 opacity-70 animate-pulse" />
-                    <h4 className="font-bold text-xs text-inherit opacity-70">Carregando apólices...</h4>
-                  </div>
-                </div>
+                <TableSkeleton rows={6} />
               ) : paginated.length > 0 ? (
                 paginated.map((a) => (
                   <div

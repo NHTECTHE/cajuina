@@ -7,6 +7,7 @@ import {
   Loader2, AlertCircle, CheckCircle2, X, ChevronDown,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { TableSkeleton } from "@/components/ui/skeleton"
 import {
   type Usuario,
   listUsuariosAction,
@@ -388,9 +389,7 @@ export default function UsuariosPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="flex items-center justify-center py-20 text-zinc-400">
-          <Loader2 className="size-6 animate-spin mr-2" /> Carregando...
-        </div>
+        <TableSkeleton rows={6} />
       ) : error ? (
         <Feedback type="error" message={error} />
       ) : usuarios.length === 0 ? (

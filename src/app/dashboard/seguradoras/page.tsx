@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Building2, Plus, Search, Loader2 } from "lucide-react"
 import { cn, getMediaUrl } from "@/lib/utils"
+import { TableSkeleton } from "@/components/ui/skeleton"
 import { type Seguradora, listSeguradorasAction } from "@/app/actions/seguradoras"
 import { formatBRL, inputCls } from "./_components"
 
@@ -61,9 +62,7 @@ export default function SeguradorasPage() {
       {/* Table */}
       <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900/50 shadow-sm">
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="size-6 animate-spin text-brand-red opacity-60" />
-          </div>
+          <TableSkeleton rows={6} />
         ) : seguradoras.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-zinc-400">
             <Building2 className="size-10 opacity-30" />
@@ -74,50 +73,91 @@ export default function SeguradorasPage() {
             </Link>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
-              <thead>
-                <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40">
-                  {["", "Nome", "Meta", "Prêmio Mínimo", "Comissão", "Dia Venc."].map(h => (
-                    <th key={h} className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {seguradoras.map((s, i) => (
-                  <tr key={s.id}
-                    onClick={() => router.push(`/dashboard/seguradoras/${s.id}`)}
-                    className={cn(
-                      "border-b border-zinc-100 dark:border-zinc-800/60 transition-colors cursor-pointer",
-                      i % 2 === 0 ? "" : "bg-zinc-50/40 dark:bg-zinc-800/20",
-                      "hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
-                    )}>
-                    <td className="px-4 py-3">
-                      <div className="w-8 h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/60 flex items-center justify-center overflow-hidden">
-                        {s.logo ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={getMediaUrl(s.logo)} alt={s.nome} className="w-full h-full object-contain" />
-                        ) : (
-                          <Building2 className="size-4 text-zinc-300 dark:text-zinc-600" />
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-zinc-900 dark:text-zinc-100">{s.nome}</td>
-                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{formatBRL(s.meta)}</td>
-                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{formatBRL(s.premio_minimo)}</td>
-                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">
-                      {s.taxa_comissao ? `${Number(s.taxa_comissao).toFixed(2)}%` : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">
-                      {s.vencimento_dias ? `${s.vencimento_dias} dias` : "—"}
-                    </td>
+          <>
+            {/* Mobile Cards */}
+            <div className="md:hidden flex flex-col p-4 gap-3">
+              {seguradoras.map((s) => (
+                <div key={s.id} onClick={() => router.push(`/dashboard/seguradoras/${s.id}`)}
+                  className="flex flex-col p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20 active:scale-[0.98] transition-all cursor-pointer shadow-sm gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
+                      {s.logo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={getMediaUrl(s.logo)} alt={s.nome} className="w-full h-full object-contain" />
+                      ) : (
+                        <Building2 className="size-5 text-zinc-300 dark:text-zinc-600" />
+                      )}
+                    </div>
+                    <span className="font-bold text-[15px] text-zinc-900 dark:text-zinc-100 line-clamp-1">{s.nome}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[12px] mt-1">
+                    <div className="flex flex-col">
+                      <span className="text-zinc-400 font-medium text-[10.5px] uppercase tracking-wider">Meta</span>
+                      <span className="text-zinc-700 dark:text-zinc-300 font-semibold">{formatBRL(s.meta)}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-zinc-400 font-medium text-[10.5px] uppercase tracking-wider">Prêmio Mín.</span>
+                      <span className="text-zinc-700 dark:text-zinc-300 font-semibold">{formatBRL(s.premio_minimo)}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-zinc-400 font-medium text-[10.5px] uppercase tracking-wider">Comissão</span>
+                      <span className="text-zinc-700 dark:text-zinc-300 font-semibold">{s.taxa_comissao ? `${Number(s.taxa_comissao).toFixed(2)}%` : "—"}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-zinc-400 font-medium text-[10.5px] uppercase tracking-wider">Vencimento</span>
+                      <span className="text-zinc-700 dark:text-zinc-300 font-semibold">{s.vencimento_dias ? `${s.vencimento_dias} dias` : "—"}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40">
+                    {["", "Nome", "Meta", "Prêmio Mínimo", "Comissão", "Dia Venc."].map(h => (
+                      <th key={h} className="text-left px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {seguradoras.map((s, i) => (
+                    <tr key={s.id}
+                      onClick={() => router.push(`/dashboard/seguradoras/${s.id}`)}
+                      className={cn(
+                        "border-b border-zinc-100 dark:border-zinc-800/60 transition-colors cursor-pointer",
+                        i % 2 === 0 ? "" : "bg-zinc-50/40 dark:bg-zinc-800/20",
+                        "hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
+                      )}>
+                      <td className="px-4 py-3">
+                        <div className="w-8 h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/60 flex items-center justify-center overflow-hidden">
+                          {s.logo ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={getMediaUrl(s.logo)} alt={s.nome} className="w-full h-full object-contain" />
+                          ) : (
+                            <Building2 className="size-4 text-zinc-300 dark:text-zinc-600" />
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-zinc-900 dark:text-zinc-100">{s.nome}</td>
+                      <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{formatBRL(s.meta)}</td>
+                      <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{formatBRL(s.premio_minimo)}</td>
+                      <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">
+                        {s.taxa_comissao ? `${Number(s.taxa_comissao).toFixed(2)}%` : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">
+                        {s.vencimento_dias ? `${s.vencimento_dias} dias` : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

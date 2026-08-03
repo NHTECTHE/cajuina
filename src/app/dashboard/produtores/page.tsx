@@ -7,6 +7,7 @@ import {
   Loader2, AlertCircle, CheckCircle2, X, ChevronDown, ChevronsUpDown,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { TableSkeleton } from "@/components/ui/skeleton"
 import {
   type Produtor,
   listProdutoresAction,
@@ -518,9 +519,7 @@ export default function ProdutoresPage() {
       {/* Table */}
       <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900/50 shadow-sm">
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="size-6 animate-spin text-brand-red opacity-60" />
-          </div>
+          <TableSkeleton rows={6} />
         ) : produtores.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-zinc-400">
             <UserCog className="size-10 opacity-30" />

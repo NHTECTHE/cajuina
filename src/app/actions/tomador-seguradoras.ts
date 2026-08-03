@@ -21,6 +21,7 @@ export interface TomadorSeguradora {
   seguradora: number
   seguradora_nome: string
   seguradora_ativo: boolean
+  status: string
   taxa: string
   premio_minimo: string | null
   premio_minimo_efetivo: string
@@ -33,8 +34,10 @@ export interface TomadorSeguradora {
 
 export interface TomadorSeguradoraInput {
   seguradora: number
+  status: string
   taxa: string
   premio_minimo: string | null
+  dias_vencimento: number | null
 }
 
 export async function listTomadorSeguradorasAction(tomadorId: number) {
