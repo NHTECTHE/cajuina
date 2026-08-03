@@ -2,8 +2,9 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, History, Search, Loader2, AlertCircle } from "lucide-react"
+import { ArrowLeft, History, Search, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { TableSkeleton } from "@/components/ui/skeleton"
 import { listAtividadesAction, Atividade } from "@/app/actions/atividades"
 
 function ActionBadge({ acao }: { acao: Atividade["acao"] }) {
@@ -134,10 +135,7 @@ export default function RegistroAtividadesPage() {
       {/* Content Table */}
       <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900/50 shadow-sm">
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="size-6 animate-spin text-brand-red opacity-60" />
-            <span className="text-[13px] text-zinc-500 ml-2">Carregando atividades...</span>
-          </div>
+          <TableSkeleton rows={6} />
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-16 text-red-500 gap-2">
             <AlertCircle className="size-8" />

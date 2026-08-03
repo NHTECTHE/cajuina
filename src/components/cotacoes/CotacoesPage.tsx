@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { TableSkeleton } from "@/components/ui/skeleton"
 import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
@@ -160,13 +161,14 @@ export default function CotacoesPage() {
   const [modalidadeLabel, setModalidadeLabel] = useState("")
   const [seguradoLabel, setSeguradoLabel] = useState("")
   const [edital, setEdital] = useState("")
+  const [observacoes, setObservacoes] = useState("")
 
   // Cotação atualmente selecionada (linha clicada → detalhes / edição).
   const [selectedCotacao, setSelectedCotacao] = useState<CotacaoResponse | null>(null)
   const [saving, setSaving] = useState(false)
 
   // Confirmação de aprovação da cotação (tela de detalhes).
-  const [showApproveConfirm, setShowApproveConfirm] = useState(false)
+  
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
@@ -186,7 +188,44 @@ export default function CotacoesPage() {
 
   const fetchSegurados = React.useCallback(async (search: string): Promise<AsyncComboboxOption[]> => {
     const data = await seguradosApi.list({ search })
-    return data.map((s) => ({ value: s.id, label: s.nome, hint: s.cnpj }))
+    if (data.length > 0) {
+      return data.map((s) => ({ value: s.id, label: s.nome, hint: s.cnpj }))
+    }
+
+    const digits = search.replace(/\D/g, "")
+    if (digits.length === 14) {
+      try {
+        const { lookupCnpj } = await import("@/services/api")
+        const cnpjData = await lookupCnpj(digits)
+        
+        if (cnpjData && cnpjData.razao_social) {
+          const payload = {
+            cnpj: digits,
+            nome: cnpjData.razao_social,
+            natureza_juridica: cnpjData.natureza_juridica || "",
+            endereco: cnpjData.logradouro || "",
+            cidade: cnpjData.municipio || "",
+            estado: cnpjData.uf || "",
+            bairro: cnpjData.bairro || "",
+            numero: cnpjData.numero || "",
+            cep: cnpjData.cep || "",
+            complemento: cnpjData.complemento || "",
+            observacoes: "Cadastrado automaticamente via Cotação"
+          }
+          const saved = await seguradosApi.create(payload)
+          toast.success("Segurado encontrado e cadastrado com sucesso!")
+          
+          setSegurado({ value: saved.id, label: saved.nome, hint: saved.cnpj })
+          setSeguradoLabel(saved.nome)
+          
+          return [{ value: saved.id, label: saved.nome, hint: saved.cnpj }]
+        }
+      } catch {
+        toast.error("CNPJ não encontrado")
+      }
+    }
+    
+    return []
   }, [])
 
   // Vigência (Data Início / Prazo em dias / Data Final) com auto-cálculo
@@ -287,7 +326,7 @@ export default function CotacoesPage() {
 
   // Cotações carregadas da API
   const [cotacoes, setCotacoes] = useState<CotacaoResponse[]>([])
-  const [loadingCotacoes, setLoadingCotacoes] = useState(false)
+  const [loadingCotacoes, setLoadingCotacoes] = useState(true)
   const router = useRouter()
   const [seguradoraEscolhidaId, setSeguradoraEscolhidaId] = useState<number | null>(null)
 
@@ -323,12 +362,8 @@ export default function CotacoesPage() {
         const taxa = Number(vinculo.taxa) || 0
         const premioMinimo = Number(vinculo.premio_minimo_efetivo) || 0
         const isValor = Number(selectedCotacao.importancia_segurada) || 0
-        
-        let calcPremio = (isValor * taxa) / 100
-        const prazo = selectedCotacao.prazo_dias || 365
-        if (prazo > 365) {
-          calcPremio = calcPremio * (prazo / 365)
-        }
+        const prazo = selectedCotacao.prazo_dias || 0
+        const calcPremio = (isValor / 365) * (taxa / 100) * prazo
         const premio = Math.max(premioMinimo, calcPremio)
         return `${seg.nome}: ${formatBRL(premio)}`
       })
@@ -337,8 +372,7 @@ export default function CotacoesPage() {
       ? `*Valores das Seguradoras*\n${seguradorasDisponiveis.join('\n')}`
       : `*Valores das Seguradoras*\n\nNenhuma seguradora disponível`
 
-    if (selectedCotacao.status === "Aprovado") {
-      return `Olá, ${selectedCotacao.tomador_nome}!
+    return `Olá, ${selectedCotacao.tomador_nome}!
 CNPJ ${selectedCotacao.tomador_cnpj}
 
 Obrigado pela sua preferência pela CAJUINA CORRETORA DE SEGUROS EIRELI. Informamos que a sua cotação foi APROVADA e encontra-se pronta para emissão da apólice. Seguem os dados:
@@ -359,38 +393,6 @@ Vencimento do Boleto: ${isoToBR(addDays(new Date().toISOString().slice(0, 10), d
 Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o nosso suporte:
 
 (86) 3081-0282`
-    }
-
-    return `Olá, ${selectedCotacao.tomador_nome}!
-
-CNPJ ${selectedCotacao.tomador_cnpj}
-
-Obrigado pela sua preferência pela CAJUINA CORRETORA DE SEGUROS EIRELI. Atendendo ao solicitado, segue abaixo os dados de sua Cotação.
-
-*Dados da Cotação*
-Segurado: ${selectedCotacao.segurado_nome ? `${selectedCotacao.segurado_nome} - ${selectedCotacao.segurado_cnpj}` : '—'}
-Edital/Contrato: ${selectedCotacao.edital || '—'}
-Modalidade: ${selectedCotacao.modalidade_nome || '—'}
-IS: ${formatBRL(selectedCotacao.importancia_segurada)}
-Prazo: ${selectedCotacao.prazo_dias != null ? `${selectedCotacao.prazo_dias} Dias` : '—'}
-Início: ${isoToBR(selectedCotacao.data_inicio)}
-Fim: ${isoToBR(selectedCotacao.data_final)}
-
-${valoresTexto}
-
-Pix: garantia@cajuinaseguros.com.br
-
-Para Aprovar a Cotação acesse o link abaixo:
-
-http://local.cajuinaseguros.com.br/cotacao/${selectedCotacao.id}/aprovar
-
-Cotação gerada por: ${selectedCotacao.criado_por_nome || 'Equipe Cajuína'}
-
-A aceitação da cotação estará sujeita à análise de risco pelas Seguradoras e poderá ser recusada caso não seja aprovada.
-
-Em caso de dúvidas, entre em contato com o nosso suporte:
-
-(86) 3081-0282`
   }, [selectedCotacao, diasVencimento, seguradoras, vinculosTomador])
 
   const emailMessage = useMemo(() => {
@@ -403,12 +405,8 @@ Em caso de dúvidas, entre em contato com o nosso suporte:
         const taxa = Number(vinculo.taxa) || 0
         const premioMinimo = Number(vinculo.premio_minimo_efetivo) || 0
         const isValor = Number(selectedCotacao.importancia_segurada) || 0
-        
-        let calcPremio = (isValor * taxa) / 100
-        const prazo = selectedCotacao.prazo_dias || 365
-        if (prazo > 365) {
-          calcPremio = calcPremio * (prazo / 365)
-        }
+        const prazo = selectedCotacao.prazo_dias || 0
+        const calcPremio = (isValor / 365) * (taxa / 100) * prazo
         const premio = Math.max(premioMinimo, calcPremio)
         return `${seg.nome}: ${formatBRL(premio)}`
       }).join('\n')
@@ -439,9 +437,7 @@ ${selectedCotacao.prazo_dias != null ? `${selectedCotacao.prazo_dias} Dias` : '�
 
 ${seguradorasList || 'Nenhuma seguradora disponível'}
 
-Clique no link abaixo para aprovar sua cotação:
-
-http://local.cajuinaseguros.com.br/cotacao/${selectedCotacao.id}/aprovar
+Sua cotação já está aprovada e pronta para emissão da apólice.
 
 Caso tenha qualquer dúvida, estamos à disposição.
 
@@ -563,13 +559,14 @@ E-mail: garantia@cajuinaseguros.com.br`
     setPrazo(c.prazo_dias != null ? String(c.prazo_dias) : "")
     setDataFinal(c.data_final ?? "")
     setImportanciaSegurada(decimalToCurrencyInput(c.importancia_segurada))
+    setObservacoes(c.observacoes ?? "")
     setView("form")
   }
 
   // Cria ou atualiza a cotação conforme o modo atual.
   const handleSave = async () => {
-    if (!tomador || !modalidade) {
-      toast.error("Selecione o tomador e a modalidade.")
+    if (!tomador || !modalidade || !edital.trim()) {
+      toast.error("Selecione o tomador, a modalidade e preencha o edital.")
       return
     }
     const payload: CotacaoPayload = {
@@ -581,6 +578,7 @@ E-mail: garantia@cajuinaseguros.com.br`
       prazo_dias: prazo ? parseInt(prazo, 10) : null,
       data_final: dataFinal || null,
       importancia_segurada: currencyInputToDecimal(importanciaSegurada),
+      observacoes,
     }
     setSaving(true)
     try {
@@ -619,23 +617,7 @@ E-mail: garantia@cajuinaseguros.com.br`
 
   // Aprova a cotação selecionada. Permanece na tela de detalhes, apenas
   // atualizando os dados (status vira "Aprovado").
-  const handleAprovar = async () => {
-    if (!selectedCotacao) return
-    setSaving(true)
-    try {
-      const updated = await cotacoesApi.aprovar(selectedCotacao.id)
-      setSelectedCotacao(updated)
-      setShowApproveConfirm(false)
-      toast.success("Cotação aprovada com sucesso!")
-      await loadCotacoes(searchQuery.trim())
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao aprovar a cotação.")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
+    return (
     <div className="flex flex-col gap-6">
 
       {/* ──── LIST VIEW ──── */}
@@ -734,7 +716,7 @@ E-mail: garantia@cajuinaseguros.com.br`
 
             {/* Cards Table list */}
             <div className="flex flex-col gap-2">
-              <div className="hidden xl:grid grid-cols-11 gap-4 px-5 py-2 text-[9px] font-bold uppercase tracking-wider opacity-65 border-b border-zinc-200/30 dark:border-zinc-800/30 text-center">
+              <div className="hidden xl:grid grid-cols-10 gap-4 px-5 py-2 text-[9px] font-bold uppercase tracking-wider opacity-65 border-b border-zinc-200/30 dark:border-zinc-800/30 text-center">
                 <div className="col-span-1 text-left pl-5">ID</div>
                 <div className="col-span-2">Tomador / CNPJ</div>
                 <div className="col-span-2">Modalidade / Edital</div>
@@ -742,17 +724,11 @@ E-mail: garantia@cajuinaseguros.com.br`
                 <div className="col-span-1">Data</div>
                 <div className="col-span-1">IS</div>
                 <div className="col-span-1">Emitido Por</div>
-                <div className="col-span-1">Status</div>
                 <div className="col-span-1">Ação</div>
               </div>
 
               {loadingCotacoes ? (
-                <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl p-12 text-center">
-                  <div className="flex flex-col items-center justify-center max-w-xs mx-auto">
-                    <FileText className="size-5 text-zinc-400 mb-3 opacity-70 animate-pulse" />
-                    <h4 className="font-bold text-xs text-inherit opacity-70">Carregando cotações...</h4>
-                  </div>
-                </div>
+                <TableSkeleton rows={6} />
               ) : paginatedCotacoes.length > 0 ? (
                 paginatedCotacoes.map((t) => (
                   <div
@@ -761,7 +737,7 @@ E-mail: garantia@cajuinaseguros.com.br`
                     className="cursor-pointer group bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl hover:border-brand-red/40 dark:hover:border-brand-red/40 hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50 hover:shadow-md transition-all duration-200 relative"
                   >
                     {/* ===== DESKTOP LAYOUT (INTACT) ===== */}
-                    <div className="hidden xl:grid grid-cols-11 gap-4 items-center p-3.5 px-5 text-center">
+                    <div className="hidden xl:grid grid-cols-10 gap-4 items-center p-3.5 px-5 text-center">
                       <div className="col-span-1 text-[11px] font-bold text-zinc-500 text-left pl-5">#{t.id}</div>
 
                       {/* Tomador / CNPJ */}
@@ -797,18 +773,6 @@ E-mail: garantia@cajuinaseguros.com.br`
                         <span className="font-medium opacity-80 uppercase leading-tight text-center">{t.criado_por_nome ?? "—"}</span>
                       </div>
 
-                      {/* Status */}
-                      <div className="col-span-1 flex items-center justify-center">
-                        <span className={cn(
-                          "px-1.5 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider border max-w-min text-center leading-tight",
-                          t.status === "Aprovado" 
-                            ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800"
-                            : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800"
-                        )}>
-                          {t.status === "Iniciado" ? "AGUARDANDO APROVAÇÃO" : t.status}
-                        </span>
-                      </div>
-
                       {/* Ação */}
                       <div className="col-span-1 flex items-center justify-center gap-2">
                         <button
@@ -832,14 +796,7 @@ E-mail: garantia@cajuinaseguros.com.br`
                       <div className="col-span-2 flex flex-col gap-1 order-1">
                         <div className="flex items-center gap-2 mb-1.5">
                           <span className="text-[13px] font-medium text-brand-red/90 dark:text-[#cf7458] uppercase tracking-wide">Simulação #{t.id}</span>
-                          <span className={cn(
-                              "px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider border",
-                              t.status === "Aprovado" 
-                                ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800"
-                                : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800"
-                            )}>
-                              {t.status === "Iniciado" ? "AGUARDANDO APROVAÇÃO" : t.status}
-                            </span>
+                          
                         </div>
                         <span className="font-bold text-[15px] tracking-tight text-zinc-800 dark:text-zinc-200 uppercase">{t.tomador_nome}</span>
                         <span className="font-mono text-[13px] text-zinc-400 font-normal">{t.tomador_cnpj}</span>
@@ -970,7 +927,7 @@ E-mail: garantia@cajuinaseguros.com.br`
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Edital:</Label>
+              <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Edital: </Label>
               <Input
                 className="h-10 border-zinc-300"
                 value={edital}
@@ -1021,6 +978,16 @@ E-mail: garantia@cajuinaseguros.com.br`
                   onChange={(e) => setImportanciaSegurada(formatCurrency(e.target.value))}
                 />
               </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5 mt-2">
+              <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Observações:</Label>
+              <textarea
+                className="w-full h-20 bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-md p-3 text-sm text-zinc-800 dark:text-zinc-200 resize-none focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent transition-all shadow-sm"
+                placeholder="Observações adicionais..."
+                value={observacoes}
+                onChange={(e) => setObservacoes(e.target.value)}
+              ></textarea>
             </div>
 
             <div className="flex justify-center mt-6">
@@ -1087,7 +1054,7 @@ E-mail: garantia@cajuinaseguros.com.br`
                   <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Tomador:</strong> {selectedCotacao ? `${selectedCotacao.tomador_nome} - ${selectedCotacao.tomador_cnpj}` : "—"}</p>
                   <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Modalidade:</strong> {selectedCotacao?.modalidade_nome ?? "—"}</p>
                   <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Edital/Contrato:</strong> <span className="uppercase break-all">{selectedCotacao?.edital || "—"}</span></p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Valor da Cobertura:</strong> {formatBRL(selectedCotacao?.importancia_segurada)}</p>
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Importância Segurada:</strong> {formatBRL(selectedCotacao?.importancia_segurada)}</p>
                   <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Segurado:</strong> {selectedCotacao?.segurado_nome ? `${selectedCotacao.segurado_nome}${selectedCotacao.segurado_cnpj ? ` - ${selectedCotacao.segurado_cnpj}` : ""}` : "—"}</p>
                   <div className="mt-4 flex flex-col gap-3 border-t border-zinc-100 dark:border-zinc-800 pt-4">
                     <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Realizado por:</strong> {selectedCotacao?.criado_por_nome ?? "—"}</p>
@@ -1201,18 +1168,18 @@ E-mail: garantia@cajuinaseguros.com.br`
                     const premioMinimo = vinculo?.apto ? vinculo.premio_minimo_efetivo : seg.premio_minimo
                     // Sem taxa cadastrada para este tomador, a seguradora não pode ser escolhida.
                     const apto = vinculo?.apto ?? false
-                    const isAprovado = selectedCotacao?.status === "Aprovado"
-                    const selecionavel = isAprovado && apto
+                    // isAprovado check removed, cotacoes are always approved
+                    const selecionavel = apto
                     const escolhida = seguradoraEscolhidaId === seg.id
                     return (
                     <div
                       key={seg.id}
                       onClick={() => selecionavel && handleEscolherSeguradora(seg.id)}
-                      title={isAprovado && !apto ? "Tomador sem taxa cadastrada para esta seguradora." : undefined}
+                      title={!apto ? "Tomador sem taxa cadastrada para esta seguradora." : undefined}
                       className={cn(
                         "relative bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-40 flex flex-col items-center justify-between p-4 border transition-all",
                         selecionavel ? "cursor-pointer hover:border-brand-red/50 hover:bg-red-50/50 dark:hover:bg-red-500/10" : "opacity-70 border-zinc-200 dark:border-zinc-700/50",
-                        isAprovado && !apto ? "cursor-not-allowed" : "",
+                        !apto ? "cursor-not-allowed" : "",
                         escolhida ? "ring-2 ring-brand-red border-brand-red bg-red-50/50 dark:bg-red-500/10 shadow-sm" : ""
                       )}
                     >
@@ -1227,18 +1194,23 @@ E-mail: garantia@cajuinaseguros.com.br`
                         )}
                       </div>
 
-                      <div className="w-full flex flex-col gap-1 text-[10.5px] text-zinc-600 dark:text-zinc-400 border-t border-zinc-200/70 dark:border-zinc-700/50 pt-2">
-                        <div className="flex items-center justify-between">
-                          <span className="uppercase font-medium opacity-70">Taxa</span>
-                          <span className="font-bold text-zinc-800 dark:text-zinc-200">
-                            {taxa != null ? `${Number(taxa).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "—"}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="uppercase font-medium opacity-70">Prêmio mín.</span>
-                          <span className="font-bold text-zinc-800 dark:text-zinc-200">{formatBRL(premioMinimo)}</span>
-                        </div>
-                      </div>
+                      {(() => {
+                        const is = Number(selectedCotacao?.importancia_segurada) || 0;
+                        const prazo = selectedCotacao?.prazo_dias || 0;
+                        const taxaNum = Number(taxa) || 0;
+                        const min = Number(premioMinimo) || 0;
+                        const calc = (is / 365) * (taxaNum / 100) * prazo;
+                        const premioFinal = Math.max(calc, min);
+
+                        return (
+                          <div className="w-full flex flex-col gap-1 text-[10.5px] text-zinc-600 dark:text-zinc-400 border-t border-zinc-200/70 dark:border-zinc-700/50 pt-2">
+                            <div className="flex items-center justify-between">
+                              <span className="uppercase font-medium opacity-70">Prêmio</span>
+                              <span className="font-bold text-brand-red dark:text-[#cf7458]">{formatBRL(premioFinal)}</span>
+                            </div>
+                          </div>
+                        )
+                      })()}
                     </div>
                     )
                   })}
@@ -1247,7 +1219,7 @@ E-mail: garantia@cajuinaseguros.com.br`
                
             </div>
              
-            {selectedCotacao?.status === "Aprovado" && (
+            {selectedCotacao && (
               <div className="md:col-span-12 mt-4 bg-white dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl p-6 shadow-sm">
                 <h3 className="text-brand-red uppercase font-normal text-lg mb-6 dark:text-[#cf7458]">Boleto Seguradora</h3>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-12">
@@ -1272,87 +1244,48 @@ E-mail: garantia@cajuinaseguros.com.br`
                      
             
             {/* Action Buttons Footer */}
-            <div className="md:col-span-12 flex flex-col sm:flex-row items-center gap-3 mt-8 pt-6 border-t border-zinc-200/50 dark:border-zinc-800/50 w-full">
+            <div className="md:col-span-12 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 mt-8 pt-6 border-t border-zinc-200/50 dark:border-zinc-800/50 w-full">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => selectedCotacao && handleDelete(selectedCotacao)}
-                className="w-full sm:w-auto bg-red-50 dark:bg-red-500/10 text-red-600 border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/30 font-semibold px-4 py-2.5 h-10.5 rounded-xl cursor-pointer transition-all flex items-center justify-center gap-2 sm:mr-auto"
+                className="flex-1 sm:flex-none bg-red-50 dark:bg-red-500/10 text-red-600 border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/30 font-semibold h-10.5 sm:px-6 rounded-xl cursor-pointer transition-all flex items-center justify-center gap-2 sm:mr-auto"
               >
                 <Trash2 className="size-4" />
                 Excluir
               </Button>
-              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-                {selectedCotacao?.status !== "Aprovado" ? (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => selectedCotacao && openEdit(selectedCotacao)}
-                      className="w-full sm:w-auto border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold h-10.5 px-6 rounded-xl flex items-center justify-center gap-2"
-                    >
-                      <Pencil className="size-4 text-zinc-500 dark:text-zinc-400" />
-                      Editar
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => setShowApproveConfirm(true)}
-                      className="w-full sm:w-auto bg-brand-red text-white hover:bg-brand-red/90 font-bold px-6 py-2.5 h-10.5 rounded-xl cursor-pointer shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                    >
-                      <CheckCircle2 className="size-4" />
-                      Aprovar Cotação
-                    </Button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => {
-                      if (!seguradoraEscolhidaId) {
-                        toast.error("Escolha uma seguradora.")
-                        return
-                      }
-                      if (selectedCotacao && typeof window !== "undefined") {
-                        localStorage.setItem(`seguradora_cotacao_${selectedCotacao.id}`, String(seguradoraEscolhidaId))
-                        localStorage.setItem(`enviado_proposta_${selectedCotacao.id}`, "true")
-                      }
-                      router.push(`/dashboard/propostas?id=${selectedCotacao?.id}&abrirModal=true`)
-                    }}
-                    className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 transition-colors cursor-pointer"
-                  >
-                    <CheckCircle2 className="size-4" />
-                    Enviar para Emissão
-                  </button>
-                )}
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => selectedCotacao && openEdit(selectedCotacao)}
+                className="flex-1 sm:flex-none border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold h-10.5 sm:px-6 rounded-xl flex items-center justify-center gap-2"
+              >
+                <Pencil className="size-4 text-zinc-500 dark:text-zinc-400" />
+                Editar
+              </Button>
+              <button
+                onClick={() => {
+                  if (!seguradoraEscolhidaId) {
+                    toast.error("Escolha uma seguradora.")
+                    return
+                  }
+                  if (selectedCotacao && typeof window !== "undefined") {
+                    localStorage.setItem(`seguradora_cotacao_${selectedCotacao.id}`, String(seguradoraEscolhidaId))
+                    localStorage.setItem(`enviado_proposta_${selectedCotacao.id}`, "true")
+                  }
+                  router.push(`/dashboard/propostas?id=${selectedCotacao?.id}&abrirModal=true`)
+                }}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-10.5 sm:px-8 rounded-xl text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 transition-colors cursor-pointer"
+              >
+                <CheckCircle2 className="size-4" />
+                Enviar para Emissão
+              </button>
             </div>
 
           </div>
         </div>
       )}
 
-      {/* ──── CONFIRMAÇÃO DE APROVAÇÃO ──── */}
-      <AlertDialog open={showApproveConfirm} onOpenChange={setShowApproveConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Aprovar cotação?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja aprovar esta cotação
-              {selectedCotacao ? ` #${selectedCotacao.id}` : ""}? Essa ação não poderá ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={saving}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => { e.preventDefault(); handleAprovar() }}
-              disabled={saving}
-              className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-60"
-            >
-              {saving ? "Aprovando..." : "Aprovar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
     </div>
   )
 }
-

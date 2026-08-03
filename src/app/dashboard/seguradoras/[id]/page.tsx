@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Building2, Loader2, Trash2, Plug, CheckCircle2, XCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { TableSkeleton } from "@/components/ui/skeleton"
 import {
   getSeguradoraAction,
   updateSeguradoraAction,
@@ -123,8 +124,8 @@ export default function SeguradoraDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center py-16">
-        <Loader2 className="size-6 animate-spin text-brand-red opacity-60" />
+      <div className="flex-1 p-6">
+        <TableSkeleton rows={4} />
       </div>
     )
   }

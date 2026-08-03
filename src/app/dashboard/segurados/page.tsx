@@ -7,6 +7,7 @@ import {
   Loader2, AlertCircle, CheckCircle2, X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { TableSkeleton } from "@/components/ui/skeleton"
 import { lookupCnpj } from "@/services/api"
 import {
   type Segurado,
@@ -508,9 +509,7 @@ export default function SeguradosPage() {
       {/* Table */}
       <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900/50 shadow-sm">
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="size-6 animate-spin text-brand-red opacity-60" />
-          </div>
+          <TableSkeleton rows={6} />
         ) : segurados.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-zinc-400">
             <ShieldCheck className="size-10 opacity-30" />
