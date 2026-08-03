@@ -126,7 +126,7 @@ function ApolicesPageContent() {
       setSelected(updated)
       setShowEditModal(false)
       toast.success("Apólice atualizada com sucesso!")
-    } catch (err) {
+    } catch {
       toast.error("Erro ao atualizar apólice.")
     } finally {
       setIsSavingEdit(false)

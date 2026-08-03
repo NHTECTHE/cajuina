@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require('fs');
 const file = 'src/components/tomador/TomadorPage.tsx';
 let content = fs.readFileSync(file, 'utf8');

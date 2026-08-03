@@ -220,7 +220,7 @@ export default function CotacoesPage() {
           
           return [{ value: saved.id, label: saved.nome, hint: saved.cnpj }]
         }
-      } catch (err) {
+      } catch {
         toast.error("CNPJ não encontrado")
       }
     }
@@ -1230,7 +1230,7 @@ E-mail: garantia@cajuinaseguros.com.br`
                       </div>
 
                       {(() => {
-                        const is = selectedCotacao?.importancia_segurada || 0;
+                        const is = Number(selectedCotacao?.importancia_segurada) || 0;
                         const prazo = selectedCotacao?.prazo_dias || 0;
                         const taxaNum = Number(taxa) || 0;
                         const min = Number(premioMinimo) || 0;

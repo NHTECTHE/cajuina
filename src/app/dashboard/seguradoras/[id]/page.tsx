@@ -4,7 +4,7 @@ import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Building2, Loader2, Trash2, Plug, CheckCircle2, XCircle } from "lucide-react"
-import { cn, getMediaUrl } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 import { TableSkeleton } from "@/components/ui/skeleton"
 import {
   getSeguradoraAction,

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, History, Search, Loader2, AlertCircle } from "lucide-react"
+import { ArrowLeft, History, Search, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { TableSkeleton } from "@/components/ui/skeleton"
 import { listAtividadesAction, Atividade } from "@/app/actions/atividades"
