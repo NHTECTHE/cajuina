@@ -337,9 +337,6 @@ export const cotacoesApi = {
   remove: (id: number) =>
     apiRequest<void>(`/cotacoes/${id}`, { method: "DELETE" }),
 
-  aprovar: (id: number) =>
-    apiRequest<CotacaoResponse>(`/cotacoes/${id}/aprovar`, { method: "POST" }),
-
   // Emite a apólice da cotação (multipart: pode levar os PDFs da apólice e do
   // boleto). Aprova → Emitido, e a apólice criada é devolvida.
   emitir: async (id: number, data: EmitirPayload): Promise<ApoliceResponse> => {

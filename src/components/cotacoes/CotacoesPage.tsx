@@ -372,8 +372,7 @@ export default function CotacoesPage() {
       ? `*Valores das Seguradoras*\n${seguradorasDisponiveis.join('\n')}`
       : `*Valores das Seguradoras*\n\nNenhuma seguradora disponível`
 
-    if (selectedCotacao.status === "Aprovado") {
-      return `Olá, ${selectedCotacao.tomador_nome}!
+    return `Olá, ${selectedCotacao.tomador_nome}!
 CNPJ ${selectedCotacao.tomador_cnpj}
 
 Obrigado pela sua preferência pela CAJUINA CORRETORA DE SEGUROS EIRELI. Informamos que a sua cotação foi APROVADA e encontra-se pronta para emissão da apólice. Seguem os dados:
@@ -392,38 +391,6 @@ ${valoresTexto}
 Vencimento do Boleto: ${isoToBR(addDays(new Date().toISOString().slice(0, 10), diasVencimento)) || '—'}
 
 Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o nosso suporte:
-
-(86) 3081-0282`
-    }
-
-    return `Olá, ${selectedCotacao.tomador_nome}!
-
-CNPJ ${selectedCotacao.tomador_cnpj}
-
-Obrigado pela sua preferência pela CAJUINA CORRETORA DE SEGUROS EIRELI. Atendendo ao solicitado, segue abaixo os dados de sua Cotação.
-
-*Dados da Cotação*
-Segurado: ${selectedCotacao.segurado_nome ? `${selectedCotacao.segurado_nome} - ${selectedCotacao.segurado_cnpj}` : '—'}
-Edital/Contrato: ${selectedCotacao.edital || '—'}
-Modalidade: ${selectedCotacao.modalidade_nome || '—'}
-IS: ${formatBRL(selectedCotacao.importancia_segurada)}
-Prazo: ${selectedCotacao.prazo_dias != null ? `${selectedCotacao.prazo_dias} Dias` : '—'}
-Início: ${isoToBR(selectedCotacao.data_inicio)}
-Fim: ${isoToBR(selectedCotacao.data_final)}
-
-${valoresTexto}
-
-Pix: garantia@cajuinaseguros.com.br
-
-Para Aprovar a Cotação acesse o link abaixo:
-
-http://local.cajuinaseguros.com.br/cotacao/${selectedCotacao.id}/aprovar
-
-Cotação gerada por: ${selectedCotacao.criado_por_nome || 'Equipe Cajuína'}
-
-A aceitação da cotação estará sujeita à análise de risco pelas Seguradoras e poderá ser recusada caso não seja aprovada.
-
-Em caso de dúvidas, entre em contato com o nosso suporte:
 
 (86) 3081-0282`
   }, [selectedCotacao, diasVencimento, seguradoras, vinculosTomador])
@@ -470,9 +437,7 @@ ${selectedCotacao.prazo_dias != null ? `${selectedCotacao.prazo_dias} Dias` : '�
 
 ${seguradorasList || 'Nenhuma seguradora disponível'}
 
-Clique no link abaixo para aprovar sua cotação:
-
-http://local.cajuinaseguros.com.br/cotacao/${selectedCotacao.id}/aprovar
+Sua cotação já está aprovada e pronta para emissão da apólice.
 
 Caso tenha qualquer dúvida, estamos à disposição.
 
