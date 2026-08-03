@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Building2, Plus, Search, Loader2 } from "lucide-react"
+import { Building2, Plus, Search } from "lucide-react"
 import { cn, getMediaUrl } from "@/lib/utils"
 import { TableSkeleton } from "@/components/ui/skeleton"
 import { type Seguradora, listSeguradorasAction } from "@/app/actions/seguradoras"

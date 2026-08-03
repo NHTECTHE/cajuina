@@ -126,6 +126,8 @@ export default function PropostasPage() {
   const [arquivoBoleto, setArquivoBoleto] = useState<File | null>(null)
   const [vencimentoBoleto, setVencimentoBoleto] = useState("")
   const [emitindo, setEmitindo] = useState(false)
+  
+  const [calculatedPremio, setCalculatedPremio] = useState<number | null>(null)
 
   // Calcula o vencimento do boleto (hoje + dias_vencimento_efetivo do par
   // tomador x seguradora). Roda ao abrir a proposta, pois a data é exibida
@@ -146,14 +148,29 @@ export default function PropostasPage() {
         const dias = vinculo?.dias_vencimento_efetivo
         if (dias == null) {
           setVencimentoBoleto("")
-          return
+        } else {
+          const data = new Date()
+          data.setDate(data.getDate() + dias)
+          setVencimentoBoleto(data.toISOString().slice(0, 10))
         }
-        const data = new Date()
-        data.setDate(data.getDate() + dias)
-        setVencimentoBoleto(data.toISOString().slice(0, 10))
+
+        const seg = seguradoras.find(s => s.id === seguradoraId)
+        if (seg) {
+          const taxa = vinculo?.apto ? vinculo.taxa : seg.taxa_comissao
+          const premioMinimo = vinculo?.apto ? vinculo.premio_minimo_efetivo : seg.premio_minimo
+          const isValor = Number(selected.importancia_segurada) || 0
+          const prazo = selected.prazo_dias || 0
+          const calcPremio = (isValor / 365) * (Number(taxa) / 100) * prazo
+          setCalculatedPremio(Math.max(Number(premioMinimo) || 0, calcPremio))
+        } else {
+          setCalculatedPremio(null)
+        }
       })
       .catch(() => {
-        if (active) setVencimentoBoleto("")
+        if (active) {
+          setVencimentoBoleto("")
+          setCalculatedPremio(null)
+        }
       })
     return () => { active = false }
   }, [selected, seguradoraEscolhidaId, seguradoras])
@@ -173,14 +190,14 @@ IS: ${formatBRL(selected.importancia_segurada)}
 Prazo: ${selected.prazo_dias != null ? `${selected.prazo_dias} Dias` : '—'}
 Início: ${isoToBR(selected.data_inicio)}
 Fim: ${isoToBR(selected.data_final)}
-Valor (Prêmio): ${formatBRL(selected.premio)}
-Seguradora: ${selected.seguradora_nome || '—'}
+Valor (Prêmio): ${formatBRL(calculatedPremio ?? selected.premio)}
+Seguradora: ${selected.seguradora_nome || seguradoras.find(s => s.id === seguradoraEscolhidaId)?.nome || '—'}
 Vencimento do Boleto: ${isoToBR(vencimentoBoleto) || '—'}
 
 Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o nosso suporte:
 
 (86) 3081-0282`
-  }, [selected, vencimentoBoleto])
+  }, [selected, vencimentoBoleto, seguradoras, seguradoraEscolhidaId, calculatedPremio])
 
   const handleCopyMessage = async () => {
     try {
@@ -571,7 +588,7 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                 </div>
                 <div>
                   <span className="text-[10px] text-zinc-500 uppercase tracking-wide">SEGURADORA</span>
-                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5 uppercase">{selected.seguradora_nome ?? "—"}</p>
+                  <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5 uppercase">{selected.seguradora_nome || seguradoras.find(s => s.id === seguradoraEscolhidaId)?.nome || "—"}</p>
                 </div>
               </div>
             </div>
@@ -596,13 +613,13 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
               <h3 className="text-[#e85c5c] font-bold text-xs uppercase tracking-wider mb-5 dark:text-[#cf7458]">VALORES E VENCIMENTO</h3>
               <div className="flex items-start justify-between">
                 <div>
-                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">VALOR DA COBERTURA</span>
+                  <span className="text-[10px] text-zinc-500 uppercase tracking-wide">IMPORTÂNCIA SEGURADA</span>
                   <p className="text-lg text-[#e85c5c] font-bold mt-1 dark:text-[#cf7458]">{formatBRL(selected.importancia_segurada)}</p>
                 </div>
                 <div>
                   <div className="mb-4">
                     <span className="text-[10px] text-zinc-500 uppercase tracking-wide">VALOR (PRÊMIO)</span>
-                    <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5">{formatBRL(selected.premio)}</p>
+                    <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5">{formatBRL(calculatedPremio ?? selected.premio)}</p>
                   </div>
                   <div>
                     <span className="text-[10px] text-zinc-500 uppercase tracking-wide">VENCIMENTO</span>

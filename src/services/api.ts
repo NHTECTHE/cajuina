@@ -165,6 +165,20 @@ export interface SeguradoResponse {
   atualizado_em: string;
 }
 
+export interface SeguradoPayload {
+  cnpj: string;
+  nome: string;
+  natureza_juridica: string;
+  endereco: string;
+  cidade: string;
+  estado: string;
+  bairro: string;
+  numero: string;
+  cep: string;
+  complemento: string;
+  observacoes: string;
+}
+
 export const seguradosApi = {
   list: (params?: { search?: string }) => {
     const qs = new URLSearchParams(
@@ -172,6 +186,11 @@ export const seguradosApi = {
     ).toString();
     return apiRequest<SeguradoResponse[]>(`/segurados${qs ? `?${qs}` : ""}`);
   },
+  create: (data: SeguradoPayload) =>
+    apiRequest<SeguradoResponse>("/segurados", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 };
 
 // ─── Modalidades ─────────────────────────────────────────────────────────────
@@ -367,6 +386,10 @@ export interface ApoliceResponse {
   vencimento_boleto: string | null;
   arquivo_apolice: string | null;
   arquivo_boleto: string | null;
+  arquivo_proposta: string | null;
+  observacoes: string;
+  status_pagamento_premio: string;
+  status_pagamento_comissao: string;
   emitido_por: number | null;
   emitido_por_nome: string | null;
   criado_em: string;
@@ -390,6 +413,12 @@ export const apolicesApi = {
   },
 
   get: (id: number) => apiRequest<ApoliceResponse>(`/apolices/${id}`),
+
+  update: (id: number, data: FormData) =>
+    apiRequest<ApoliceResponse>(`/apolices/${id}`, {
+      method: "PATCH",
+      body: data,
+    }),
 
   remove: (id: number) =>
     apiRequest<void>(`/apolices/${id}`, { method: "DELETE" }),
