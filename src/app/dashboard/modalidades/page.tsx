@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft, FolderTree, Plus, Search, Trash2, Power, PowerOff,
   Loader2, AlertCircle, CheckCircle2, X, Edit2, ChevronRight, ArrowRight, Layers } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { TableSkeleton } from "@/components/ui/skeleton"
 import {
   type Modalidade,
   listModalidadesAction,
@@ -345,7 +346,7 @@ export default function ModalidadesPage() {
 
 
   return (
-    <div className="flex-1 flex flex-col gap-5 p-6 h-full">
+    <div className="flex-1 flex flex-col gap-5 h-full">
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -395,9 +396,7 @@ export default function ModalidadesPage() {
       <div className="flex-1 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900/50 shadow-sm flex flex-col relative">
         
         {loading ? (
-          <div className="flex-1 flex items-center justify-center py-16">
-            <Loader2 className="size-6 animate-spin text-brand-red opacity-60" />
-          </div>
+          <TableSkeleton rows={6} />
         ) : modalidades.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center py-16 gap-3 text-zinc-400">
             <div className="w-16 h-16 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400">
@@ -420,22 +419,22 @@ export default function ModalidadesPage() {
                   className="flex flex-col justify-between gap-3 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xs hover:border-brand-red/40 hover:shadow-md transition-all cursor-pointer group">
                   
                   {/* Cabeçalho do Card: Ícone + ID + Status */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-start justify-between gap-2 min-w-0">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div className={cn(
                         "w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 shadow-2xs",
                         m.ativo
                           ? "bg-red-50 dark:bg-red-950/40 text-brand-red border border-red-100 dark:border-red-900/40"
                           : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 border border-zinc-200 dark:border-zinc-700"
                       )}>
-                        <FolderTree className="size-5.5" />
+                        <FolderTree className="size-5.5 shrink-0" />
                       </div>
-                      <div className="flex flex-col">
+                      <div className="flex flex-col min-w-0">
                         <span className="font-mono text-zinc-400 dark:text-zinc-500 font-bold text-[11px]">
                           #{m.id}
                         </span>
                         <span className={cn(
-                          "text-[15px] font-bold transition-colors group-hover:text-brand-red line-clamp-1",
+                          "text-[15px] font-bold transition-colors group-hover:text-brand-red truncate",
                           m.ativo ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-500 line-through decoration-zinc-400"
                         )}>
                           {m.nome}

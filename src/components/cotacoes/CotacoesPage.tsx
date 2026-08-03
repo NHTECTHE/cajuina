@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { TableSkeleton } from "@/components/ui/skeleton"
 import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
@@ -166,7 +167,7 @@ export default function CotacoesPage() {
   const [saving, setSaving] = useState(false)
 
   // Confirmação de aprovação da cotação (tela de detalhes).
-  const [showApproveConfirm, setShowApproveConfirm] = useState(false)
+  
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
@@ -287,7 +288,7 @@ export default function CotacoesPage() {
 
   // Cotações carregadas da API
   const [cotacoes, setCotacoes] = useState<CotacaoResponse[]>([])
-  const [loadingCotacoes, setLoadingCotacoes] = useState(false)
+  const [loadingCotacoes, setLoadingCotacoes] = useState(true)
   const router = useRouter()
   const [seguradoraEscolhidaId, setSeguradoraEscolhidaId] = useState<number | null>(null)
 
@@ -619,23 +620,7 @@ E-mail: garantia@cajuinaseguros.com.br`
 
   // Aprova a cotação selecionada. Permanece na tela de detalhes, apenas
   // atualizando os dados (status vira "Aprovado").
-  const handleAprovar = async () => {
-    if (!selectedCotacao) return
-    setSaving(true)
-    try {
-      const updated = await cotacoesApi.aprovar(selectedCotacao.id)
-      setSelectedCotacao(updated)
-      setShowApproveConfirm(false)
-      toast.success("Cotação aprovada com sucesso!")
-      await loadCotacoes(searchQuery.trim())
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao aprovar a cotação.")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
+    return (
     <div className="flex flex-col gap-6">
 
       {/* ──── LIST VIEW ──── */}
@@ -734,7 +719,7 @@ E-mail: garantia@cajuinaseguros.com.br`
 
             {/* Cards Table list */}
             <div className="flex flex-col gap-2">
-              <div className="hidden xl:grid grid-cols-11 gap-4 px-5 py-2 text-[9px] font-bold uppercase tracking-wider opacity-65 border-b border-zinc-200/30 dark:border-zinc-800/30 text-center">
+              <div className="hidden xl:grid grid-cols-10 gap-4 px-5 py-2 text-[9px] font-bold uppercase tracking-wider opacity-65 border-b border-zinc-200/30 dark:border-zinc-800/30 text-center">
                 <div className="col-span-1 text-left pl-5">ID</div>
                 <div className="col-span-2">Tomador / CNPJ</div>
                 <div className="col-span-2">Modalidade / Edital</div>
@@ -742,17 +727,11 @@ E-mail: garantia@cajuinaseguros.com.br`
                 <div className="col-span-1">Data</div>
                 <div className="col-span-1">IS</div>
                 <div className="col-span-1">Emitido Por</div>
-                <div className="col-span-1">Status</div>
                 <div className="col-span-1">Ação</div>
               </div>
 
               {loadingCotacoes ? (
-                <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl p-12 text-center">
-                  <div className="flex flex-col items-center justify-center max-w-xs mx-auto">
-                    <FileText className="size-5 text-zinc-400 mb-3 opacity-70 animate-pulse" />
-                    <h4 className="font-bold text-xs text-inherit opacity-70">Carregando cotações...</h4>
-                  </div>
-                </div>
+                <TableSkeleton rows={6} />
               ) : paginatedCotacoes.length > 0 ? (
                 paginatedCotacoes.map((t) => (
                   <div
@@ -761,7 +740,7 @@ E-mail: garantia@cajuinaseguros.com.br`
                     className="cursor-pointer group bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl hover:border-brand-red/40 dark:hover:border-brand-red/40 hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50 hover:shadow-md transition-all duration-200 relative"
                   >
                     {/* ===== DESKTOP LAYOUT (INTACT) ===== */}
-                    <div className="hidden xl:grid grid-cols-11 gap-4 items-center p-3.5 px-5 text-center">
+                    <div className="hidden xl:grid grid-cols-10 gap-4 items-center p-3.5 px-5 text-center">
                       <div className="col-span-1 text-[11px] font-bold text-zinc-500 text-left pl-5">#{t.id}</div>
 
                       {/* Tomador / CNPJ */}
@@ -797,18 +776,6 @@ E-mail: garantia@cajuinaseguros.com.br`
                         <span className="font-medium opacity-80 uppercase leading-tight text-center">{t.criado_por_nome ?? "—"}</span>
                       </div>
 
-                      {/* Status */}
-                      <div className="col-span-1 flex items-center justify-center">
-                        <span className={cn(
-                          "px-1.5 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider border max-w-min text-center leading-tight",
-                          t.status === "Aprovado" 
-                            ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800"
-                            : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800"
-                        )}>
-                          {t.status === "Iniciado" ? "AGUARDANDO APROVAÇÃO" : t.status}
-                        </span>
-                      </div>
-
                       {/* Ação */}
                       <div className="col-span-1 flex items-center justify-center gap-2">
                         <button
@@ -832,14 +799,7 @@ E-mail: garantia@cajuinaseguros.com.br`
                       <div className="col-span-2 flex flex-col gap-1 order-1">
                         <div className="flex items-center gap-2 mb-1.5">
                           <span className="text-[13px] font-medium text-brand-red/90 dark:text-[#cf7458] uppercase tracking-wide">Simulação #{t.id}</span>
-                          <span className={cn(
-                              "px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider border",
-                              t.status === "Aprovado" 
-                                ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800"
-                                : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800"
-                            )}>
-                              {t.status === "Iniciado" ? "AGUARDANDO APROVAÇÃO" : t.status}
-                            </span>
+                          
                         </div>
                         <span className="font-bold text-[15px] tracking-tight text-zinc-800 dark:text-zinc-200 uppercase">{t.tomador_nome}</span>
                         <span className="font-mono text-[13px] text-zinc-400 font-normal">{t.tomador_cnpj}</span>
@@ -1201,18 +1161,18 @@ E-mail: garantia@cajuinaseguros.com.br`
                     const premioMinimo = vinculo?.apto ? vinculo.premio_minimo_efetivo : seg.premio_minimo
                     // Sem taxa cadastrada para este tomador, a seguradora não pode ser escolhida.
                     const apto = vinculo?.apto ?? false
-                    const isAprovado = selectedCotacao?.status === "Aprovado"
-                    const selecionavel = isAprovado && apto
+                    // isAprovado check removed, cotacoes are always approved
+                    const selecionavel = apto
                     const escolhida = seguradoraEscolhidaId === seg.id
                     return (
                     <div
                       key={seg.id}
                       onClick={() => selecionavel && handleEscolherSeguradora(seg.id)}
-                      title={isAprovado && !apto ? "Tomador sem taxa cadastrada para esta seguradora." : undefined}
+                      title={!apto ? "Tomador sem taxa cadastrada para esta seguradora." : undefined}
                       className={cn(
                         "relative bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-40 flex flex-col items-center justify-between p-4 border transition-all",
                         selecionavel ? "cursor-pointer hover:border-brand-red/50 hover:bg-red-50/50 dark:hover:bg-red-500/10" : "opacity-70 border-zinc-200 dark:border-zinc-700/50",
-                        isAprovado && !apto ? "cursor-not-allowed" : "",
+                        !apto ? "cursor-not-allowed" : "",
                         escolhida ? "ring-2 ring-brand-red border-brand-red bg-red-50/50 dark:bg-red-500/10 shadow-sm" : ""
                       )}
                     >
@@ -1247,7 +1207,7 @@ E-mail: garantia@cajuinaseguros.com.br`
                
             </div>
              
-            {selectedCotacao?.status === "Aprovado" && (
+            {selectedCotacao && (
               <div className="md:col-span-12 mt-4 bg-white dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl p-6 shadow-sm">
                 <h3 className="text-brand-red uppercase font-normal text-lg mb-6 dark:text-[#cf7458]">Boleto Seguradora</h3>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-12">
@@ -1272,85 +1232,49 @@ E-mail: garantia@cajuinaseguros.com.br`
                      
             
             {/* Action Buttons Footer */}
-            <div className="md:col-span-12 flex flex-col sm:flex-row items-center gap-3 mt-8 pt-6 border-t border-zinc-200/50 dark:border-zinc-800/50 w-full">
+            <div className="md:col-span-12 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 mt-8 pt-6 border-t border-zinc-200/50 dark:border-zinc-800/50 w-full">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => selectedCotacao && handleDelete(selectedCotacao)}
-                className="w-full sm:w-auto bg-red-50 dark:bg-red-500/10 text-red-600 border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/30 font-semibold px-4 py-2.5 h-10.5 rounded-xl cursor-pointer transition-all flex items-center justify-center gap-2 sm:mr-auto"
+                className="flex-1 sm:flex-none bg-red-50 dark:bg-red-500/10 text-red-600 border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/30 font-semibold h-10.5 sm:px-6 rounded-xl cursor-pointer transition-all flex items-center justify-center gap-2 sm:mr-auto"
               >
                 <Trash2 className="size-4" />
                 Excluir
               </Button>
-              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-                {selectedCotacao?.status !== "Aprovado" ? (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => selectedCotacao && openEdit(selectedCotacao)}
-                      className="w-full sm:w-auto border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold h-10.5 px-6 rounded-xl flex items-center justify-center gap-2"
-                    >
-                      <Pencil className="size-4 text-zinc-500 dark:text-zinc-400" />
-                      Editar
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => setShowApproveConfirm(true)}
-                      className="w-full sm:w-auto bg-brand-red text-white hover:bg-brand-red/90 font-bold px-6 py-2.5 h-10.5 rounded-xl cursor-pointer shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                    >
-                      <CheckCircle2 className="size-4" />
-                      Aprovar Cotação
-                    </Button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => {
-                      if (!seguradoraEscolhidaId) {
-                        toast.error("Escolha uma seguradora.")
-                        return
-                      }
-                      if (selectedCotacao && typeof window !== "undefined") {
-                        localStorage.setItem(`seguradora_cotacao_${selectedCotacao.id}`, String(seguradoraEscolhidaId))
-                        localStorage.setItem(`enviado_proposta_${selectedCotacao.id}`, "true")
-                      }
-                      router.push(`/dashboard/propostas?id=${selectedCotacao?.id}&abrirModal=true`)
-                    }}
-                    className="inline-flex items-center justify-center gap-2 h-10 px-6 rounded-lg text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 transition-colors cursor-pointer"
-                  >
-                    <CheckCircle2 className="size-4" />
-                    Enviar para Emissão
-                  </button>
-                )}
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => selectedCotacao && openEdit(selectedCotacao)}
+                className="flex-1 sm:flex-none border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold h-10.5 sm:px-6 rounded-xl flex items-center justify-center gap-2"
+              >
+                <Pencil className="size-4 text-zinc-500 dark:text-zinc-400" />
+                Editar
+              </Button>
+              <button
+                onClick={() => {
+                  if (!seguradoraEscolhidaId) {
+                    toast.error("Escolha uma seguradora.")
+                    return
+                  }
+                  if (selectedCotacao && typeof window !== "undefined") {
+                    localStorage.setItem(`seguradora_cotacao_${selectedCotacao.id}`, String(seguradoraEscolhidaId))
+                    localStorage.setItem(`enviado_proposta_${selectedCotacao.id}`, "true")
+                  }
+                  router.push(`/dashboard/propostas?id=${selectedCotacao?.id}&abrirModal=true`)
+                }}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-10.5 sm:px-8 rounded-xl text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 transition-colors cursor-pointer"
+              >
+                <CheckCircle2 className="size-4" />
+                Enviar para Emissão
+              </button>
             </div>
 
           </div>
         </div>
       )}
 
-      {/* ──── CONFIRMAÇÃO DE APROVAÇÃO ──── */}
-      <AlertDialog open={showApproveConfirm} onOpenChange={setShowApproveConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Aprovar cotação?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja aprovar esta cotação
-              {selectedCotacao ? ` #${selectedCotacao.id}` : ""}? Essa ação não poderá ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={saving}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => { e.preventDefault(); handleAprovar() }}
-              disabled={saving}
-              className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-60"
-            >
-              {saving ? "Aprovando..." : "Aprovar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      
 
     </div>
   )

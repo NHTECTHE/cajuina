@@ -4,6 +4,7 @@ import * as React from "react"
 import { useRouter, useParams } from "next/navigation"
 import { ArrowLeft, Loader2, Save, Building2, CheckCircle2, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { TableSkeleton } from "@/components/ui/skeleton"
 import {
   getMatrizAction,
   updateMatrizAction,
@@ -117,9 +118,7 @@ export default function CodigosModalidadePage() {
   if (loading) {
     return (
       <div className="flex-1 flex flex-col gap-5 p-6 h-full">
-        <div className="flex-1 flex items-center justify-center py-16">
-          <Loader2 className="size-6 animate-spin text-brand-red opacity-60" />
-        </div>
+        <TableSkeleton rows={4} />
       </div>
     )
   }

@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { TableSkeleton } from "@/components/ui/skeleton"
 import { useState, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
@@ -102,7 +103,7 @@ export default function PropostasPage() {
 
   // Propostas = cotações com status "Aprovado".
   const [propostas, setPropostas] = useState<CotacaoResponse[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   // Proposta para exclusão
   const [deleteTarget, setDeleteTarget] = useState<CotacaoResponse | null>(null)
@@ -364,8 +365,8 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
 
           <div className="flex flex-col gap-4">
             {/* Table Actions / Pagination Controls */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-[11px] text-zinc-650 dark:text-zinc-400 px-1">
+            <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-3 sm:gap-0 w-full">
+              <div className="flex flex-wrap justify-center sm:justify-start items-center gap-1.5 text-[11px] text-zinc-650 dark:text-zinc-400 px-1 text-center">
                 <span>Exibir</span>
                 <select
                   value={itemsPerPage}
@@ -382,15 +383,15 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                 <span>registros por página</span>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-zinc-500">Filtrar:</span>
+              <div className="flex items-center gap-2 w-full sm:w-auto px-1 sm:px-0">
+                <span className="text-xs text-zinc-500 shrink-0">Filtrar:</span>
                 <Input
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value)
                     setCurrentPage(1)
                   }}
-                  className="h-7 text-xs w-48 border-zinc-300 dark:border-zinc-800"
+                  className="h-7 text-xs w-full sm:w-48 border-zinc-300 dark:border-zinc-800"
                 />
               </div>
             </div>
@@ -408,12 +409,7 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
               </div>
 
               {loading ? (
-                <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl p-12 text-center mt-4">
-                  <div className="flex flex-col items-center justify-center max-w-xs mx-auto">
-                    <FileText className="size-5 text-zinc-400 mb-3 opacity-70 animate-pulse" />
-                    <h4 className="font-bold text-xs text-inherit opacity-70">Carregando propostas...</h4>
-                  </div>
-                </div>
+                <TableSkeleton rows={6} />
               ) : paginated.length > 0 ? (
                 paginated.map((t) => (
                   <div
@@ -645,23 +641,23 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
               <span className="text-[11px] text-zinc-500 font-medium absolute left-0 hidden sm:block">
                 Sujeito a Análise e a Aprovação pela Seguradora
               </span>
-              <div className="flex items-center gap-3 mx-auto">
+              <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 w-full sm:w-auto mx-auto sm:ml-auto sm:mr-0">
                 <button 
                   onClick={() => handleDelete(selected)}
-                  className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl border border-red-200 dark:border-red-900/50 bg-white dark:bg-zinc-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 font-semibold text-xs transition-all active:scale-[0.98] shadow-sm cursor-pointer"
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 h-10.5 sm:px-6 rounded-xl border border-red-200 dark:border-red-900/50 bg-white dark:bg-zinc-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 font-semibold text-xs transition-all active:scale-[0.98] shadow-sm cursor-pointer"
                 >
                   <Trash2 className="size-4" />
                   Excluir
                 </button>
                 <button 
-                  className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-semibold text-xs transition-all active:scale-[0.98] shadow-sm cursor-pointer"
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 h-10.5 sm:px-6 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-semibold text-xs transition-all active:scale-[0.98] shadow-sm cursor-pointer"
                 >
                   <Pencil className="size-4 text-zinc-500 dark:text-zinc-400" />
                   Editar
                 </button>
                 <button 
                   onClick={() => setShowEmitirModal(true)}
-                  className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl bg-brand-red text-white hover:bg-brand-red/90 font-bold text-xs shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] cursor-pointer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-10.5 sm:px-6 rounded-xl bg-brand-red text-white hover:bg-brand-red/90 font-bold text-xs shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] cursor-pointer"
                 >
                   <CheckCircle2 className="size-4" />
                   Emitir
