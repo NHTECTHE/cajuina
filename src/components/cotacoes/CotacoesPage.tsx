@@ -161,6 +161,7 @@ export default function CotacoesPage() {
   const [modalidadeLabel, setModalidadeLabel] = useState("")
   const [seguradoLabel, setSeguradoLabel] = useState("")
   const [edital, setEdital] = useState("")
+  const [observacoes, setObservacoes] = useState("")
 
   // Cotação atualmente selecionada (linha clicada → detalhes / edição).
   const [selectedCotacao, setSelectedCotacao] = useState<CotacaoResponse | null>(null)
@@ -187,7 +188,44 @@ export default function CotacoesPage() {
 
   const fetchSegurados = React.useCallback(async (search: string): Promise<AsyncComboboxOption[]> => {
     const data = await seguradosApi.list({ search })
-    return data.map((s) => ({ value: s.id, label: s.nome, hint: s.cnpj }))
+    if (data.length > 0) {
+      return data.map((s) => ({ value: s.id, label: s.nome, hint: s.cnpj }))
+    }
+
+    const digits = search.replace(/\D/g, "")
+    if (digits.length === 14) {
+      try {
+        const { lookupCnpj } = await import("@/services/api")
+        const cnpjData = await lookupCnpj(digits)
+        
+        if (cnpjData && cnpjData.razao_social) {
+          const payload = {
+            cnpj: digits,
+            nome: cnpjData.razao_social,
+            natureza_juridica: cnpjData.natureza_juridica || "",
+            endereco: cnpjData.logradouro || "",
+            cidade: cnpjData.municipio || "",
+            estado: cnpjData.uf || "",
+            bairro: cnpjData.bairro || "",
+            numero: cnpjData.numero || "",
+            cep: cnpjData.cep || "",
+            complemento: cnpjData.complemento || "",
+            observacoes: "Cadastrado automaticamente via Cotação"
+          }
+          const saved = await seguradosApi.create(payload)
+          toast.success("Segurado encontrado e cadastrado com sucesso!")
+          
+          setSegurado({ value: saved.id, label: saved.nome, hint: saved.cnpj })
+          setSeguradoLabel(saved.nome)
+          
+          return [{ value: saved.id, label: saved.nome, hint: saved.cnpj }]
+        }
+      } catch (err) {
+        toast.error("CNPJ não encontrado")
+      }
+    }
+    
+    return []
   }, [])
 
   // Vigência (Data Início / Prazo em dias / Data Final) com auto-cálculo
@@ -324,12 +362,8 @@ export default function CotacoesPage() {
         const taxa = Number(vinculo.taxa) || 0
         const premioMinimo = Number(vinculo.premio_minimo_efetivo) || 0
         const isValor = Number(selectedCotacao.importancia_segurada) || 0
-        
-        let calcPremio = (isValor * taxa) / 100
-        const prazo = selectedCotacao.prazo_dias || 365
-        if (prazo > 365) {
-          calcPremio = calcPremio * (prazo / 365)
-        }
+        const prazo = selectedCotacao.prazo_dias || 0
+        const calcPremio = (isValor / 365) * (taxa / 100) * prazo
         const premio = Math.max(premioMinimo, calcPremio)
         return `${seg.nome}: ${formatBRL(premio)}`
       })
@@ -404,12 +438,8 @@ Em caso de dúvidas, entre em contato com o nosso suporte:
         const taxa = Number(vinculo.taxa) || 0
         const premioMinimo = Number(vinculo.premio_minimo_efetivo) || 0
         const isValor = Number(selectedCotacao.importancia_segurada) || 0
-        
-        let calcPremio = (isValor * taxa) / 100
-        const prazo = selectedCotacao.prazo_dias || 365
-        if (prazo > 365) {
-          calcPremio = calcPremio * (prazo / 365)
-        }
+        const prazo = selectedCotacao.prazo_dias || 0
+        const calcPremio = (isValor / 365) * (taxa / 100) * prazo
         const premio = Math.max(premioMinimo, calcPremio)
         return `${seg.nome}: ${formatBRL(premio)}`
       }).join('\n')
@@ -564,13 +594,14 @@ E-mail: garantia@cajuinaseguros.com.br`
     setPrazo(c.prazo_dias != null ? String(c.prazo_dias) : "")
     setDataFinal(c.data_final ?? "")
     setImportanciaSegurada(decimalToCurrencyInput(c.importancia_segurada))
+    setObservacoes(c.observacoes ?? "")
     setView("form")
   }
 
   // Cria ou atualiza a cotação conforme o modo atual.
   const handleSave = async () => {
-    if (!tomador || !modalidade) {
-      toast.error("Selecione o tomador e a modalidade.")
+    if (!tomador || !modalidade || !edital.trim()) {
+      toast.error("Selecione o tomador, a modalidade e preencha o edital.")
       return
     }
     const payload: CotacaoPayload = {
@@ -582,6 +613,7 @@ E-mail: garantia@cajuinaseguros.com.br`
       prazo_dias: prazo ? parseInt(prazo, 10) : null,
       data_final: dataFinal || null,
       importancia_segurada: currencyInputToDecimal(importanciaSegurada),
+      observacoes,
     }
     setSaving(true)
     try {
@@ -930,7 +962,7 @@ E-mail: garantia@cajuinaseguros.com.br`
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Edital:</Label>
+              <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Edital: </Label>
               <Input
                 className="h-10 border-zinc-300"
                 value={edital}
@@ -981,6 +1013,16 @@ E-mail: garantia@cajuinaseguros.com.br`
                   onChange={(e) => setImportanciaSegurada(formatCurrency(e.target.value))}
                 />
               </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5 mt-2">
+              <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Observações:</Label>
+              <textarea
+                className="w-full h-20 bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-md p-3 text-sm text-zinc-800 dark:text-zinc-200 resize-none focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent transition-all shadow-sm"
+                placeholder="Observações adicionais..."
+                value={observacoes}
+                onChange={(e) => setObservacoes(e.target.value)}
+              ></textarea>
             </div>
 
             <div className="flex justify-center mt-6">
@@ -1047,7 +1089,7 @@ E-mail: garantia@cajuinaseguros.com.br`
                   <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Tomador:</strong> {selectedCotacao ? `${selectedCotacao.tomador_nome} - ${selectedCotacao.tomador_cnpj}` : "—"}</p>
                   <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Modalidade:</strong> {selectedCotacao?.modalidade_nome ?? "—"}</p>
                   <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Edital/Contrato:</strong> <span className="uppercase break-all">{selectedCotacao?.edital || "—"}</span></p>
-                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Valor da Cobertura:</strong> {formatBRL(selectedCotacao?.importancia_segurada)}</p>
+                  <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Importância Segurada:</strong> {formatBRL(selectedCotacao?.importancia_segurada)}</p>
                   <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Segurado:</strong> {selectedCotacao?.segurado_nome ? `${selectedCotacao.segurado_nome}${selectedCotacao.segurado_cnpj ? ` - ${selectedCotacao.segurado_cnpj}` : ""}` : "—"}</p>
                   <div className="mt-4 flex flex-col gap-3 border-t border-zinc-100 dark:border-zinc-800 pt-4">
                     <p><strong className="text-zinc-900 dark:text-zinc-100 font-bold mr-1">Realizado por:</strong> {selectedCotacao?.criado_por_nome ?? "—"}</p>
@@ -1187,18 +1229,23 @@ E-mail: garantia@cajuinaseguros.com.br`
                         )}
                       </div>
 
-                      <div className="w-full flex flex-col gap-1 text-[10.5px] text-zinc-600 dark:text-zinc-400 border-t border-zinc-200/70 dark:border-zinc-700/50 pt-2">
-                        <div className="flex items-center justify-between">
-                          <span className="uppercase font-medium opacity-70">Taxa</span>
-                          <span className="font-bold text-zinc-800 dark:text-zinc-200">
-                            {taxa != null ? `${Number(taxa).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%` : "—"}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="uppercase font-medium opacity-70">Prêmio mín.</span>
-                          <span className="font-bold text-zinc-800 dark:text-zinc-200">{formatBRL(premioMinimo)}</span>
-                        </div>
-                      </div>
+                      {(() => {
+                        const is = selectedCotacao?.importancia_segurada || 0;
+                        const prazo = selectedCotacao?.prazo_dias || 0;
+                        const taxaNum = Number(taxa) || 0;
+                        const min = Number(premioMinimo) || 0;
+                        const calc = (is / 365) * (taxaNum / 100) * prazo;
+                        const premioFinal = Math.max(calc, min);
+
+                        return (
+                          <div className="w-full flex flex-col gap-1 text-[10.5px] text-zinc-600 dark:text-zinc-400 border-t border-zinc-200/70 dark:border-zinc-700/50 pt-2">
+                            <div className="flex items-center justify-between">
+                              <span className="uppercase font-medium opacity-70">Prêmio</span>
+                              <span className="font-bold text-brand-red dark:text-[#cf7458]">{formatBRL(premioFinal)}</span>
+                            </div>
+                          </div>
+                        )
+                      })()}
                     </div>
                     )
                   })}
@@ -1274,9 +1321,6 @@ E-mail: garantia@cajuinaseguros.com.br`
         </div>
       )}
 
-      
-
     </div>
   )
 }
-

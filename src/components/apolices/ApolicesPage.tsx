@@ -5,11 +5,32 @@ import { TableSkeleton } from "@/components/ui/skeleton"
 import { useState, useMemo, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import {
-  ArrowLeft, FileText, Search, FileDown, DollarSign, Mail, Phone, FileDigit, Pencil, Trash2, Send, Ban
+  ArrowLeft, FileText, Search, FileDown, DollarSign, Mail, Phone, FileDigit, Pencil, Trash2, Send, Ban, Copy, Check, Upload
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+const WhatsAppIcon = ({ className }: { className?: string }) => (
+  <svg 
+    className={className} 
+    viewBox="0 0 24 24" 
+    fill="currentColor"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M12.015 2.015c-5.503 0-9.98 4.477-9.98 9.98 0 1.758.46 3.473 1.332 4.981l-1.349 4.929 5.044-1.323a9.92 9.92 0 004.953 1.328h.004c5.498 0 9.977-4.477 9.977-9.98 0-2.665-1.038-5.168-2.923-7.054a9.926 9.926 0 00-7.058-2.926zM12.015 20.3c-1.488 0-2.946-.4-4.225-1.157l-.303-.18-3.136.822.836-3.056-.197-.314a8.312 8.312 0 01-1.272-4.437c0-4.59 3.738-8.328 8.33-8.328 2.224 0 4.314.867 5.886 2.439a8.271 8.271 0 012.437 5.892c-.001 4.59-3.74 8.328-8.33 8.328zm4.562-6.223c-.25-.125-1.481-.732-1.71-.815-.229-.084-.397-.125-.563.125-.167.25-.646.815-.792.981-.146.167-.292.188-.542.063-.25-.125-1.057-.39-2.015-1.243-.745-.664-1.248-1.485-1.394-1.735-.146-.25-.015-.386.11-.511.112-.113.25-.292.375-.438.125-.146.167-.25.25-.417.084-.167.042-.313-.021-.438-.063-.125-.563-1.356-.771-1.856-.203-.485-.411-.42-.563-.427-.146-.007-.313-.007-.48-.007-.167 0-.438.063-.667.313-.229.25-.875.855-.875 2.085 0 1.23.896 2.419 1.021 2.585.125.167 1.764 2.693 4.275 3.776.598.258 1.064.412 1.428.528.601.191 1.147.164 1.576.1.48-.073 1.481-.605 1.69-1.189.208-.584.208-1.085.146-1.189-.062-.104-.229-.167-.479-.292z"/>
+  </svg>
+)
+
 import { Button } from "@/components/ui/button"
-import { apolicesApi, type ApoliceResponse } from "@/services/api"
+import { apolicesApi, seguradorasApi, type ApoliceResponse, type SeguradoraResponse } from "@/services/api"
 import { toast } from "sonner"
 
 // Formata um decimal ("180.00") como moeda pt-BR. "—" quando não informado.
@@ -67,6 +88,93 @@ function ApolicesPageContent() {
   const [apolices, setApolices] = useState<ApoliceResponse[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Modals state
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editStatusPremio, setEditStatusPremio] = useState("Pendente")
+  const [editStatusComissao, setEditStatusComissao] = useState("A Receber")
+  const [editObservacoes, setEditObservacoes] = useState("")
+  const [editArquivoProposta, setEditArquivoProposta] = useState<File | null>(null)
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
+
+  const openEditModal = () => {
+    if (!selected) return
+    setEditStatusPremio(selected.status_pagamento_premio || "Pendente")
+    setEditStatusComissao(selected.status_pagamento_comissao || "A Receber")
+    setEditObservacoes(selected.observacoes || "")
+    setEditArquivoProposta(null)
+    setShowEditModal(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!selected) return
+    setIsSavingEdit(true)
+    try {
+      const formData = new FormData()
+      formData.append("status_pagamento_premio", editStatusPremio)
+      formData.append("status_pagamento_comissao", editStatusComissao)
+      formData.append("observacoes", editObservacoes)
+      if (editArquivoProposta) {
+        formData.append("arquivo_proposta", editArquivoProposta)
+      }
+      
+      const updated = await apolicesApi.update(selected.id, formData)
+      setApolices((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
+      setSelected(updated)
+      setShowEditModal(false)
+      toast.success("Apólice atualizada com sucesso!")
+    } catch (err) {
+      toast.error("Erro ao atualizar apólice.")
+    } finally {
+      setIsSavingEdit(false)
+    }
+  }
+
+  const generatedMessage = useMemo(() => {
+    if (!selected) return ""
+    const premio = Number(selected.valor_seguradora) || 0
+    return `*Cajuína Seguros - Apólice Emitida* 🚀
+
+Olá! Sua apólice foi emitida com sucesso.
+*Segurado:* ${selected.segurado_nome || selected.tomador_nome}
+*Seguradora:* ${selected.seguradora_nome}
+*Prêmio:* ${formatBRL(premio)}
+
+Agradecemos a confiança!`
+  }, [selected])
+
+  const emailMessage = useMemo(() => {
+    if (!selected) return ""
+    const premio = Number(selected.valor_seguradora) || 0
+    return `Prezado(a),
+
+Sua apólice foi emitida com sucesso.
+
+Detalhes:
+- Segurado: ${selected.segurado_nome || selected.tomador_nome}
+- Seguradora: ${selected.seguradora_nome}
+- Prêmio: ${formatBRL(premio)}
+
+Atenciosamente,
+Equipe Cajuína Seguros.`
+  }, [selected])
+
+  const handleCopyMessage = () => {
+    navigator.clipboard.writeText(generatedMessage)
+    setIsMessageModalOpen(false)
+    setShowSuccessModal(true)
+  }
+
+  const handleCopyEmailMessage = () => {
+    navigator.clipboard.writeText(emailMessage)
+    setIsEmailModalOpen(false)
+    setShowSuccessModal(true)
+  }
+
+
   // Ao chegar com ?id=, abre direto nos detalhes da apólice indicada
   // (ex.: logo após a emissão), sem passar pela listagem.
   React.useEffect(() => {
@@ -97,6 +205,15 @@ function ApolicesPageContent() {
   const [filterNumero, setFilterNumero] = useState("")
   const [filterTomador, setFilterTomador] = useState("")
   const [filterSeguradora, setFilterSeguradora] = useState("")
+  const [seguradoras, setSeguradoras] = useState<SeguradoraResponse[]>([])
+
+  React.useEffect(() => {
+    let active = true
+    seguradorasApi.list({ ativo: true }).then((data) => {
+      if (active) setSeguradoras(data)
+    }).catch(() => {})
+    return () => { active = false }
+  }, [])
 
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState<number>(5)
@@ -482,7 +599,7 @@ function ApolicesPageContent() {
                 <div className="flex flex-col gap-1">
                   <span className="text-[10px] font-bold text-zinc-500 uppercase">Produtor / Responsável</span>
                   <span className="text-[12px] uppercase text-zinc-700 dark:text-zinc-300">CAJUÍNA SEGUROS</span>
-                  <span className="text-[10px] uppercase text-zinc-500">{selected.emitido_por_nome || "—"}</span>
+                  <span className="text-[10px] uppercase text-zinc-500">Usuário: {selected.emitido_por_nome || "—"}</span>
                 </div>
               </div>
 
@@ -548,19 +665,26 @@ function ApolicesPageContent() {
                            <div className="w-9 h-4 bg-zinc-300 dark:bg-zinc-700 rounded-full flex items-center px-1 cursor-pointer">
                              <div className="w-2.5 h-2.5 bg-white rounded-full"></div>
                            </div>
-                           <span className="font-bold text-[10px] text-zinc-500 uppercase">Pendente</span>
+                           <span className="font-bold text-[10px] text-zinc-500 uppercase">{selected.status_pagamento_premio || "Pendente"}</span>
                          </div>
                       </td>
                     </tr>
                     <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 bg-green-50/30 dark:bg-green-900/10">
                       <td className="py-3 font-bold text-green-700 dark:text-green-500">Comissão Prevista</td>
-                      <td className="py-3 text-green-700 dark:text-green-500 font-bold">R$ 0,00</td>
+                      <td className="py-3 text-green-700 dark:text-green-500 font-bold">
+                        {(() => {
+                          const seg = seguradoras.find(s => s.id === selected.seguradora)
+                          if (!seg) return "R$ 0,00"
+                          const calc = (Number(selected.valor_seguradora) * Number(seg.taxa_comissao)) / 100
+                          return formatBRL(calc)
+                        })()}
+                      </td>
                       <td className="py-3">
                          <div className="flex items-center gap-2">
                            <div className="w-9 h-4 bg-zinc-300 dark:bg-zinc-700 rounded-full flex items-center px-1 cursor-pointer">
                              <div className="w-2.5 h-2.5 bg-white rounded-full"></div>
                            </div>
-                           <span className="font-bold text-[10px] text-zinc-500 uppercase">A Receber</span>
+                           <span className="font-bold text-[10px] text-zinc-500 uppercase">{selected.status_pagamento_comissao || "A Receber"}</span>
                          </div>
                       </td>
                     </tr>
@@ -581,7 +705,7 @@ function ApolicesPageContent() {
                       <div className="w-9 h-4 bg-zinc-300 dark:bg-zinc-700 rounded-full flex items-center px-1 cursor-pointer">
                         <div className="w-2.5 h-2.5 bg-white rounded-full"></div>
                       </div>
-                      <span className="font-bold text-[10px] text-zinc-500 uppercase">Pendente</span>
+                      <span className="font-bold text-[10px] text-zinc-500 uppercase">{selected.status_pagamento_premio || "Pendente"}</span>
                     </div>
                   </div>
                 </div>
@@ -589,7 +713,14 @@ function ApolicesPageContent() {
                 <div className="flex flex-col gap-3 p-4 border border-green-200 dark:border-green-900/30 rounded-lg bg-green-50/30 dark:bg-green-900/10">
                   <div className="flex justify-between items-center border-b border-green-200/50 dark:border-green-900/30 pb-2">
                     <span className="font-bold text-green-700 dark:text-green-500">Comissão Prevista</span>
-                    <span className="text-green-700 dark:text-green-500 font-black text-sm">R$ 0,00</span>
+                    <span className="text-green-700 dark:text-green-500 font-black text-sm">
+                        {(() => {
+                          const seg = seguradoras.find(s => s.id === selected.seguradora)
+                          if (!seg) return "R$ 0,00"
+                          const calc = (Number(selected.valor_seguradora) * Number(seg.taxa_comissao)) / 100
+                          return formatBRL(calc)
+                        })()}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-zinc-500 font-bold uppercase">Status</span>
@@ -597,7 +728,7 @@ function ApolicesPageContent() {
                       <div className="w-9 h-4 bg-zinc-300 dark:bg-zinc-700 rounded-full flex items-center px-1 cursor-pointer">
                         <div className="w-2.5 h-2.5 bg-white rounded-full"></div>
                       </div>
-                      <span className="font-bold text-[10px] text-zinc-500 uppercase">A Receber</span>
+                      <span className="font-bold text-[10px] text-zinc-500 uppercase">{selected.status_pagamento_comissao || "A Receber"}</span>
                     </div>
                   </div>
                 </div>
@@ -612,6 +743,7 @@ function ApolicesPageContent() {
               <textarea 
                 className="w-full h-16 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded p-2 text-xs text-zinc-600 dark:text-zinc-400 resize-none focus:outline-none focus:border-brand-red"
                 readOnly
+                value={selected.observacoes || ""}
               ></textarea>
             </div>
 
@@ -624,7 +756,7 @@ function ApolicesPageContent() {
               <div className="flex items-center p-3 text-xs text-zinc-500">
                 <div className="flex-1">Proposta</div>
                 <div className="w-32 flex justify-center">
-                  <button onClick={() => toast.error("PDF da proposta não configurado.")} className="hover:scale-110 transition-transform">
+                  <button onClick={() => { if (selected.arquivo_proposta) window.open(selected.arquivo_proposta, "_blank"); else toast.error("Arquivo da Proposta não anexado.") }} className="hover:scale-110 transition-transform">
                     <FileDown className="size-4 text-[#e85c5c] dark:text-[#cf7458] cursor-pointer" />
                   </button>
                 </div>
@@ -663,7 +795,7 @@ function ApolicesPageContent() {
               <div className="flex items-center p-3 text-xs text-zinc-500">
                 <div className="flex-1">Whatsapp</div>
                 <div className="w-32 flex justify-center gap-3 text-green-500">
-                  <button onClick={() => toast.info("Integração com WhatsApp será implementada em breve.")} className="hover:scale-110 transition-transform">
+                  <button onClick={() => setIsMessageModalOpen(true)} className="hover:scale-110 transition-transform">
                     <Phone className="size-4 cursor-pointer" />
                   </button>
                 </div>
@@ -672,7 +804,7 @@ function ApolicesPageContent() {
               <div className="flex items-center p-3 text-xs text-zinc-500">
                 <div className="flex-1">Email</div>
                 <div className="w-32 flex justify-center">
-                  <button onClick={() => toast.info("Envio por email será implementado em breve.")} className="hover:scale-110 transition-transform">
+                  <button onClick={() => setIsEmailModalOpen(true)} className="hover:scale-110 transition-transform">
                     <Mail className="size-4 text-blue-400 cursor-pointer" />
                   </button>
                 </div>
@@ -708,6 +840,7 @@ function ApolicesPageContent() {
                 </Button>
                 <Button
                   type="button"
+                  onClick={openEditModal}
                   className="w-full sm:w-auto bg-brand-red text-white hover:bg-brand-red/90 font-bold px-6 py-2.5 h-10.5 rounded-xl cursor-pointer shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   <Pencil className="size-4" />
@@ -717,6 +850,169 @@ function ApolicesPageContent() {
             </div>
 
           </div>
+
+          {/* Modal Mensagem WhatsApp */}
+          <Dialog open={isMessageModalOpen} onOpenChange={setIsMessageModalOpen}>
+            <DialogContent aria-describedby={undefined} className="sm:max-w-[450px] bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+              <DialogHeader>
+                <DialogTitle className="text-[#e85c5c] dark:text-[#cf7458] text-lg font-bold tracking-wide flex items-center gap-2">
+                  <WhatsAppIcon className="size-5" />
+                  MENSAGEM PARA O CLIENTE
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700/50 relative max-h-[300px] overflow-y-auto mt-2">
+                <pre className="text-[13px] text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap font-sans">
+                  {generatedMessage}
+                </pre>
+              </div>
+              
+              <div className="mt-4 flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsMessageModalOpen(false)}>Cancelar</Button>
+                <Button 
+                  onClick={handleCopyMessage}
+                  className="gap-2 bg-green-500 hover:bg-green-600 text-white"
+                >
+                  <Copy className="size-4" />
+                  <span>Copiar mensagem</span>
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Modal Mensagem Email */}
+          <Dialog open={isEmailModalOpen} onOpenChange={setIsEmailModalOpen}>
+            <DialogContent aria-describedby={undefined} className="sm:max-w-[550px] bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+              <DialogHeader>
+                <DialogTitle className="text-blue-500 text-lg font-bold tracking-wide flex items-center gap-2">
+                  <Mail className="size-5" />
+                  CORPO DO E-MAIL
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700/50 relative max-h-[300px] overflow-y-auto mt-2">
+                <pre className="text-[13px] text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap font-sans">
+                  {emailMessage}
+                </pre>
+              </div>
+              
+              <div className="mt-4 flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsEmailModalOpen(false)}>Cancelar</Button>
+                <Button 
+                  onClick={handleCopyEmailMessage}
+                  className="gap-2 bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  <Copy className="size-4" />
+                  <span>Copiar mensagem</span>
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Modal de Sucesso */}
+          <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+            <DialogContent aria-describedby={undefined} className="sm:max-w-[400px] flex flex-col items-center justify-center p-8 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 [&>button]:hidden">
+              <div className="w-16 h-16 rounded-full border-[3px] border-[#a5d6a7] bg-white flex items-center justify-center mb-4">
+                <Check className="size-8 text-[#4caf50]" strokeWidth={3} />
+              </div>
+              <DialogTitle className="text-[17px] font-bold text-zinc-800 dark:text-zinc-100 mb-6 text-center">
+                Copiado com sucesso
+              </DialogTitle>
+              <Button 
+                onClick={() => setShowSuccessModal(false)}
+                className="bg-[#2196f3] hover:bg-[#1976d2] text-white font-medium px-8 h-10 min-w-[120px] rounded-md transition-colors"
+              >
+                OK
+              </Button>
+            </DialogContent>
+          </Dialog>
+
+          {/* Modal Editar Apólice */}
+          <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+            <DialogContent aria-describedby={undefined} className="sm:max-w-[450px] bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+              <DialogHeader>
+                <DialogTitle className="text-zinc-900 dark:text-zinc-100 text-lg font-bold">
+                  Editar Apólice
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="flex flex-col gap-4 mt-4">
+                <div className="flex flex-col gap-2">
+                  <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Status Prêmio Seguradora</Label>
+                  <Select value={editStatusPremio} onValueChange={setEditStatusPremio}>
+                    <SelectTrigger className="w-full h-10 border-zinc-300">
+                      <SelectValue placeholder="Selecione o status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pendente">Pendente</SelectItem>
+                      <SelectItem value="Pago">Pago</SelectItem>
+                      <SelectItem value="Atrasado">Atrasado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="flex flex-col gap-2">
+                  <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Status Comissão Prevista</Label>
+                  <Select value={editStatusComissao} onValueChange={setEditStatusComissao}>
+                    <SelectTrigger className="w-full h-10 border-zinc-300">
+                      <SelectValue placeholder="Selecione o status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="A Receber">A Receber</SelectItem>
+                      <SelectItem value="Recebido">Recebido</SelectItem>
+                      <SelectItem value="Atrasado">Atrasado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Observações</Label>
+                  <textarea
+                    className="w-full h-20 bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-md p-3 text-sm text-zinc-800 dark:text-zinc-200 resize-none focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent transition-all shadow-sm"
+                    value={editObservacoes}
+                    onChange={(e) => setEditObservacoes(e.target.value)}
+                  ></textarea>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase">Arquivo da Proposta</Label>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => document.getElementById("file-proposta-upload")?.click()}
+                      className="gap-2"
+                    >
+                      <Upload className="size-4" />
+                      Anexar
+                    </Button>
+                    <input 
+                      type="file" 
+                      id="file-proposta-upload" 
+                      className="hidden" 
+                      accept=".pdf,.png,.jpg,.jpeg"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) setEditArquivoProposta(e.target.files[0])
+                      }}
+                    />
+                    {editArquivoProposta && <span className="text-xs text-zinc-500 truncate max-w-[200px]">{editArquivoProposta.name}</span>}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <Button variant="outline" onClick={() => setShowEditModal(false)}>Cancelar</Button>
+                <Button 
+                  onClick={handleSaveEdit}
+                  disabled={isSavingEdit}
+                  className="bg-brand-red hover:bg-brand-red/90 text-white font-bold"
+                >
+                  Salvar
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
         </div>
       )}
 
