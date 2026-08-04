@@ -84,6 +84,32 @@ export interface TomadorResponse extends TomadorPayload {
   socios: Socio[];
 }
 
+export interface TomadorPremioAcumuladoResponse {
+  premio_total: string;
+  flex: string;
+  seguradoras: Array<{
+    id: number;
+    nome: string;
+    total: string;
+  }>;
+}
+
+export interface TomadorAtividade {
+  id: number;
+  data: string;
+  hora: string;
+  situacao: string;
+  usuario: string;
+  detalhes: string;
+}
+
+export interface PaginatedAtividadeResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: TomadorAtividade[];
+}
+
 export const tomadoresApi = {
   list: (params?: { search?: string; uf?: string; tipo?: string }) => {
     const qs = new URLSearchParams(
@@ -93,6 +119,10 @@ export const tomadoresApi = {
   },
 
   get: (id: number) => apiRequest<TomadorResponse>(`/tomadores/${id}`),
+
+  getPremioAcumulado: (id: number) => apiRequest<TomadorPremioAcumuladoResponse>(`/tomadores/${id}/premio-acumulado/`),
+
+  getAtividades: (id: number, page: number = 1) => apiRequest<PaginatedAtividadeResponse>(`/tomadores/${id}/atividades/?page=${page}`),
 
   create: (data: TomadorPayload) =>
     apiRequest<TomadorResponse>("/tomadores", {

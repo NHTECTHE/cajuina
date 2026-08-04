@@ -88,10 +88,10 @@ function ApolicesPageContent() {
   const [apolices, setApolices] = useState<ApoliceResponse[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Modals state
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
   const [showEditModal, setShowEditModal] = useState(false)
   const [editStatusPremio, setEditStatusPremio] = useState("Pendente")
@@ -130,6 +130,27 @@ function ApolicesPageContent() {
       toast.error("Erro ao atualizar apólice.")
     } finally {
       setIsSavingEdit(false)
+    }
+  }
+
+  const handleDelete = () => {
+    if (!selected) return
+    setIsDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!selected) return
+    
+    try {
+      await apolicesApi.remove(selected.id)
+      toast.success("Apólice removida com sucesso!")
+      setApolices(prev => prev.filter(a => a.id !== selected.id))
+      setSelected(null)
+      setView("list")
+    } catch {
+      toast.error("Erro ao remover a apólice.")
+    } finally {
+      setIsDeleteDialogOpen(false)
     }
   }
 
@@ -816,6 +837,7 @@ Equipe Cajuína Seguros.`
               <Button
                 type="button"
                 variant="outline"
+                onClick={handleDelete}
                 className="w-full sm:w-auto bg-red-50 dark:bg-red-500/10 text-red-600 border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/30 font-semibold px-4 py-2.5 h-10.5 rounded-xl cursor-pointer transition-all flex items-center justify-center gap-2 sm:mr-auto"
               >
                 <Trash2 className="size-4" />
@@ -825,6 +847,7 @@ Equipe Cajuína Seguros.`
                 <Button
                   type="button"
                   variant="outline"
+                  onClick={handleDelete}
                   className="w-full sm:w-auto border-orange-200 dark:border-orange-500/20 text-orange-600 bg-orange-50 dark:bg-orange-500/10 hover:bg-orange-100 dark:hover:bg-orange-500/30 font-semibold h-10.5 px-6 rounded-xl flex items-center justify-center gap-2"
                 >
                   <Ban className="size-4" />
@@ -838,18 +861,41 @@ Equipe Cajuína Seguros.`
                   <Send className="size-4" />
                   Reenviar Email
                 </Button>
-                <Button
-                  type="button"
-                  onClick={openEditModal}
-                  className="w-full sm:w-auto bg-brand-red text-white hover:bg-brand-red/90 font-bold px-6 py-2.5 h-10.5 rounded-xl cursor-pointer shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                  <Pencil className="size-4" />
-                  Editar
-                </Button>
               </div>
             </div>
 
           </div>
+
+          {/* Modal Excluir/Cancelar Apólice */}
+          <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+            <DialogContent aria-describedby={undefined} className="sm:max-w-[450px] bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+              <DialogHeader>
+                <DialogTitle className="text-red-500 text-lg font-bold tracking-wide flex items-center gap-2">
+                  <Trash2 className="size-5" />
+                  REMOVER APÓLICE
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700/50 mt-2">
+                <p className="text-[14px] text-zinc-700 dark:text-zinc-300">
+                  Tem certeza que deseja cancelar e remover esta apólice?
+                </p>
+                <p className="text-[14px] text-zinc-500 mt-2 font-medium">
+                  A cotação retornará para o status de <span className="font-bold text-zinc-700 dark:text-zinc-300">Aprovada</span>.
+                </p>
+              </div>
+              
+              <div className="mt-4 flex justify-end gap-3">
+                <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} className="border-zinc-200 dark:border-zinc-700">Cancelar</Button>
+                <Button 
+                  onClick={confirmDelete}
+                  className="bg-red-500 hover:bg-red-600 text-white font-semibold"
+                >
+                  Sim, remover apólice
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Modal Mensagem WhatsApp */}
           <Dialog open={isMessageModalOpen} onOpenChange={setIsMessageModalOpen}>
