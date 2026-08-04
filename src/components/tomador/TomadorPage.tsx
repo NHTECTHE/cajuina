@@ -110,19 +110,16 @@ export default function TomadorPage() {
   // Apolices state
   const [selectedApoliceType, setSelectedApoliceType] = useState<"garantia" | "engenharia" | null>(null)
   const [apolices, setApolices] = useState<ApoliceResponse[]>([])
-  const [loadingApolices, setLoadingApolices] = useState(false)
   const [apolicesLoadedFor, setApolicesLoadedFor] = useState<number | null>(null)
 
   // Premio Acumulado state
   const [premioAcumulado, setPremioAcumulado] = useState<TomadorPremioAcumuladoResponse | null>(null)
-  const [loadingPremio, setLoadingPremio] = useState(false)
   const [premioLoadedFor, setPremioLoadedFor] = useState<number | null>(null)
 
   // Movimentacao state
   const [atividades, setAtividades] = useState<TomadorAtividade[]>([])
   const [atividadesCount, setAtividadesCount] = useState(0)
   const [atividadesPage, setAtividadesPage] = useState(1)
-  const [loadingAtividades, setLoadingAtividades] = useState(false)
   const [atividadesLoadedFor, setAtividadesLoadedFor] = useState<{ id: number; page: number } | null>(null)
 
   // Taxas tab — condições comerciais do tomador em cada seguradora
@@ -154,6 +151,14 @@ export default function TomadorPage() {
 
   // Editing state — stores the backend id of the record being edited
   const [editingId, setEditingId] = useState<number | null>(null)
+
+  // Derivado do marcador de carga, no mesmo padrão de `loadingArquivos` acima.
+  // Espelha a guarda do effect que busca as atividades, o que evita chamar
+  // setState dentro dele (react-hooks/set-state-in-effect).
+  const loadingAtividades =
+    currentTab === "info_adicionais" &&
+    editingId !== null &&
+    (atividadesLoadedFor?.id !== editingId || atividadesLoadedFor?.page !== atividadesPage)
 
   // Deletion state
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
@@ -539,7 +544,6 @@ export default function TomadorPage() {
   useEffect(() => {
     if (currentTab !== "apolices" || editingId === null || apolicesLoadedFor === editingId) return
     let cancelled = false
-    setLoadingApolices(true)
     apolicesApi.list({ tomador: String(editingId) }).then((result) => {
       if (cancelled) return
       setApolices(result)
@@ -547,8 +551,6 @@ export default function TomadorPage() {
     }).catch(err => {
       if (cancelled) return
       toast.error("Erro ao carregar apólices: " + (err.message || err))
-    }).finally(() => {
-      if (!cancelled) setLoadingApolices(false)
     })
     return () => { cancelled = true }
   }, [currentTab, editingId, apolicesLoadedFor])
@@ -556,7 +558,6 @@ export default function TomadorPage() {
   useEffect(() => {
     if (currentTab !== "info_adicionais" || editingId === null || premioLoadedFor === editingId) return
     let cancelled = false
-    setLoadingPremio(true)
     tomadoresApi.getPremioAcumulado(editingId).then((result) => {
       if (cancelled) return
       setPremioAcumulado(result)
@@ -564,8 +565,6 @@ export default function TomadorPage() {
     }).catch(err => {
       if (cancelled) return
       toast.error("Erro ao carregar prêmio acumulado: " + (err.message || err))
-    }).finally(() => {
-      if (!cancelled) setLoadingPremio(false)
     })
     return () => { cancelled = true }
   }, [currentTab, editingId, premioLoadedFor])
@@ -574,7 +573,6 @@ export default function TomadorPage() {
     if (currentTab !== "info_adicionais" || editingId === null) return
     if (atividadesLoadedFor?.id === editingId && atividadesLoadedFor?.page === atividadesPage) return
     let cancelled = false
-    setLoadingAtividades(true)
     tomadoresApi.getAtividades(editingId, atividadesPage).then((result) => {
       if (cancelled) return
       setAtividades(result.results)
@@ -583,8 +581,9 @@ export default function TomadorPage() {
     }).catch(err => {
       if (cancelled) return
       toast.error("Erro ao carregar movimentação: " + (err.message || err))
-    }).finally(() => {
-      if (!cancelled) setLoadingAtividades(false)
+      // Marca a tentativa mesmo em erro: sem isso `loadingAtividades` (derivado)
+      // ficaria preso em "Carregando..." depois de uma falha.
+      setAtividadesLoadedFor({ id: editingId, page: atividadesPage })
     })
     return () => { cancelled = true }
   }, [currentTab, editingId, atividadesPage, atividadesLoadedFor])
@@ -2226,7 +2225,9 @@ export default function TomadorPage() {
                     <div className="flex flex-col gap-1">
                       <span className="text-[11px] font-bold text-zinc-900 dark:text-white">Flex</span>
                       <span className="text-[11px] text-zinc-500">
-                        {premioAcumulado ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(premioAcumulado.flex)) : "R$ 0,00"}
+                        {premioAcumulado?.flex != null
+                          ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(premioAcumulado.flex))
+                          : "—"}
                       </span>
                     </div>
                     <div className="hidden md:block"></div>

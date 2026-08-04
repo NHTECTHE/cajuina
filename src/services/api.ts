@@ -86,7 +86,8 @@ export interface TomadorResponse extends TomadorPayload {
 
 export interface TomadorPremioAcumuladoResponse {
   premio_total: string;
-  flex: string;
+  /** `null` enquanto a regra de cálculo do flex não existe no backend. */
+  flex: string | null;
   seguradoras: Array<{
     id: number;
     nome: string;
