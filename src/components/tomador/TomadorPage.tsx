@@ -47,7 +47,7 @@ import {
   ComboboxEmpty,
 } from "@/components/ui/combobox"
 import { toast } from "sonner"
-import { lookupCnpj, tomadoresApi, type TomadorResponse } from "@/services/api"
+import { lookupCnpj, tomadoresApi, apolicesApi, type TomadorResponse, type ApoliceResponse, type TomadorPremioAcumuladoResponse, type TomadorAtividade } from "@/services/api"
 import { listSeguradorasAction, type Seguradora } from "@/app/actions/seguradoras"
 import {
   listTomadorSeguradorasAction,
@@ -109,6 +109,18 @@ export default function TomadorPage() {
 
   // Apolices state
   const [selectedApoliceType, setSelectedApoliceType] = useState<"garantia" | "engenharia" | null>(null)
+  const [apolices, setApolices] = useState<ApoliceResponse[]>([])
+  const [apolicesLoadedFor, setApolicesLoadedFor] = useState<number | null>(null)
+
+  // Premio Acumulado state
+  const [premioAcumulado, setPremioAcumulado] = useState<TomadorPremioAcumuladoResponse | null>(null)
+  const [premioLoadedFor, setPremioLoadedFor] = useState<number | null>(null)
+
+  // Movimentacao state
+  const [atividades, setAtividades] = useState<TomadorAtividade[]>([])
+  const [atividadesCount, setAtividadesCount] = useState(0)
+  const [atividadesPage, setAtividadesPage] = useState(1)
+  const [atividadesLoadedFor, setAtividadesLoadedFor] = useState<{ id: number; page: number } | null>(null)
 
   // Taxas tab — condições comerciais do tomador em cada seguradora
   const [seguradoras, setSeguradoras] = useState<Seguradora[]>([])
@@ -139,6 +151,14 @@ export default function TomadorPage() {
 
   // Editing state — stores the backend id of the record being edited
   const [editingId, setEditingId] = useState<number | null>(null)
+
+  // Derivado do marcador de carga, no mesmo padrão de `loadingArquivos` acima.
+  // Espelha a guarda do effect que busca as atividades, o que evita chamar
+  // setState dentro dele (react-hooks/set-state-in-effect).
+  const loadingAtividades =
+    currentTab === "info_adicionais" &&
+    editingId !== null &&
+    (atividadesLoadedFor?.id !== editingId || atividadesLoadedFor?.page !== atividadesPage)
 
   // Deletion state
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
@@ -354,6 +374,7 @@ export default function TomadorPage() {
       setView("list")
       setFormData(initialFormState)
       setEditingId(null)
+      setAtividadesLoadedFor(null)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro ao salvar tomador."
       if (message.toLowerCase().includes("cnpj") && message.toLowerCase().includes("já existe")) {
@@ -519,6 +540,63 @@ export default function TomadorPage() {
     })
     return () => { cancelled = true }
   }, [currentTab, editingId, arquivosLoadedFor])
+
+  useEffect(() => {
+    if (currentTab !== "apolices" || editingId === null || apolicesLoadedFor === editingId) return
+    let cancelled = false
+    apolicesApi.list({ tomador: String(editingId) }).then((result) => {
+      if (cancelled) return
+      setApolices(result)
+      setApolicesLoadedFor(editingId)
+    }).catch(err => {
+      if (cancelled) return
+      toast.error("Erro ao carregar apólices: " + (err.message || err))
+    })
+    return () => { cancelled = true }
+  }, [currentTab, editingId, apolicesLoadedFor])
+
+  useEffect(() => {
+    if (currentTab !== "info_adicionais" || editingId === null || premioLoadedFor === editingId) return
+    let cancelled = false
+    tomadoresApi.getPremioAcumulado(editingId).then((result) => {
+      if (cancelled) return
+      setPremioAcumulado(result)
+      setPremioLoadedFor(editingId)
+    }).catch(err => {
+      if (cancelled) return
+      toast.error("Erro ao carregar prêmio acumulado: " + (err.message || err))
+    })
+    return () => { cancelled = true }
+  }, [currentTab, editingId, premioLoadedFor])
+
+  useEffect(() => {
+    if (currentTab !== "info_adicionais" || editingId === null) return
+    if (atividadesLoadedFor?.id === editingId && atividadesLoadedFor?.page === atividadesPage) return
+    let cancelled = false
+    tomadoresApi.getAtividades(editingId, atividadesPage).then((result) => {
+      if (cancelled) return
+      setAtividades(result.results)
+      setAtividadesCount(result.count)
+      setAtividadesLoadedFor({ id: editingId, page: atividadesPage })
+    }).catch(err => {
+      if (cancelled) return
+      toast.error("Erro ao carregar movimentação: " + (err.message || err))
+      // Marca a tentativa mesmo em erro: sem isso `loadingAtividades` (derivado)
+      // ficaria preso em "Carregando..." depois de uma falha.
+      setAtividadesLoadedFor({ id: editingId, page: atividadesPage })
+    })
+    return () => { cancelled = true }
+  }, [currentTab, editingId, atividadesPage, atividadesLoadedFor])
+
+  const filteredApolices = useMemo(() => {
+    if (!selectedApoliceType) return []
+    return apolices.filter(a => {
+      const isEngenharia = a.modalidade_nome?.toLowerCase().includes("engenharia")
+      if (selectedApoliceType === "engenharia") return isEngenharia
+      if (selectedApoliceType === "garantia") return !isEngenharia
+      return true
+    })
+  }, [apolices, selectedApoliceType])
 
   async function handleUploadArquivo(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -1999,116 +2077,69 @@ export default function TomadorPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {selectedApoliceType === "garantia" ? (
-                            <>
-                              <tr className="border-b border-zinc-100 dark:border-zinc-800/40 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 font-medium text-brand-red transition-colors">
-                                <td className="px-4 py-3">10-0775-0503162</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">25/11/2025</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">SECRETARIA DAS CIDADES</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">Junto Seguros</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">Contrato / Executante...</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">002/2024 - TC B SE...</td>
-                                <td className="px-4 py-3 text-right text-zinc-700 dark:text-zinc-300">R$ 49.999,95</td>
-                                <td className="px-4 py-3 text-right font-bold">R$ 250,00</td>
-                                <td className="px-4 py-3 text-right font-bold">R$ 160,96</td>
-                                <td className="px-4 py-3 text-right font-bold">R$ 48,00</td>
+                          {filteredApolices.length > 0 ? (
+                            filteredApolices.map((a) => (
+                              <tr key={a.id} className="border-b border-zinc-100 dark:border-zinc-800/40 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 font-medium text-brand-red transition-colors">
+                                {selectedApoliceType === "garantia" ? (
+                                  <>
+                                    <td className="px-4 py-3">{a.numero_apolice || "-"}</td>
+                                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">
+                                      {a.criado_em ? new Date(a.criado_em).toLocaleDateString("pt-BR") : "-"}
+                                    </td>
+                                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{a.segurado_nome || "-"}</td>
+                                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{a.seguradora_nome || "-"}</td>
+                                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{a.modalidade_nome || "-"}</td>
+                                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{a.edital || "-"}</td>
+                                    <td className="px-4 py-3 text-right text-zinc-700 dark:text-zinc-300">
+                                      {a.importancia_segurada ? `R$ ${a.importancia_segurada}` : "-"}
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-bold">-</td>
+                                    <td className="px-4 py-3 text-right font-bold">
+                                      {a.valor_seguradora ? `R$ ${a.valor_seguradora}` : "-"}
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-bold">-</td>
+                                  </>
+                                ) : (
+                                  <>
+                                    <td className="px-4 py-3">{a.numero_apolice || "-"}</td>
+                                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{a.segurado_nome || "-"}</td>
+                                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{a.seguradora_nome || "-"}</td>
+                                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">-</td>
+                                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">
+                                      {a.criado_em ? new Date(a.criado_em).toLocaleDateString("pt-BR") : "-"}
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-bold text-zinc-900 dark:text-white">
+                                      {a.importancia_segurada ? `R$ ${a.importancia_segurada}` : "-"}
+                                    </td>
+                                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{a.edital || "-"}</td>
+                                  </>
+                                )}
                                 <td className="px-4 py-3">
                                   <div className="flex items-center justify-center gap-1">
                                     <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-400 hover:text-zinc-600 border border-zinc-200">
                                       <FileText className="size-3" />
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-400 hover:text-emerald-600 border border-zinc-200">
-                                      <Download className="size-3" />
-                                    </Button>
+                                    {a.arquivo_apolice ? (
+                                      <a href={a.arquivo_apolice} target="_blank" rel="noopener noreferrer">
+                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-400 hover:text-emerald-600 border border-zinc-200">
+                                          <Download className="size-3" />
+                                        </Button>
+                                      </a>
+                                    ) : (
+                                      <Button variant="ghost" size="icon" disabled className="h-6 w-6 text-zinc-400 border border-zinc-200 opacity-50">
+                                        <Download className="size-3" />
+                                      </Button>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
-                              <tr className="border-b border-zinc-100 dark:border-zinc-800/40 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 font-medium text-brand-red transition-colors">
-                                <td className="px-4 py-3">028712025000107</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">12/11/2025</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">MUNICIPIO DE NOSSA S...</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">AVLA</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">Edital / Licitação - Pub...</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">CONCORRÊNCIA ELETR...</td>
-                                <td className="px-4 py-3 text-right text-zinc-700 dark:text-zinc-300">R$ 6.510,85</td>
-                                <td className="px-4 py-3 text-right font-bold">R$ 150,00</td>
-                                <td className="px-4 py-3 text-right font-bold">R$ 150,00</td>
-                                <td className="px-4 py-3 text-right font-bold">R$ 40,00</td>
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center justify-center gap-1">
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-400 hover:text-zinc-600 border border-zinc-200">
-                                      <FileText className="size-3" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-400 hover:text-emerald-600 border border-zinc-200">
-                                      <Download className="size-3" />
-                                    </Button>
-                                  </div>
-                                </td>
-                              </tr>
-                              <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50 font-medium text-brand-red transition-colors">
-                                <td className="px-4 py-3">10-0775-0503436</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">06/11/2025</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">SECRETARIA DAS CIDADES</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">Junto Seguros</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">Contrato / Executante...</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">CONTRATO N 02/202...</td>
-                                <td className="px-4 py-3 text-right text-zinc-700 dark:text-zinc-300">R$ 34.999,88</td>
-                                <td className="px-4 py-3 text-right font-bold">R$ 250,00</td>
-                                <td className="px-4 py-3 text-right font-bold">R$ 160,53</td>
-                                <td className="px-4 py-3 text-right font-bold">R$ 48,00</td>
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center justify-center gap-1">
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-400 hover:text-zinc-600 border border-zinc-200">
-                                      <FileText className="size-3" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-400 hover:text-emerald-600 border border-zinc-200">
-                                      <Download className="size-3" />
-                                    </Button>
-                                  </div>
-                                </td>
-                              </tr>
-                            </>
+                            ))
                           ) : (
-                            <>
-                              <tr className="border-b border-zinc-100 dark:border-zinc-800/40 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 font-medium text-brand-red transition-colors">
-                                <td className="px-4 py-3">028712025030107</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">MUNICIPIO DE NOSSA S...</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">AVLA</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">CAJUÍNA SEGUROS</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">12/11/2025</td>
-                                <td className="px-4 py-3 text-right font-bold text-zinc-900 dark:text-white">R$ 8.510,85</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">041/2025</td>
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center justify-center gap-1">
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-400 hover:text-zinc-600 border border-zinc-200">
-                                      <FileText className="size-3" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-400 hover:text-emerald-600 border border-zinc-200">
-                                      <Download className="size-3" />
-                                    </Button>
-                                  </div>
-                                </td>
-                              </tr>
-                              <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50 font-medium text-brand-red transition-colors">
-                                <td className="px-4 py-3">10-0775-0452572</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">SECRETARIA DAS CIDADES</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">Junto Seguros</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">CAJUÍNA SEGUROS</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">06/08/2025</td>
-                                <td className="px-4 py-3 text-right font-bold text-zinc-900 dark:text-white">R$ 31.024,57</td>
-                                <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">042/2025</td>
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center justify-center gap-1">
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-400 hover:text-zinc-600 border border-zinc-200">
-                                      <FileText className="size-3" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-400 hover:text-emerald-600 border border-zinc-200">
-                                      <Download className="size-3" />
-                                    </Button>
-                                  </div>
-                                </td>
-                              </tr>
-                            </>
+                            <tr>
+                              <td colSpan={selectedApoliceType === "garantia" ? 11 : 8} className="px-4 py-8 text-center text-xs opacity-50">
+                                Nenhuma apólice encontrada.
+                              </td>
+                            </tr>
                           )}
                         </tbody>
                       </table>
@@ -2116,69 +2147,53 @@ export default function TomadorPage() {
 
                     {/* Mobile Cards */}
                     <div className="md:hidden flex flex-col gap-4 mt-4">
-                      {selectedApoliceType === "garantia" ? (
-                        <>
-                          {[
-                            { apolice: "10-0775-0503162", emissao: "25/11/2025", segurado: "SECRETARIA DAS CIDADES", seguradora: "Junto Seguros", modalidade: "Contrato / Executante...", edital: "002/2024 - TC B SE...", is: "R$ 49.999,95", premioCajuina: "R$ 250,00", premio: "R$ 160,96", comissao: "R$ 48,00" },
-                            { apolice: "028712025000107", emissao: "12/11/2025", segurado: "MUNICIPIO DE NOSSA S...", seguradora: "AVLA", modalidade: "Edital / Licitação - Pub...", edital: "CONCORRÊNCIA ELETR...", is: "R$ 6.510,85", premioCajuina: "R$ 150,00", premio: "R$ 150,00", comissao: "R$ 40,00" },
-                            { apolice: "10-0775-0503436", emissao: "06/11/2025", segurado: "SECRETARIA DAS CIDADES", seguradora: "Junto Seguros", modalidade: "Contrato / Executante...", edital: "CONTRATO N 02/202...", is: "R$ 34.999,88", premioCajuina: "R$ 250,00", premio: "R$ 160,53", comissao: "R$ 48,00" },
-                          ].map((item, idx) => (
-                            <div key={idx} className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200/50 dark:border-zinc-800/40 p-4 shadow-sm">
-                              <div className="flex justify-between items-start mb-2">
-                                <h4 className="font-bold text-sm text-brand-red">{item.apolice}</h4>
-                                <span className="text-xs text-muted-foreground">{item.emissao}</span>
+                          {filteredApolices.length > 0 ? (
+                            filteredApolices.map((a) => (
+                              <div key={a.id} className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200/50 dark:border-zinc-800/40 p-4 shadow-sm">
+                                <div className="flex justify-between items-start mb-2">
+                                  <h4 className="font-bold text-sm text-brand-red">{a.numero_apolice || "-"}</h4>
+                                  <span className="text-xs text-muted-foreground">{a.criado_em ? new Date(a.criado_em).toLocaleDateString("pt-BR") : "-"}</span>
+                                </div>
+                                <div className="space-y-1 mb-3">
+                                  <p className="text-xs"><span className="font-semibold">Segurado:</span> {a.segurado_nome || "-"}</p>
+                                  <p className="text-xs"><span className="font-semibold">Seguradora:</span> {a.seguradora_nome || "-"}</p>
+                                  {selectedApoliceType === "garantia" ? (
+                                    <>
+                                      <p className="text-xs"><span className="font-semibold">Modalidade:</span> {a.modalidade_nome || "-"}</p>
+                                      <p className="text-xs"><span className="font-semibold">IS:</span> <span className="font-bold">{a.importancia_segurada ? `R$ ${a.importancia_segurada}` : "-"}</span></p>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <p className="text-xs"><span className="font-semibold">LMI:</span> <span className="font-bold text-zinc-900 dark:text-white">{a.importancia_segurada ? `R$ ${a.importancia_segurada}` : "-"}</span></p>
+                                    </>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                                  <Button type="button" variant="outline" className="flex-1 h-8 text-xs border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-700">
+                                    <FileText className="size-3 mr-1.5" /> Ver
+                                  </Button>
+                                  {a.arquivo_apolice ? (
+                                    <a href={a.arquivo_apolice} target="_blank" rel="noopener noreferrer" className="flex-1">
+                                      <Button type="button" variant="outline" className="w-full h-8 text-xs border-zinc-200 dark:border-zinc-800 text-emerald-600 hover:text-emerald-700 hover:border-emerald-200 hover:bg-emerald-50">
+                                        <Download className="size-3 mr-1.5" /> Baixar
+                                      </Button>
+                                    </a>
+                                  ) : (
+                                    <Button type="button" variant="outline" disabled className="flex-1 h-8 text-xs border-zinc-200 dark:border-zinc-800 opacity-50">
+                                      <Download className="size-3 mr-1.5" /> Baixar
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
-                              <div className="space-y-1 mb-3">
-                                <p className="text-xs"><span className="font-semibold">Segurado:</span> {item.segurado}</p>
-                                <p className="text-xs"><span className="font-semibold">Seguradora:</span> {item.seguradora}</p>
-                                <p className="text-xs"><span className="font-semibold">Modalidade:</span> {item.modalidade}</p>
-                                <p className="text-xs"><span className="font-semibold">IS:</span> <span className="font-bold">{item.is}</span></p>
-                              </div>
-                              <div className="flex items-center gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
-                                <Button type="button" variant="outline" className="flex-1 h-8 text-xs border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-700">
-                                  <FileText className="size-3 mr-1.5" /> Ver
-                                </Button>
-                                <Button type="button" variant="outline" className="flex-1 h-8 text-xs border-zinc-200 dark:border-zinc-800 text-emerald-600 hover:text-emerald-700 hover:border-emerald-200 hover:bg-emerald-50">
-                                  <Download className="size-3 mr-1.5" /> Baixar
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </>
-                      ) : (
-                        <>
-                          {[
-                            { apolice: "028712025030107", segurado: "MUNICIPIO DE NOSSA S...", seguradora: "AVLA", produtor: "CAJUÍNA SEGUROS", emissao: "12/11/2025", lmi: "R$ 8.510,85", contrato: "041/2025" },
-                            { apolice: "10-0775-0452572", segurado: "SECRETARIA DAS CIDADES", seguradora: "Junto Seguros", produtor: "CAJUÍNA SEGUROS", emissao: "06/08/2025", lmi: "R$ 31.024,57", contrato: "042/2025" },
-                          ].map((item, idx) => (
-                            <div key={idx} className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200/50 dark:border-zinc-800/40 p-4 shadow-sm">
-                              <div className="flex justify-between items-start mb-2">
-                                <h4 className="font-bold text-sm text-brand-red">{item.apolice}</h4>
-                                <span className="text-xs text-muted-foreground">{item.emissao}</span>
-                              </div>
-                              <div className="space-y-1 mb-3">
-                                <p className="text-xs"><span className="font-semibold">Segurado:</span> {item.segurado}</p>
-                                <p className="text-xs"><span className="font-semibold">Seguradora:</span> {item.seguradora}</p>
-                                <p className="text-xs"><span className="font-semibold">Produtor:</span> {item.produtor}</p>
-                                <p className="text-xs"><span className="font-semibold">LMI:</span> <span className="font-bold text-zinc-900 dark:text-white">{item.lmi}</span></p>
-                              </div>
-                              <div className="flex items-center gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
-                                <Button type="button" variant="outline" className="flex-1 h-8 text-xs border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-700">
-                                  <FileText className="size-3 mr-1.5" /> Ver
-                                </Button>
-                                <Button type="button" variant="outline" className="flex-1 h-8 text-xs border-zinc-200 dark:border-zinc-800 text-emerald-600 hover:text-emerald-700 hover:border-emerald-200 hover:bg-emerald-50">
-                                  <Download className="size-3 mr-1.5" /> Baixar
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </>
-                      )}
+                            ))
+                          ) : (
+                            <p className="text-center text-xs opacity-50 p-4">Nenhuma apólice encontrada.</p>
+                          )}
                     </div>
                     
                     {/* Pagination footer */}
                     <div className="flex items-center justify-between mt-4 text-xs text-muted-foreground px-2">
-                      <span>Mostrando 1 a {selectedApoliceType === "garantia" ? "3 de 116" : "2 de 2"} registros</span>
+                      <span>Mostrando 1 a {filteredApolices.length} de {filteredApolices.length} registros</span>
                       <div className="flex items-center gap-2">
                         <button type="button" className="opacity-50 cursor-not-allowed hover:opacity-100 transition-opacity">Anterior</button>
                         <button type="button" className="opacity-50 cursor-not-allowed hover:opacity-100 transition-opacity">Próximo</button>
@@ -2200,14 +2215,20 @@ export default function TomadorPage() {
                   </h3>
                   
                   <div className="grid grid-cols-3 md:grid-cols-4 gap-y-6 gap-x-4">
-                    {/* Linha 1 */}
+                    {/* Totals */}
                     <div className="flex flex-col gap-1">
                       <span className="text-[11px] font-bold text-zinc-900 dark:text-white">Prêmio</span>
-                      <span className="text-[11px] text-zinc-500">R$ 23.330,63</span>
+                      <span className="text-[11px] text-zinc-500">
+                        {premioAcumulado ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(premioAcumulado.premio_total)) : "R$ 0,00"}
+                      </span>
                     </div>
                     <div className="flex flex-col gap-1">
                       <span className="text-[11px] font-bold text-zinc-900 dark:text-white">Flex</span>
-                      <span className="text-[11px] text-zinc-500">R$ 49.780,08</span>
+                      <span className="text-[11px] text-zinc-500">
+                        {premioAcumulado?.flex != null
+                          ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(premioAcumulado.flex))
+                          : "—"}
+                      </span>
                     </div>
                     <div className="hidden md:block"></div>
                     <div className="hidden md:block"></div>
@@ -2215,65 +2236,15 @@ export default function TomadorPage() {
                     {/* Divider */}
                     <div className="col-span-3 md:col-span-4 h-px bg-zinc-100 dark:bg-zinc-800 my-1"></div>
 
-                    {/* Linha 2 */}
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[11px] font-bold text-zinc-900 dark:text-white">AVLA</span>
-                      <span className="text-[11px] text-zinc-500">R$ 2.493,01</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[11px] font-bold text-zinc-900 dark:text-white">ESSOR</span>
-                      <span className="text-[11px] text-zinc-500">R$ 0,00</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[11px] font-bold text-zinc-900 dark:text-white">Excelsior Seguros</span>
-                      <span className="text-[11px] text-zinc-500">R$ 0,00</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[11px] font-bold text-zinc-900 dark:text-white">JNS SEGUROS</span>
-                      <span className="text-[11px] text-zinc-500">R$ 300,00</span>
-                    </div>
-
-                    {/* Linha 3 */}
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[11px] font-bold text-zinc-900 dark:text-white">Junto Seguros</span>
-                      <span className="text-[11px] text-zinc-500">R$ 18.463,30</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[11px] font-bold text-zinc-900 dark:text-white">Porto Seguro</span>
-                      <span className="text-[11px] text-zinc-500">R$ 0,00</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[11px] font-bold text-zinc-900 dark:text-white">BMG Seguros</span>
-                      <span className="text-[11px] text-zinc-500">R$ 0,00</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[11px] font-bold text-zinc-900 dark:text-white">CARTA FIANÇA</span>
-                      <span className="text-[11px] text-zinc-500">R$ 130,00</span>
-                    </div>
-
-                    {/* Linha 4 */}
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[11px] font-bold text-zinc-900 dark:text-white">EZZE Seguradora</span>
-                      <span className="text-[11px] text-zinc-500">R$ 0,00</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[11px] font-bold text-zinc-900 dark:text-white">Pottencial</span>
-                      <span className="text-[11px] text-zinc-500">R$ 0,00</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[11px] font-bold text-zinc-900 dark:text-white">SANCOR</span>
-                      <span className="text-[11px] text-zinc-500">R$ 0,00</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[11px] font-bold text-zinc-900 dark:text-white">Sombreiro</span>
-                      <span className="text-[11px] text-zinc-500">R$ 0,00</span>
-                    </div>
-
-                    {/* Linha 5 */}
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[11px] font-bold text-zinc-900 dark:text-white">Tokio Marine</span>
-                      <span className="text-[11px] text-zinc-500">R$ 0,00</span>
-                    </div>
+                    {/* Seguradoras */}
+                    {premioAcumulado?.seguradoras.map((seg) => (
+                      <div key={seg.id} className="flex flex-col gap-1">
+                        <span className="text-[11px] font-bold text-zinc-900 dark:text-white uppercase">{seg.nome}</span>
+                        <span className="text-[11px] text-zinc-500">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(seg.total))}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -2328,65 +2299,86 @@ export default function TomadorPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 text-zinc-600 dark:text-zinc-400">
-                        {[
-                          { data: "05/03/2026", hora: "10:06", situacao: "Alterar Taxas", usuario: "ytallo" },
-                          { data: "05/03/2026", hora: "10:06", situacao: "Atualizar Dados", usuario: "ytallo" },
-                          { data: "08/05/2025", hora: "15:34", situacao: "Alterar Taxas", usuario: "giovanna" },
-                          { data: "08/05/2025", hora: "15:34", situacao: "Atualizar Dados", usuario: "giovanna" },
-                          { data: "24/04/2025", hora: "17:27", situacao: "Atualização de Taxas - Junto Seguros", usuario: "Filipe Chaves" },
-                          { data: "20/03/2025", hora: "09:06", situacao: "Alterar Taxas", usuario: "natalia" },
-                          { data: "20/03/2025", hora: "09:06", situacao: "Atualizar Dados", usuario: "natalia" },
-                          { data: "20/06/2024", hora: "15:53", situacao: "Alterar Taxas", usuario: "natalia" },
-                          { data: "20/06/2024", hora: "15:53", situacao: "Atualizar Dados", usuario: "natalia" },
-                          { data: "27/05/2024", hora: "14:08", situacao: "Atualização de Taxas - Junto Seguros", usuario: "emily" }
-                        ].map((item, idx) => (
-                          <tr key={idx} className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-                            <td className="py-2.5 px-2 font-medium">{item.data}</td>
-                            <td className="py-2.5 px-2">{item.hora}</td>
-                            <td className="py-2.5 px-2">{item.situacao}</td>
-                            <td className="py-2.5 px-2">{item.usuario}</td>
+                        {atividades.length > 0 ? (
+                          atividades.map((item) => (
+                            <tr key={item.id} className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                              <td className="py-2.5 px-2 font-medium">{item.data}</td>
+                              <td className="py-2.5 px-2">{item.hora}</td>
+                              <td className="py-2.5 px-2">{item.situacao}</td>
+                              <td className="py-2.5 px-2">{item.usuario}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={4} className="py-8 text-center text-xs opacity-50">
+                              {loadingAtividades ? "Carregando..." : "Nenhuma movimentação registrada."}
+                            </td>
                           </tr>
-                        ))}
+                        )}
                       </tbody>
                     </table>
                   </div>
 
                   {/* Mobile Cards for Movimentação */}
                   <div className="md:hidden flex flex-col gap-3">
-                    {[
-                      { data: "05/03/2026", hora: "10:06", situacao: "Alterar Taxas", usuario: "ytallo" },
-                      { data: "05/03/2026", hora: "10:06", situacao: "Atualizar Dados", usuario: "ytallo" },
-                      { data: "08/05/2025", hora: "15:34", situacao: "Alterar Taxas", usuario: "giovanna" },
-                      { data: "08/05/2025", hora: "15:34", situacao: "Atualizar Dados", usuario: "giovanna" },
-                      { data: "24/04/2025", hora: "17:27", situacao: "Atualização de Taxas - Junto Seguros", usuario: "Filipe Chaves" }
-                    ].map((item, idx) => (
-                      <div key={idx} className="bg-white dark:bg-zinc-800 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl p-4 flex flex-col gap-2 shadow-sm">
-                        <div className="flex justify-between items-start">
-                          <span className="text-xs font-bold text-brand-red leading-tight pr-2">{item.situacao}</span>
-                          <span className="text-[10px] text-zinc-500 bg-zinc-100 dark:bg-zinc-800/80 px-2 py-0.5 rounded-full border border-zinc-200/80 dark:border-zinc-700 whitespace-nowrap shrink-0">{item.data} às {item.hora}</span>
+                    {atividades.length > 0 ? (
+                      atividades.map((item) => (
+                        <div key={item.id} className="bg-white dark:bg-zinc-800 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl p-4 flex flex-col gap-2 shadow-sm">
+                          <div className="flex justify-between items-start">
+                            <span className="text-xs font-bold text-brand-red leading-tight pr-2">{item.situacao}</span>
+                            <span className="text-[10px] text-zinc-500 bg-zinc-100 dark:bg-zinc-800/80 px-2 py-0.5 rounded-full border border-zinc-200/80 dark:border-zinc-700 whitespace-nowrap shrink-0">{item.data} às {item.hora}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] mt-1 pt-2 border-t border-zinc-100 dark:border-zinc-700/50">
+                            <span className="text-zinc-500">Efetuado por:</span>
+                            <span className="font-semibold text-zinc-900 dark:text-zinc-300">{item.usuario}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between text-[11px] mt-1 pt-2 border-t border-zinc-100 dark:border-zinc-700/50">
-                          <span className="text-zinc-500">Efetuado por:</span>
-                          <span className="font-semibold text-zinc-900 dark:text-zinc-300">{item.usuario}</span>
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    ) : (
+                      <p className="text-center text-xs opacity-50 py-4">
+                        {loadingAtividades ? "Carregando..." : "Nenhuma movimentação registrada."}
+                      </p>
+                    )}
                   </div>
 
                   {/* Pagination footer */}
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 text-[11px] text-muted-foreground border-t border-zinc-200 dark:border-zinc-800 pt-4">
-                    <span className="hidden md:inline">Mostrando 1 / 10 de 118 registro(s)</span>
-                    <span className="md:hidden">Mostrando 1 / 5 de 118 registro(s)</span>
+                    <span className="hidden md:inline">Mostrando {(atividadesPage - 1) * 10 + (atividades.length > 0 ? 1 : 0)} a {Math.min(atividadesPage * 10, atividadesCount)} de {atividadesCount} registro(s)</span>
+                    <span className="md:hidden">Página {atividadesPage} de {Math.ceil(atividadesCount / 10) || 1}</span>
                     <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
-                      <button type="button" className="opacity-50 cursor-not-allowed hover:opacity-100 transition-opacity px-2">Anterior</button>
-                      <button type="button" className="w-6 h-6 rounded-full bg-brand-red text-white flex items-center justify-center font-bold">1</button>
-                      <button type="button" className="w-6 h-6 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors">2</button>
-                      <button type="button" className="w-6 h-6 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors">3</button>
-                      <button type="button" className="w-6 h-6 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors">4</button>
-                      <button type="button" className="w-6 h-6 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors">5</button>
-                      <span className="px-1">...</span>
-                      <button type="button" className="w-6 h-6 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center transition-colors">12</button>
-                      <button type="button" className="text-brand-red font-semibold hover:opacity-80 transition-opacity px-2">Próximo</button>
+                      <button 
+                        type="button" 
+                        onClick={() => setAtividadesPage(p => Math.max(1, p - 1))}
+                        disabled={atividadesPage === 1}
+                        className="opacity-50 cursor-pointer disabled:cursor-not-allowed hover:opacity-100 transition-opacity px-2 disabled:hover:opacity-50"
+                      >
+                        Anterior
+                      </button>
+                      
+                      {Array.from({ length: Math.ceil(atividadesCount / 10) || 1 }).map((_, i) => (
+                        <button 
+                          key={i}
+                          type="button" 
+                          onClick={() => setAtividadesPage(i + 1)}
+                          className={cn(
+                            "w-6 h-6 rounded-full flex items-center justify-center transition-colors cursor-pointer",
+                            atividadesPage === i + 1 
+                              ? "bg-brand-red text-white font-bold" 
+                              : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                          )}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
+
+                      <button 
+                        type="button"
+                        onClick={() => setAtividadesPage(p => Math.min(Math.ceil(atividadesCount / 10) || 1, p + 1))}
+                        disabled={atividadesPage === Math.ceil(atividadesCount / 10) || atividadesCount === 0}
+                        className="text-brand-red font-semibold cursor-pointer hover:opacity-80 transition-opacity px-2 disabled:opacity-50 disabled:hover:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Próximo
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -2422,6 +2414,7 @@ export default function TomadorPage() {
                   onClick={() => {
                     setView("list")
                     setEditingId(null)
+                    setAtividadesLoadedFor(null)
                   }}
                   className="border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold px-6 py-2.5 h-10.5 rounded-xl cursor-pointer transition-all"
                 >
