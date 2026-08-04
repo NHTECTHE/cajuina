@@ -14,21 +14,9 @@ async function backendHeaders() {
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const res = await fetch(`${BACKEND}/apolices/${id}/`, { headers: await backendHeaders() });
-  const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
-}
-
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const res = await fetch(`${BACKEND}/apolices/${id}/`, {
-    method: "DELETE",
-    headers: await backendHeaders(),
+  const res = await fetch(`${BACKEND}/tomadores/${id}/premio-acumulado/`, {
+    headers: await backendHeaders()
   });
-  if (res.status === 204) {
-    return new NextResponse(null, { status: 204 });
-  }
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });
 }
-
