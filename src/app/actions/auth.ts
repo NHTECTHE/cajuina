@@ -5,7 +5,7 @@ import { cookies } from 'next/headers'
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
 export async function loginAction(formData: FormData) {
-  const username = formData.get('username') as string
+  const email = formData.get('email') as string
   const password = formData.get('password') as string
 
   try {
@@ -14,7 +14,7 @@ export async function loginAction(formData: FormData) {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ email, password }),
     })
 
     const data = await res.json()
@@ -24,7 +24,7 @@ export async function loginAction(formData: FormData) {
       let errorMessage = 'Credenciais inválidas.'
       if (data.detail && typeof data.detail === 'string') {
         if (data.detail.toLowerCase().includes('no active account')) {
-          errorMessage = 'Usuário ou senha incorretos.'
+          errorMessage = 'E-mail ou senha incorretos.'
         } else {
           errorMessage = data.detail
         }

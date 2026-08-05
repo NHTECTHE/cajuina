@@ -20,7 +20,6 @@ export interface Usuario {
   id?: number
   first_name: string
   email: string
-  username: string
   cargo: string
   password?: string
 }

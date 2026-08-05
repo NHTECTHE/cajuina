@@ -5,7 +5,6 @@ import { cookies } from "next/headers"
 export interface Atividade {
   id: number
   usuario_nome: string
-  usuario_username: string
   acao: 'LOGIN' | 'CRIAÇÃO' | 'ATUALIZAÇÃO' | 'EXCLUSÃO'
   entidade: string
   item: string
