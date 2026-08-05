@@ -5,7 +5,7 @@ import * as React from "react"
 import { DashboardResumo } from "@/services/api"
 import { BlocoCotacoes } from "@/components/dashboard/BlocoCotacoes"
 import { CardsResumo } from "@/components/dashboard/CardsResumo"
-import { FaixaComissoes } from "@/components/dashboard/FaixaComissoes"
+
 import { GraficoSeguradoras } from "@/components/dashboard/GraficoSeguradoras"
 import { TabelaNovosCadastros } from "@/components/dashboard/TabelaNovosCadastros"
 
@@ -24,14 +24,10 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-light tracking-tight text-zinc-600 dark:text-zinc-400">
           Página Inicial
         </h1>
-        <button className="px-4 py-2 bg-brand-red hover:bg-brand-red/90 text-white text-xs font-bold uppercase tracking-wide rounded transition-colors shadow-sm">
-          Enviar Notificação
-        </button>
       </div>
 
       <CardsResumo onResumo={receberResumo} />
       <BlocoCotacoes resumo={resumo} />
-      <FaixaComissoes />
       <GraficoSeguradoras />
       <TabelaNovosCadastros />
     </div>
