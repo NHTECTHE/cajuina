@@ -53,27 +53,32 @@ export default function AuthPage() {
   // -----------------------------------------
   // LOGIN STATE & LOGIC
   // -----------------------------------------
-  const [loginUsername, setLoginUsername] = useState("")
+  const [loginEmail, setLoginEmail] = useState("")
   const [loginPassword, setLoginPassword] = useState("")
   const [showLoginPassword, setShowLoginPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
   const [isLoadingLogin, setIsLoadingLogin] = useState(false)
 
-  const [loginUsernameFocused, setLoginUsernameFocused] = useState(false)
+  const [loginEmailFocused, setLoginEmailFocused] = useState(false)
   const [loginPasswordFocused, setLoginPasswordFocused] = useState(false)
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!loginUsername.trim() || !loginPassword.trim()) {
-      toast.error("Por favor, preencha usuário e senha.")
+    if (!loginEmail.trim() || !loginPassword.trim()) {
+      toast.error("Por favor, preencha e-mail e senha.")
+      return
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginEmail.trim())) {
+      toast.error("Informe um e-mail válido.")
       return
     }
 
     setIsLoadingLogin(true)
 
     const formData = new FormData()
-    formData.append("username", loginUsername)
+    formData.append("email", loginEmail.trim())
     formData.append("password", loginPassword)
 
     let isSuccess = false;
@@ -385,25 +390,26 @@ export default function AuthPage() {
             </div>
 
             <div className="relative group">
-              <div className={`flex items-center gap-3 bg-zinc-50/80 rounded-2xl border transition-all duration-200 px-4 h-[56px] ${loginUsernameFocused
+              <div className={`flex items-center gap-3 bg-zinc-50/80 rounded-2xl border transition-all duration-200 px-4 h-[56px] ${loginEmailFocused
                 ? "border-brand-red/30 bg-white shadow-sm ring-4 ring-brand-red/[0.06]"
                 : "border-zinc-200/80 hover:border-zinc-300"
                 }`}>
-                <User className={`size-[18px] shrink-0 transition-colors duration-200 ${loginUsernameFocused ? "text-brand-red" : "text-zinc-400"}`} />
+                <Mail className={`size-[18px] shrink-0 transition-colors duration-200 ${loginEmailFocused ? "text-brand-red" : "text-zinc-400"}`} />
                 <div className="flex-1 relative">
                   <input
-                    id="loginUsername"
-                    type="text"
-                    value={loginUsername}
-                    onChange={(e) => setLoginUsername(e.target.value)}
-                    onFocus={() => setLoginUsernameFocused(true)}
-                    onBlur={() => setLoginUsernameFocused(false)}
+                    id="loginEmail"
+                    type="email"
+                    autoComplete="email"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    onFocus={() => setLoginEmailFocused(true)}
+                    onBlur={() => setLoginEmailFocused(false)}
                     disabled={isLoadingLogin}
                     placeholder=" "
                     className="peer w-full bg-transparent pt-4 pb-0 text-[14px] text-zinc-800 outline-none placeholder-transparent disabled:opacity-50"
                   />
                   <label className="absolute left-0 top-1/2 -translate-y-1/2 text-[13px] text-zinc-500 pointer-events-none transition-all duration-200 peer-focus:top-1.5 peer-focus:translate-y-0 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:text-brand-red peer-[:not(:placeholder-shown)]:top-1.5 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:font-semibold peer-[:not(:placeholder-shown)]:text-zinc-500">
-                    Usuário
+                    E-mail
                   </label>
                 </div>
               </div>

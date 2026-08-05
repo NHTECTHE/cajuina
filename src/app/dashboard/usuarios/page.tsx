@@ -42,7 +42,6 @@ const CARGO_COLORS: Record<string, string> = {
 const EMPTY_FORM: Omit<Usuario, "id"> = {
   first_name: "",
   email: "",
-  username: "",
   cargo: "",
   password: "",
 }
@@ -92,7 +91,7 @@ interface ModalProps {
 function UsuarioModal({ usuario, onClose, onSaved, onDelete }: ModalProps) {
   const isEditing = !!usuario?.id
   const [form, setForm] = React.useState<Omit<Usuario, "id">>(
-    usuario ? { first_name: usuario.first_name, email: usuario.email, username: usuario.username, cargo: usuario.cargo, password: "" }
+    usuario ? { first_name: usuario.first_name, email: usuario.email, cargo: usuario.cargo, password: "" }
             : EMPTY_FORM
   )
   const [loading, setLoading] = React.useState(false)
@@ -111,7 +110,6 @@ function UsuarioModal({ usuario, onClose, onSaved, onDelete }: ModalProps) {
     const payload: Partial<Usuario> = {
       first_name: form.first_name,
       email: form.email,
-      username: form.username,
       cargo: form.cargo,
     }
     if (form.password) payload.password = form.password
@@ -174,15 +172,6 @@ function UsuarioModal({ usuario, onClose, onSaved, onDelete }: ModalProps) {
                 value={form.email}
                 onChange={e => set("email", e.target.value)}
                 placeholder="email@empresa.com"
-                required
-              />
-            </Field>
-            <Field label="Usuário" required>
-              <input
-                className={inputCls}
-                value={form.username}
-                onChange={e => set("username", e.target.value)}
-                placeholder="joao.silva"
                 required
               />
             </Field>
@@ -415,7 +404,6 @@ export default function UsuariosPage() {
                 </div>
                 <div className="flex flex-col gap-1 text-[12px] text-zinc-500 dark:text-zinc-400">
                   <p><span className="font-medium text-zinc-600 dark:text-zinc-300">Email:</span> {u.email}</p>
-                  <p><span className="font-medium text-zinc-600 dark:text-zinc-300">Usuário:</span> {u.username}</p>
                 </div>
               </div>
             ))}
@@ -424,10 +412,9 @@ export default function UsuariosPage() {
           {/* Desktop Table */}
           <div className="hidden md:block rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
             {/* Table header */}
-            <div className="grid grid-cols-[2fr_2fr_1fr_1fr] bg-zinc-50 dark:bg-zinc-900/50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-800">
+            <div className="grid grid-cols-[2fr_2fr_1fr] bg-zinc-50 dark:bg-zinc-900/50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-800">
               <span>Nome</span>
               <span>Email</span>
-              <span>Usuário</span>
               <span>Cargo</span>
             </div>
             {/* Table rows */}
@@ -435,11 +422,10 @@ export default function UsuariosPage() {
               <div
                 key={u.id}
                 onClick={() => setModal({ open: true, usuario: u })}
-                className="cursor-pointer grid grid-cols-[2fr_2fr_1fr_1fr] items-center px-4 py-3 border-b last:border-b-0 border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors"
+                className="cursor-pointer grid grid-cols-[2fr_2fr_1fr] items-center px-4 py-3 border-b last:border-b-0 border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors"
               >
                 <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 truncate">{u.first_name}</span>
                 <span className="text-sm text-zinc-500 dark:text-zinc-400 truncate">{u.email}</span>
-                <span className="text-sm text-zinc-500 dark:text-zinc-400 truncate">{u.username}</span>
                 <span>
                   <span className={cn("inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize", CARGO_COLORS[u.cargo] ?? CARGO_COLORS.usuario)}>
                     {CARGO_OPTIONS.find(o => o.value === u.cargo)?.label ?? u.cargo}

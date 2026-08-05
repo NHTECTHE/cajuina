@@ -452,3 +452,78 @@ export const apolicesApi = {
     apiRequest<void>(`/apolices/${id}`, { method: "DELETE" }),
 };
 
+
+// ─── Dashboard ───────────────────────────────────────────────────────────────
+
+export type PeriodoDashboard = "dia" | "mes" | "ano";
+
+export interface ResumoPeriodo {
+  tipo: PeriodoDashboard;
+  inicio: string;
+  fim: string;
+  rotulo: string;
+}
+
+export interface DashboardResumo {
+  producao: string;
+  apolices: number;
+  tomadores: { periodo: number; total: number };
+  cotacoes: { iniciadas: number; aprovadas: number; emitidas: number };
+  periodo: ResumoPeriodo;
+}
+
+export interface DashboardComissoes {
+  a_receber: string;
+  pago: string;
+  em_atraso: string;
+  a_pagar: string;
+}
+
+export interface PremioSeguradora {
+  id: number;
+  seguradora: string;
+  valor_atual: string;
+  meta: string | null;
+  falta: string | null;
+}
+
+export interface NovoCadastro {
+  id: number;
+  nome: string;
+  contato: string;
+  telefone: string;
+  email: string;
+  criado_por: string | null;
+  criado_em: string;
+}
+
+export interface NovosCadastrosPagina {
+  results: NovoCadastro[];
+  count: number;
+  page: number;
+  page_size: number;
+}
+
+export function getDashboardResumo(periodo: PeriodoDashboard): Promise<DashboardResumo> {
+  return apiRequest<DashboardResumo>(`/dashboard/resumo/?periodo=${periodo}`);
+}
+
+export function getDashboardComissoes(): Promise<DashboardComissoes> {
+  return apiRequest<DashboardComissoes>("/dashboard/comissoes/");
+}
+
+export function getPremioSeguradoras(ano?: number): Promise<PremioSeguradora[]> {
+  const query = ano ? `?ano=${ano}` : "";
+  return apiRequest<PremioSeguradora[]>(`/dashboard/premio-seguradoras/${query}`);
+}
+
+export function getNovosCadastros(
+  params: { search?: string; page?: number; pageSize?: number } = {}
+): Promise<NovosCadastrosPagina> {
+  const query = new URLSearchParams();
+  if (params.search) query.set("search", params.search);
+  if (params.page) query.set("page", String(params.page));
+  if (params.pageSize) query.set("page_size", String(params.pageSize));
+  const qs = query.toString();
+  return apiRequest<NovosCadastrosPagina>(`/dashboard/novos-cadastros/${qs ? `?${qs}` : ""}`);
+}
