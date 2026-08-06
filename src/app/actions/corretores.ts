@@ -17,18 +17,9 @@ function authHeaders(token: string) {
 }
 
 export interface Corretor {
-  id?: number
+  id: number
   cpf_cnpj: string
   nome: string
-  recebimento: string
-  percentual: string | null
-  banco: string
-  agencia: string
-  conta: string
-  email: string
-  telefone: string
-  url_saida: string
-  ativo?: boolean
   criado_em?: string
   atualizado_em?: string
 }
