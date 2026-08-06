@@ -673,7 +673,18 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                   Editar
                 </button>
                 <button 
-                  onClick={() => setShowEmitirModal(true)}
+                  onClick={() => {
+                    if (selected) {
+                      const v = calculatedPremio ?? selected.premio
+                      if (v != null) {
+                        const num = Number(v)
+                        if (!isNaN(num)) {
+                          setValorSeguradoraEmissao(formatCurrency((num * 100).toFixed(0)))
+                        }
+                      }
+                    }
+                    setShowEmitirModal(true)
+                  }}
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-10.5 sm:px-6 rounded-xl bg-brand-red text-white hover:bg-brand-red/90 font-bold text-xs shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] cursor-pointer"
                 >
                   <CheckCircle2 className="size-4" />

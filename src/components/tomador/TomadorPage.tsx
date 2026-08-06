@@ -21,6 +21,7 @@ import {
   Mail,
   KeyRound,
   RefreshCw,
+  AlertTriangle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -37,6 +38,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
 import { NativeSelect } from "@/components/ui/native-select"
 import {
   Combobox,
@@ -196,6 +204,8 @@ export default function TomadorPage() {
   }
 
   const [formData, setFormData] = useState(initialFormState)
+  const [seguradoraInicial, setSeguradoraInicial] = useState<number | null>(null)
+  const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false)
 
   // Dynamic Contact Form Row Input Temp States
   const [newContact, setNewContact] = useState<ContactRow>({ nome: "", telefone: "", email: "" })
@@ -322,17 +332,48 @@ export default function TomadorPage() {
       .finally(() => setDeleteTarget(null))
   }
 
-  // Handle Save
-  const handleSave = async (e: React.FormEvent) => {
+  // O CNPJ e unico no backend: acha o cadastro existente antes de deixar o usuario prosseguir.
+  const somenteDigitos = (valor: string) => valor.replace(/\D/g, "")
+
+  const buscarTomadorPorCnpj = (cnpj: string) => {
+    const digits = somenteDigitos(cnpj)
+    if (digits.length !== 14) return undefined
+    return tomadores.find(t => somenteDigitos(t.cnpj) === digits)
+  }
+
+  // Handle Form Submit (from main view)
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.cnpj || !formData.nome) {
-      toast.error("CNPJ e Nome/Razão Social são obrigatórios.")
+    if (!formData.cnpj) {
+      toast.error("CNPJ é obrigatório.")
       return
     }
 
-    if (!formData.produtor || !formData.corretora) {
-      toast.error("Produtor e Corretora são obrigatórios.")
+    if (editingId === null) {
+      const existente = buscarTomadorPorCnpj(formData.cnpj)
+      if (existente) {
+        setCnpjDuplicado(existente)
+        toast.error("Já existe um tomador cadastrado com esse CNPJ.")
+        return
+      }
+      // No modo de criação, o form principal apenas avança para o modal
+      setIsFinalizeModalOpen(true)
+    } else {
+      // No modo de edição, salva direto
+      handleSave()
+    }
+  }
+
+  // Handle Save
+  const handleSave = async () => {
+    if (editingId === null && !seguradoraInicial) {
+      toast.error("Seguradora é obrigatória no cadastro inicial.")
+      return
+    }
+
+    if (!formData.produtor) {
+      toast.error("Produtor é obrigatório.")
       return
     }
 
@@ -368,12 +409,26 @@ export default function TomadorPage() {
         toast.success("Cadastro atualizado com sucesso!")
       } else {
         const created = await tomadoresApi.create(payload)
+        if (seguradoraInicial) {
+          await saveTomadorSeguradorasAction(created.id, [{
+            seguradora: seguradoraInicial,
+            taxa: "0",
+            status: "cadastro_ok",
+            premio_minimo: "",
+            dias_vencimento: null
+          }])
+        }
         setTomadores(prev => [created, ...prev])
         toast.success("Tomador cadastrado com sucesso!")
       }
       setView("list")
       setFormData(initialFormState)
+      setSeguradoraInicial(null)
       setEditingId(null)
+      setCadastroManual(false)
+      setCnpjNaoEncontrado(false)
+      setCnpjDuplicado(null)
+      setIsFinalizeModalOpen(false)
       setAtividadesLoadedFor(null)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro ao salvar tomador."
@@ -633,12 +688,25 @@ export default function TomadorPage() {
   }
 
   const [cnpjLoading, setCnpjLoading] = React.useState(false)
+  // Busca automatica falhou: libera o cadastro manual em vez de travar o usuario.
+  const [cnpjNaoEncontrado, setCnpjNaoEncontrado] = React.useState(false)
+  const [cnpjDuplicado, setCnpjDuplicado] = React.useState<TomadorResponse | null>(null)
+  const [cadastroManual, setCadastroManual] = React.useState(false)
 
   const fetchCompanyByCnpj = async (rawValue: string) => {
     const digits = rawValue.replace(/\D/g, '').slice(0, 14);
     if (digits.length !== 14) return;
 
+    const jaCadastrado = buscarTomadorPorCnpj(digits);
+    if (jaCadastrado) {
+      setCnpjDuplicado(jaCadastrado);
+      setCnpjNaoEncontrado(false);
+      return;
+    }
+    setCnpjDuplicado(null);
+
     setCnpjLoading(true);
+    setCnpjNaoEncontrado(false);
     try {
       const data = await lookupCnpj(digits);
       setFormData(prev => ({
@@ -660,6 +728,7 @@ export default function TomadorPage() {
       toast.success("Dados do CNPJ preenchidos automaticamente.");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erro ao buscar CNPJ";
+      setCnpjNaoEncontrado(true);
       toast.error(msg);
     } finally {
       setCnpjLoading(false);
@@ -669,7 +738,7 @@ export default function TomadorPage() {
 
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-6">
 
       {/* ──── CONTAINER HEADER ──── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
@@ -689,6 +758,9 @@ export default function TomadorPage() {
             onClick={() => {
               setFormData(initialFormState)
               setEditingId(null)
+              setCadastroManual(false)
+              setCnpjNaoEncontrado(false)
+              setCnpjDuplicado(null)
               setView("form")
               setCurrentTab("dados")
             }}
@@ -950,23 +1022,131 @@ export default function TomadorPage() {
 
       {/* ──── REGISTRATION FORM VIEW ──── */}
       {view === "form" && (
-        <form onSubmit={handleSave} className="flex-1 flex flex-col min-h-0 gap-6">
+        <form onSubmit={handleSubmit} className={cn("flex-1 flex flex-col", editingId === null && !cadastroManual ? "justify-center items-center" : "min-h-0 gap-6")}>
+          {editingId === null && !cadastroManual ? (
+            <div className="w-full max-w-3xl px-4 md:px-0">
+              <div className="bg-white dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl shadow-sm p-6 md:p-10">
+                <div className="space-y-3 mb-6">
+                  <Label htmlFor="form-cnpj" className="text-brand-red font-bold flex items-center gap-2 text-sm uppercase">
+                    CNPJ
+                    {cnpjLoading && (
+                      <span className="flex items-center gap-1 text-[10px] font-normal opacity-80 text-zinc-500">
+                        <span className="w-2.5 h-2.5 border border-brand-red border-t-transparent rounded-full animate-spin" />
+                        Buscando...
+                      </span>
+                    )}
+                  </Label>
+                  <Input
+                    id="form-cnpj"
+                    placeholder="Digite o número do CNPJ"
+                    value={formData.cnpj}
+                    onChange={(e) => {
+                      const val = maskCNPJ(e.target.value);
+                      setFormData(prev => ({ ...prev, cnpj: val }));
+                      setCnpjNaoEncontrado(false);
+                      setCnpjDuplicado(null);
+                      fetchCompanyByCnpj(val);
+                    }}
+                    className="h-12 rounded-lg border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black/5 px-4"
+                    required
+                  />
+                </div>
+                
+                {/* CNPJ ja existe no backend: nao adianta prosseguir, o save seria recusado */}
+                {cnpjDuplicado && (
+                  <div className="mt-3 p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex items-start gap-2.5">
+                      <AlertTriangle className="size-4 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-red-600 dark:text-red-400 font-bold text-sm">CNPJ já cadastrado</span>
+                        <span className="text-zinc-500 dark:text-zinc-400 text-xs">
+                          Este CNPJ pertence a <span className="font-semibold">{cnpjDuplicado.nome}</span>. Abra o cadastro existente para editá-lo.
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleEditClick(cnpjDuplicado.id)}
+                      className="self-start h-10 px-4 rounded-lg font-semibold border-red-300 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 cursor-pointer transition-all"
+                    >
+                      Abrir cadastro existente
+                    </Button>
+                  </div>
+                )}
 
-          {/* Form Action Buttons (Mobile) */}
-          <div className="md:hidden flex flex-col gap-3 pb-6 border-b border-zinc-200/60 dark:border-zinc-800/80 shrink-0">
-            {editingId !== null ? (
-              <>
-                <div className="grid grid-cols-2 gap-3">
-                  <Button type="button" variant="outline" disabled={saving} className="border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold h-10 rounded-xl flex items-center justify-center gap-2">
-                    <Mail className="size-4 text-zinc-500" />
-                    <span>Carta</span>
+                {/* Exibição do Nome/Razão Social estilo badge (Apenas se já buscou/preencheu) */}
+                {formData.nome && !cnpjLoading && !cnpjDuplicado && (
+                  <div className="mt-3 p-4 bg-brand-red/5 dark:bg-brand-red/10 border border-brand-red/10 dark:border-brand-red/20 rounded-lg flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-200">
+                    <span className="text-brand-red font-bold text-sm uppercase">{formData.nome}</span>
+                    <span className="text-zinc-500 dark:text-zinc-400 text-xs">{formData.cnpj}</span>
+                  </div>
+                )}
+                
+                {/* Busca automatica falhou: oferece o cadastro manual (fluxo completo) */}
+                {cnpjNaoEncontrado && !cnpjLoading && (
+                  <div className="mt-3 p-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex items-start gap-2.5">
+                      <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-amber-700 dark:text-amber-400 font-bold text-sm">CNPJ nao identificado</span>
+                        <span className="text-zinc-500 dark:text-zinc-400 text-xs">
+                          Nao foi possivel buscar os dados automaticamente. Voce pode preencher o cadastro manualmente.
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setCadastroManual(true)
+                        setCurrentTab("dados")
+                      }}
+                      className="self-start h-10 px-4 rounded-lg font-semibold border-amber-300 dark:border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 cursor-pointer transition-all"
+                    >
+                      Cadastrar manualmente
+                    </Button>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3 mt-8">
+                  <Button 
+                    type="button" 
+                    variant="ghost"
+                    onClick={() => { setView("list"); setEditingId(null); }}
+                    className="h-11 px-6 font-semibold"
+                  >
+                    Cancelar
                   </Button>
-                  <Button type="button" variant="outline" disabled={saving} className="border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold h-10 rounded-xl flex items-center justify-center gap-2">
-                    <KeyRound className="size-4 text-zinc-500" />
-                    <span>Senha</span>
+                  <Button
+                    type="submit"
+                    disabled={saving || cnpjLoading || cnpjDuplicado !== null}
+                    className="bg-[#e43a3e] hover:bg-[#c72f32] text-white font-bold h-11 px-8 rounded-lg cursor-pointer transition-all disabled:opacity-60 disabled:cursor-not-allowed uppercase"
+                  >
+                    {saving ? "Aguarde..." : "continuar"}
                   </Button>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+              </div>
+            </div>
+          ) : (
+          <>
+          {/* Form Action Buttons (Mobile) */}
+          <div className="md:hidden flex flex-col gap-3 pb-6 border-b border-zinc-200/60 dark:border-zinc-800/80 shrink-0">
+            {editingId !== null && (
+              <div className="grid grid-cols-2 gap-3">
+                <Button type="button" variant="outline" disabled={saving} className="border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold h-10 rounded-xl flex items-center justify-center gap-2">
+                  <Mail className="size-4 text-zinc-500" />
+                  <span>Carta</span>
+                </Button>
+                <Button type="button" variant="outline" disabled={saving} className="border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold h-10 rounded-xl flex items-center justify-center gap-2">
+                  <KeyRound className="size-4 text-zinc-500" />
+                  <span>Senha</span>
+                </Button>
+              </div>
+            )}
+            <div className={cn("grid gap-2", editingId !== null ? "grid-cols-3" : "grid-cols-1")}>
+              {editingId !== null && (
+                <>
                   <Button type="button" disabled={saving} onClick={() => handleDeleteClick(editingId)} className="bg-red-50 dark:bg-red-500/10 text-red-600 border border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/20 font-semibold h-10 rounded-xl flex items-center justify-center gap-1.5">
                     <Trash2 className="size-3.5" />
                     <span className="text-[11px]">Excluir</span>
@@ -975,26 +1155,16 @@ export default function TomadorPage() {
                     <RefreshCw className="size-3.5" />
                     <span className="text-[11px]">Atualizar</span>
                   </Button>
-                  <Button type="button" variant="outline" disabled={saving} onClick={() => { setView("list"); setEditingId(null); }} className="border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold h-10 rounded-xl flex items-center justify-center">
-                    <span className="text-[11px]">Cancelar</span>
-                  </Button>
-                </div>
-                <Button type="submit" disabled={saving} className="bg-brand-red text-white hover:bg-brand-red/90 font-bold h-11 rounded-xl shadow-md shadow-brand-red/10 flex items-center justify-center gap-2 mt-1">
-                  {saving && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                  <span>{saving ? "Processando..." : "Salvar Alterações"}</span>
-                </Button>
-              </>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <Button type="submit" disabled={saving} className="bg-brand-red text-white hover:bg-brand-red/90 font-bold h-11 rounded-xl shadow-md shadow-brand-red/10 flex items-center justify-center gap-2">
-                  {saving && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                  <span>{saving ? "Processando..." : "Salvar Cadastro"}</span>
-                </Button>
-                <Button type="button" variant="outline" disabled={saving} onClick={() => { setView("list"); setEditingId(null); }} className="border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold h-11 rounded-xl flex items-center justify-center">
-                  <span>Cancelar</span>
-                </Button>
-              </div>
-            )}
+                </>
+              )}
+              <Button type="button" variant="outline" disabled={saving} onClick={() => { setView("list"); setEditingId(null); }} className="border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold h-10 rounded-xl flex items-center justify-center">
+                <span className="text-[11px]">Cancelar</span>
+              </Button>
+            </div>
+            <Button type="submit" disabled={saving} className="bg-brand-red text-white hover:bg-brand-red/90 font-bold h-11 rounded-xl shadow-md shadow-brand-red/10 flex items-center justify-center gap-2 mt-1">
+              {saving && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+              <span>{saving ? "Processando..." : editingId !== null ? "Salvar Alterações" : "Continuar"}</span>
+            </Button>
           </div>
 
           {/* Top Action Buttons (Desktop) */}
@@ -1031,62 +1201,65 @@ export default function TomadorPage() {
               <span>Dados Gerais</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setCurrentTab("endereco")}
-              className={cn(
-                "shrink-0 justify-center px-4 py-2.5 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer",
-                currentTab === "endereco"
-                  ? "bg-brand-red text-white rounded-xl shadow-md md:bg-transparent md:text-brand-red md:border-b-2 md:border-brand-red md:rounded-none md:shadow-none"
-                  : "bg-black/5 dark:bg-white/5 text-zinc-500 rounded-xl md:bg-transparent md:border-b-2 md:border-transparent hover:text-zinc-600 dark:hover:text-zinc-300 md:rounded-none"
-              )}
-            >
-              <MapPin className="size-4" />
-              <span>Endereço</span>
-            </button>
+            {editingId !== null && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setCurrentTab("endereco")}
+                  className={cn(
+                    "shrink-0 justify-center px-4 py-2.5 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer",
+                    currentTab === "endereco"
+                      ? "bg-brand-red text-white rounded-xl shadow-md md:bg-transparent md:text-brand-red md:border-b-2 md:border-brand-red md:rounded-none md:shadow-none"
+                      : "bg-black/5 dark:bg-white/5 text-zinc-500 rounded-xl md:bg-transparent md:border-b-2 md:border-transparent hover:text-zinc-600 dark:hover:text-zinc-300 md:rounded-none"
+                  )}
+                >
+                  <MapPin className="size-4" />
+                  <span>Endereço</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={() => setCurrentTab("contatos")}
-              className={cn(
-                "shrink-0 justify-center px-4 py-2.5 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer",
-                currentTab === "contatos"
-                  ? "bg-brand-red text-white rounded-xl shadow-md md:bg-transparent md:text-brand-red md:border-b-2 md:border-brand-red md:rounded-none md:shadow-none"
-                  : "bg-black/5 dark:bg-white/5 text-zinc-500 rounded-xl md:bg-transparent md:border-b-2 md:border-transparent hover:text-zinc-600 dark:hover:text-zinc-300 md:rounded-none"
-              )}
-            >
-              <Users className="size-4" />
-              <span>Contatos ({formData.contatosAdicionais.length})</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentTab("contatos")}
+                  className={cn(
+                    "shrink-0 justify-center px-4 py-2.5 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer",
+                    currentTab === "contatos"
+                      ? "bg-brand-red text-white rounded-xl shadow-md md:bg-transparent md:text-brand-red md:border-b-2 md:border-brand-red md:rounded-none md:shadow-none"
+                      : "bg-black/5 dark:bg-white/5 text-zinc-500 rounded-xl md:bg-transparent md:border-b-2 md:border-transparent hover:text-zinc-600 dark:hover:text-zinc-300 md:rounded-none"
+                  )}
+                >
+                  <Users className="size-4" />
+                  <span>Contatos ({formData.contatosAdicionais.length})</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={() => setCurrentTab("socios")}
-              className={cn(
-                "shrink-0 justify-center px-4 py-2.5 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer",
-                currentTab === "socios"
-                  ? "bg-brand-red text-white rounded-xl shadow-md md:bg-transparent md:text-brand-red md:border-b-2 md:border-brand-red md:rounded-none md:shadow-none"
-                  : "bg-black/5 dark:bg-white/5 text-zinc-500 rounded-xl md:bg-transparent md:border-b-2 md:border-transparent hover:text-zinc-600 dark:hover:text-zinc-300 md:rounded-none"
-              )}
-            >
-              <UserCheck className="size-4" />
-              <span>Quadro de Sócios ({formData.socios.length})</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentTab("socios")}
+                  className={cn(
+                    "shrink-0 justify-center px-4 py-2.5 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer",
+                    currentTab === "socios"
+                      ? "bg-brand-red text-white rounded-xl shadow-md md:bg-transparent md:text-brand-red md:border-b-2 md:border-brand-red md:rounded-none md:shadow-none"
+                      : "bg-black/5 dark:bg-white/5 text-zinc-500 rounded-xl md:bg-transparent md:border-b-2 md:border-transparent hover:text-zinc-600 dark:hover:text-zinc-300 md:rounded-none"
+                  )}
+                >
+                  <UserCheck className="size-4" />
+                  <span>Quadro de Sócios ({formData.socios.length})</span>
+                </button>
 
-
-            <button
-              type="button"
-              onClick={() => setCurrentTab("arquivos")}
-              className={cn(
-                "shrink-0 justify-center px-4 py-2.5 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer",
-                currentTab === "arquivos"
-                  ? "bg-brand-red text-white rounded-xl shadow-md md:bg-transparent md:text-brand-red md:border-b-2 md:border-brand-red md:rounded-none md:shadow-none"
-                  : "bg-black/5 dark:bg-white/5 text-zinc-500 rounded-xl md:bg-transparent md:border-b-2 md:border-transparent hover:text-zinc-600 dark:hover:text-zinc-300 md:rounded-none"
-              )}
-            >
-              <Paperclip className="size-4" />
-              <span>Arquivos {editingId !== null && `(${arquivos.length})`}</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentTab("arquivos")}
+                  className={cn(
+                    "shrink-0 justify-center px-4 py-2.5 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer",
+                    currentTab === "arquivos"
+                      ? "bg-brand-red text-white rounded-xl shadow-md md:bg-transparent md:text-brand-red md:border-b-2 md:border-brand-red md:rounded-none md:shadow-none"
+                      : "bg-black/5 dark:bg-white/5 text-zinc-500 rounded-xl md:bg-transparent md:border-b-2 md:border-transparent hover:text-zinc-600 dark:hover:text-zinc-300 md:rounded-none"
+                  )}
+                >
+                  <Paperclip className="size-4" />
+                  <span>Arquivos ({arquivos.length})</span>
+                </button>
+              </>
+            )}
 
             {editingId !== null && (
               <button
@@ -1135,8 +1308,9 @@ export default function TomadorPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-                  {/* Produtor */}
-                  <div className="space-y-2">
+                  {/* Produtor (Apenas na edição) */}
+                  {editingId !== null && (
+                    <div className="space-y-2">
                     <Label htmlFor="form-produtor" className="text-xs font-bold">Produtor *</Label>
                     <Combobox
                       items={produtorItems}
@@ -1161,44 +1335,41 @@ export default function TomadorPage() {
                       </ComboboxContent>
                     </Combobox>
                   </div>
+                  )}
 
-                  {/* Corretora */}
-                  <div className="space-y-2">
-                    <Label htmlFor="form-corretora" className="text-xs font-bold">Corretora *</Label>
-                    <Combobox
-                      items={corretorItems}
-                      value={formData.corretora}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, corretora: value ?? "" }))}
-                    >
-                      <ComboboxInput
-                        id="form-corretora"
-                        placeholder={cadastrosLoaded ? "Pesquisar corretora..." : "Carregando corretoras..."}
-                        disabled={!cadastrosLoaded}
-                        className="w-full h-10 [&_input]:h-10 rounded-xl border-zinc-200/80 dark:border-zinc-800/80"
-                      />
-                      <ComboboxContent>
-                        <ComboboxEmpty>Nenhuma corretora encontrada.</ComboboxEmpty>
-                        <ComboboxList>
-                          {(item: string) => (
-                            <ComboboxItem key={item} value={item}>
-                              {item}
-                            </ComboboxItem>
-                          )}
-                        </ComboboxList>
-                      </ComboboxContent>
-                    </Combobox>
-                  </div>
+                  {/* Corretora (Apenas na edição) */}
+                  {editingId !== null && (
+                    <div className="space-y-2">
+                      <Label htmlFor="form-corretora" className="text-xs font-bold">Corretora</Label>
+                      <Combobox
+                        items={corretorItems}
+                        value={formData.corretora}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, corretora: value ?? "" }))}
+                      >
+                        <ComboboxInput
+                          id="form-corretora"
+                          placeholder={cadastrosLoaded ? "Pesquisar corretora..." : "Carregando corretoras..."}
+                          disabled={!cadastrosLoaded}
+                          className="w-full h-10 [&_input]:h-10 rounded-xl border-zinc-200/80 dark:border-zinc-800/80"
+                        />
+                        <ComboboxContent>
+                          <ComboboxEmpty>Nenhuma corretora encontrada.</ComboboxEmpty>
+                          <ComboboxList>
+                            {(item: string) => (
+                              <ComboboxItem key={item} value={item}>
+                                {item}
+                              </ComboboxItem>
+                            )}
+                          </ComboboxList>
+                        </ComboboxContent>
+                      </Combobox>
+                    </div>
+                  )}
 
-                  {/* CNPJ */}
+                  {/* CNPJ (Edição) */}
                   <div className="space-y-2">
                     <Label htmlFor="form-cnpj" className="text-xs font-bold flex items-center gap-2">
                       CNPJ *
-                      {cnpjLoading && (
-                        <span className="flex items-center gap-1 text-[10px] font-normal text-brand-red dark:text-[#cf7458] opacity-80">
-                          <span className="w-2.5 h-2.5 border border-brand-red border-t-transparent rounded-full animate-spin" />
-                          Buscando...
-                        </span>
-                      )}
                     </Label>
                     <Input
                       id="form-cnpj"
@@ -1207,7 +1378,6 @@ export default function TomadorPage() {
                       onChange={(e) => {
                         const val = maskCNPJ(e.target.value);
                         setFormData(prev => ({ ...prev, cnpj: val }));
-                        fetchCompanyByCnpj(val);
                       }}
                       className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
                       required
@@ -1223,11 +1393,14 @@ export default function TomadorPage() {
                       value={formData.nome}
                       onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
                       className="h-10 rounded-xl border-zinc-200 dark:border-zinc-800 bg-white/40 dark:bg-white/5"
-                      required
                     />
                   </div>
 
-                  {/* Nome Fantasia */}
+
+
+                  {editingId !== null && (
+                    <>
+                      {/* Nome Fantasia */}
                   <div className="space-y-2">
                     <Label htmlFor="form-nome-fantasia" className="text-xs font-bold">Nome Fantasia</Label>
                     <Input
@@ -1300,9 +1473,13 @@ export default function TomadorPage() {
                     />
                   </div>
 
+                    </>
+                  )}
                 </div>
               </div>
-              <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 space-y-4">
+              {editingId !== null && (
+                <>
+                  <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6 space-y-4">
                 <h3 className="text-xs font-black text-brand-red dark:text-[#cf7458] uppercase tracking-wider mb-2 flex items-center gap-2">
                   <Percent className="size-4.5" />
                   <span>Taxas por Seguradora</span>
@@ -1313,13 +1490,7 @@ export default function TomadorPage() {
                 </p>
               </div>
 
-              {editingId === null ? (
-                <div className="bg-black/5 dark:bg-white/5 border border-zinc-200/50 dark:border-zinc-800/40 rounded-2xl p-6">
-                  <p className="text-xs opacity-60 text-center">
-                    Salve o cadastro do tomador antes de definir as taxas.
-                  </p>
-                </div>
-              ) : loadingSeguradoras ? (
+              {loadingSeguradoras ? (
                 <div className="flex items-center justify-center py-12">
                   <span className="w-5 h-5 border-2 border-brand-red border-t-transparent rounded-full animate-spin" />
                 </div>
@@ -1449,7 +1620,9 @@ export default function TomadorPage() {
                   )}
                 </>
               )}
-            </div>
+            </>
+          )}
+        </div>
 
             {/* ──── TAB: ENDEREÇO ──── */}
             <div className={cn("space-y-6", currentTab !== "endereco" && "hidden")}>
@@ -2426,16 +2599,78 @@ export default function TomadorPage() {
                   className="bg-brand-red text-white hover:bg-brand-red/90 font-bold px-6 py-2.5 h-10.5 rounded-xl cursor-pointer shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {saving && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                  <span>{saving ? "Salvando..." : editingId !== null ? "Salvar Cadastro" : "Criar Tomador"}</span>
+                  <span>{saving ? "Salvando..." : editingId !== null ? "Salvar Cadastro" : "Continuar"}</span>
                 </Button>
               </div>
             </div>
 
            </div>
-
+          </>
+          )}
         </form>
       )}
 
+      <Dialog open={isFinalizeModalOpen} onOpenChange={setIsFinalizeModalOpen}>
+        <DialogContent
+          onInteractOutside={(e) => {
+            const target = e.target as HTMLElement
+            if (target.closest('[data-slot="combobox-content"]')) {
+              e.preventDefault()
+            }
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Finalizar Cadastro</DialogTitle>
+            <DialogDescription>
+              Selecione o produtor e a seguradora inicial para finalizar o cadastro de {formData.nome}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-bold">Produtor *</Label>
+              <Combobox
+                items={produtorItems}
+                value={formData.produtor}
+                onValueChange={(val) => setFormData(p => ({ ...p, produtor: val ?? "" }))}
+              >
+                <ComboboxInput placeholder="Pesquisar produtor..." />
+                <ComboboxContent>
+                  <ComboboxEmpty>Nenhum produtor encontrado</ComboboxEmpty>
+                  <ComboboxList>
+                    {(item: string) => (
+                      <ComboboxItem key={item} value={item}>{item}</ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold">Seguradora Inicial *</Label>
+              <Combobox
+                items={seguradorasTaxaveis}
+                value={seguradoraInicial}
+                onValueChange={(val) => setSeguradoraInicial(val)}
+              >
+                <ComboboxInput placeholder="Pesquisar seguradora..." />
+                <ComboboxContent>
+                  <ComboboxEmpty>Nenhuma seguradora</ComboboxEmpty>
+                  <ComboboxList>
+                    {(item: Seguradora & { id: number }) => (
+                      <ComboboxItem key={item.id} value={item.id}>{item.nome}</ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsFinalizeModalOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={saving} className="bg-brand-red text-white hover:bg-brand-red/90">
+              {saving ? "Salvando..." : "Finalizar Cadastro"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -208,7 +208,7 @@ function ProdutorModal({ produtor, onClose, onSaved, onDelete }: ModalProps) {
 
   React.useEffect(() => {
     listCorretoresAction().then(res => {
-      if (res.data) setCorretores(res.data.filter(c => c.ativo !== false))
+      if (res.data) setCorretores(res.data)
       setLoadingCorretores(false)
     })
   }, [])

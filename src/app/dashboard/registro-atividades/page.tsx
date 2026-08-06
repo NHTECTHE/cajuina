@@ -96,7 +96,6 @@ export default function RegistroAtividadesPage() {
     return atividades.filter(
       a =>
         a.usuario_nome.toLowerCase().includes(q) ||
-        a.usuario_username.toLowerCase().includes(q) ||
         a.acao.toLowerCase().includes(q) ||
         a.entidade.toLowerCase().includes(q) ||
         a.item.toLowerCase().includes(q) ||
@@ -161,7 +160,7 @@ export default function RegistroAtividadesPage() {
                   </div>
                   <div className="flex flex-col gap-1 mt-1 text-[13px]">
                     <p className="font-semibold text-zinc-900 dark:text-zinc-100">
-                      {a.usuario_nome} <span className="text-[11px] text-zinc-400 font-normal">({a.usuario_username})</span>
+                      {a.usuario_nome}
                     </p>
                     <p className="text-zinc-650 dark:text-zinc-400">
                       <strong className="text-zinc-700 dark:text-zinc-300">Entidade:</strong> {a.entidade}
@@ -205,10 +204,7 @@ export default function RegistroAtividadesPage() {
                         {formatDate(a.criado_em)}
                       </td>
                       <td className="px-5 py-4">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-zinc-900 dark:text-zinc-100">{a.usuario_nome}</span>
-                          <span className="text-[11px] text-zinc-400">{a.usuario_username}</span>
-                        </div>
+                        <span className="font-bold text-zinc-900 dark:text-zinc-100">{a.usuario_nome}</span>
                       </td>
                       <td className="px-5 py-4">
                         <ActionBadge acao={a.acao} />
