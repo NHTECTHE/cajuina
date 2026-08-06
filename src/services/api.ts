@@ -368,6 +368,12 @@ export const cotacoesApi = {
   remove: (id: number) =>
     apiRequest<void>(`/cotacoes/${id}`, { method: "DELETE" }),
 
+  enviarEmail: (id: number, data: { assunto: string; mensagem: string; destinatario: string }) =>
+    apiRequest<void>(`/cotacoes/${id}/enviar-email/`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
   // Emite a apólice da cotação (multipart: pode levar os PDFs da apólice e do
   // boleto). Aprova → Emitido, e a apólice criada é devolvida.
   emitir: async (id: number, data: EmitirPayload): Promise<ApoliceResponse> => {
@@ -402,6 +408,7 @@ export interface EmitirPayload {
 export interface ApoliceResponse {
   id: number;
   cotacao: number;
+  tomador: number;
   tomador_nome: string;
   tomador_cnpj: string;
   modalidade_nome: string;
@@ -450,6 +457,12 @@ export const apolicesApi = {
 
   remove: (id: number) =>
     apiRequest<void>(`/apolices/${id}`, { method: "DELETE" }),
+
+  enviarEmail: (id: number, data: { assunto: string; mensagem: string; destinatario: string }) =>
+    apiRequest<void>(`/apolices/${id}/enviar-email/`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 };
 
 
