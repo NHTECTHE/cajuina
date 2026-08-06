@@ -21,6 +21,7 @@ import {
   Mail,
   KeyRound,
   RefreshCw,
+  AlertTriangle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -331,6 +332,15 @@ export default function TomadorPage() {
       .finally(() => setDeleteTarget(null))
   }
 
+  // O CNPJ e unico no backend: acha o cadastro existente antes de deixar o usuario prosseguir.
+  const somenteDigitos = (valor: string) => valor.replace(/\D/g, "")
+
+  const buscarTomadorPorCnpj = (cnpj: string) => {
+    const digits = somenteDigitos(cnpj)
+    if (digits.length !== 14) return undefined
+    return tomadores.find(t => somenteDigitos(t.cnpj) === digits)
+  }
+
   // Handle Form Submit (from main view)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -341,6 +351,12 @@ export default function TomadorPage() {
     }
 
     if (editingId === null) {
+      const existente = buscarTomadorPorCnpj(formData.cnpj)
+      if (existente) {
+        setCnpjDuplicado(existente)
+        toast.error("Já existe um tomador cadastrado com esse CNPJ.")
+        return
+      }
       // No modo de criação, o form principal apenas avança para o modal
       setIsFinalizeModalOpen(true)
     } else {
@@ -409,6 +425,9 @@ export default function TomadorPage() {
       setFormData(initialFormState)
       setSeguradoraInicial(null)
       setEditingId(null)
+      setCadastroManual(false)
+      setCnpjNaoEncontrado(false)
+      setCnpjDuplicado(null)
       setIsFinalizeModalOpen(false)
       setAtividadesLoadedFor(null)
     } catch (err: unknown) {
@@ -669,12 +688,25 @@ export default function TomadorPage() {
   }
 
   const [cnpjLoading, setCnpjLoading] = React.useState(false)
+  // Busca automatica falhou: libera o cadastro manual em vez de travar o usuario.
+  const [cnpjNaoEncontrado, setCnpjNaoEncontrado] = React.useState(false)
+  const [cnpjDuplicado, setCnpjDuplicado] = React.useState<TomadorResponse | null>(null)
+  const [cadastroManual, setCadastroManual] = React.useState(false)
 
   const fetchCompanyByCnpj = async (rawValue: string) => {
     const digits = rawValue.replace(/\D/g, '').slice(0, 14);
     if (digits.length !== 14) return;
 
+    const jaCadastrado = buscarTomadorPorCnpj(digits);
+    if (jaCadastrado) {
+      setCnpjDuplicado(jaCadastrado);
+      setCnpjNaoEncontrado(false);
+      return;
+    }
+    setCnpjDuplicado(null);
+
     setCnpjLoading(true);
+    setCnpjNaoEncontrado(false);
     try {
       const data = await lookupCnpj(digits);
       setFormData(prev => ({
@@ -696,6 +728,7 @@ export default function TomadorPage() {
       toast.success("Dados do CNPJ preenchidos automaticamente.");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erro ao buscar CNPJ";
+      setCnpjNaoEncontrado(true);
       toast.error(msg);
     } finally {
       setCnpjLoading(false);
@@ -705,7 +738,7 @@ export default function TomadorPage() {
 
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-6">
 
       {/* ──── CONTAINER HEADER ──── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
@@ -725,6 +758,9 @@ export default function TomadorPage() {
             onClick={() => {
               setFormData(initialFormState)
               setEditingId(null)
+              setCadastroManual(false)
+              setCnpjNaoEncontrado(false)
+              setCnpjDuplicado(null)
               setView("form")
               setCurrentTab("dados")
             }}
@@ -986,8 +1022,8 @@ export default function TomadorPage() {
 
       {/* ──── REGISTRATION FORM VIEW ──── */}
       {view === "form" && (
-        <form onSubmit={handleSubmit} className={cn("flex-1 flex flex-col min-h-0", editingId === null ? "justify-center items-center -mt-16" : "gap-6")}>
-          {editingId === null ? (
+        <form onSubmit={handleSubmit} className={cn("flex-1 flex flex-col", editingId === null && !cadastroManual ? "justify-center items-center" : "min-h-0 gap-6")}>
+          {editingId === null && !cadastroManual ? (
             <div className="w-full max-w-3xl px-4 md:px-0">
               <div className="bg-white dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800/40 rounded-xl shadow-sm p-6 md:p-10">
                 <div className="space-y-3 mb-6">
@@ -1007,6 +1043,8 @@ export default function TomadorPage() {
                     onChange={(e) => {
                       const val = maskCNPJ(e.target.value);
                       setFormData(prev => ({ ...prev, cnpj: val }));
+                      setCnpjNaoEncontrado(false);
+                      setCnpjDuplicado(null);
                       fetchCompanyByCnpj(val);
                     }}
                     className="h-12 rounded-lg border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black/5 px-4"
@@ -1014,14 +1052,63 @@ export default function TomadorPage() {
                   />
                 </div>
                 
+                {/* CNPJ ja existe no backend: nao adianta prosseguir, o save seria recusado */}
+                {cnpjDuplicado && (
+                  <div className="mt-3 p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex items-start gap-2.5">
+                      <AlertTriangle className="size-4 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-red-600 dark:text-red-400 font-bold text-sm">CNPJ já cadastrado</span>
+                        <span className="text-zinc-500 dark:text-zinc-400 text-xs">
+                          Este CNPJ pertence a <span className="font-semibold">{cnpjDuplicado.nome}</span>. Abra o cadastro existente para editá-lo.
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleEditClick(cnpjDuplicado.id)}
+                      className="self-start h-10 px-4 rounded-lg font-semibold border-red-300 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 cursor-pointer transition-all"
+                    >
+                      Abrir cadastro existente
+                    </Button>
+                  </div>
+                )}
+
                 {/* Exibição do Nome/Razão Social estilo badge (Apenas se já buscou/preencheu) */}
-                {formData.nome && !cnpjLoading && (
+                {formData.nome && !cnpjLoading && !cnpjDuplicado && (
                   <div className="mt-3 p-4 bg-brand-red/5 dark:bg-brand-red/10 border border-brand-red/10 dark:border-brand-red/20 rounded-lg flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-200">
                     <span className="text-brand-red font-bold text-sm uppercase">{formData.nome}</span>
                     <span className="text-zinc-500 dark:text-zinc-400 text-xs">{formData.cnpj}</span>
                   </div>
                 )}
                 
+                {/* Busca automatica falhou: oferece o cadastro manual (fluxo completo) */}
+                {cnpjNaoEncontrado && !cnpjLoading && (
+                  <div className="mt-3 p-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex items-start gap-2.5">
+                      <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-amber-700 dark:text-amber-400 font-bold text-sm">CNPJ nao identificado</span>
+                        <span className="text-zinc-500 dark:text-zinc-400 text-xs">
+                          Nao foi possivel buscar os dados automaticamente. Voce pode preencher o cadastro manualmente.
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setCadastroManual(true)
+                        setCurrentTab("dados")
+                      }}
+                      className="self-start h-10 px-4 rounded-lg font-semibold border-amber-300 dark:border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 cursor-pointer transition-all"
+                    >
+                      Cadastrar manualmente
+                    </Button>
+                  </div>
+                )}
+
                 <div className="flex justify-end gap-3 mt-8">
                   <Button 
                     type="button" 
@@ -1033,7 +1120,7 @@ export default function TomadorPage() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={saving || cnpjLoading}
+                    disabled={saving || cnpjLoading || cnpjDuplicado !== null}
                     className="bg-[#e43a3e] hover:bg-[#c72f32] text-white font-bold h-11 px-8 rounded-lg cursor-pointer transition-all disabled:opacity-60 disabled:cursor-not-allowed uppercase"
                   >
                     {saving ? "Aguarde..." : "continuar"}
@@ -1045,32 +1132,38 @@ export default function TomadorPage() {
           <>
           {/* Form Action Buttons (Mobile) */}
           <div className="md:hidden flex flex-col gap-3 pb-6 border-b border-zinc-200/60 dark:border-zinc-800/80 shrink-0">
-            <div className="grid grid-cols-2 gap-3">
-              <Button type="button" variant="outline" disabled={saving} className="border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold h-10 rounded-xl flex items-center justify-center gap-2">
-                <Mail className="size-4 text-zinc-500" />
-                <span>Carta</span>
-              </Button>
-              <Button type="button" variant="outline" disabled={saving} className="border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold h-10 rounded-xl flex items-center justify-center gap-2">
-                <KeyRound className="size-4 text-zinc-500" />
-                <span>Senha</span>
-              </Button>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <Button type="button" disabled={saving} onClick={() => handleDeleteClick(editingId)} className="bg-red-50 dark:bg-red-500/10 text-red-600 border border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/20 font-semibold h-10 rounded-xl flex items-center justify-center gap-1.5">
-                <Trash2 className="size-3.5" />
-                <span className="text-[11px]">Excluir</span>
-              </Button>
-              <Button type="button" variant="outline" disabled={saving} className="border-brand-red/20 text-brand-red hover:bg-brand-red/5 font-semibold h-10 rounded-xl flex items-center justify-center gap-1.5">
-                <RefreshCw className="size-3.5" />
-                <span className="text-[11px]">Atualizar</span>
-              </Button>
+            {editingId !== null && (
+              <div className="grid grid-cols-2 gap-3">
+                <Button type="button" variant="outline" disabled={saving} className="border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold h-10 rounded-xl flex items-center justify-center gap-2">
+                  <Mail className="size-4 text-zinc-500" />
+                  <span>Carta</span>
+                </Button>
+                <Button type="button" variant="outline" disabled={saving} className="border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold h-10 rounded-xl flex items-center justify-center gap-2">
+                  <KeyRound className="size-4 text-zinc-500" />
+                  <span>Senha</span>
+                </Button>
+              </div>
+            )}
+            <div className={cn("grid gap-2", editingId !== null ? "grid-cols-3" : "grid-cols-1")}>
+              {editingId !== null && (
+                <>
+                  <Button type="button" disabled={saving} onClick={() => handleDeleteClick(editingId)} className="bg-red-50 dark:bg-red-500/10 text-red-600 border border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/20 font-semibold h-10 rounded-xl flex items-center justify-center gap-1.5">
+                    <Trash2 className="size-3.5" />
+                    <span className="text-[11px]">Excluir</span>
+                  </Button>
+                  <Button type="button" variant="outline" disabled={saving} className="border-brand-red/20 text-brand-red hover:bg-brand-red/5 font-semibold h-10 rounded-xl flex items-center justify-center gap-1.5">
+                    <RefreshCw className="size-3.5" />
+                    <span className="text-[11px]">Atualizar</span>
+                  </Button>
+                </>
+              )}
               <Button type="button" variant="outline" disabled={saving} onClick={() => { setView("list"); setEditingId(null); }} className="border-zinc-200 dark:border-zinc-850 hover:bg-zinc-100 dark:hover:bg-zinc-900 font-semibold h-10 rounded-xl flex items-center justify-center">
                 <span className="text-[11px]">Cancelar</span>
               </Button>
             </div>
             <Button type="submit" disabled={saving} className="bg-brand-red text-white hover:bg-brand-red/90 font-bold h-11 rounded-xl shadow-md shadow-brand-red/10 flex items-center justify-center gap-2 mt-1">
               {saving && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              <span>{saving ? "Processando..." : "Salvar Alterações"}</span>
+              <span>{saving ? "Processando..." : editingId !== null ? "Salvar Alterações" : "Continuar"}</span>
             </Button>
           </div>
 

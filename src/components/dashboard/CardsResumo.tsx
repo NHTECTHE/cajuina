@@ -8,6 +8,13 @@ import {
   PeriodoDashboard,
   getDashboardResumo,
 } from "@/services/api"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { BlocoErro, Skeleton, formatarBRL, useDadosDashboard } from "./BlocoEstado"
 
 const PERIODOS: { valor: PeriodoDashboard; label: string }[] = [
@@ -82,21 +89,25 @@ export function CardsResumo({
         <h2 className="text-brand-red font-light tracking-wide text-lg uppercase">
           Visão Geral
         </h2>
-        <div className="flex items-center gap-1">
-          {PERIODOS.map((p) => (
-            <button
-              key={p.valor}
-              onClick={() => setPeriodo(p.valor)}
-              className={`px-4 py-1 text-xs rounded-md border shadow-sm transition-colors ${
-                periodo === p.valor
-                  ? "bg-brand-red text-white border-brand-red"
-                  : "bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+        <Select
+          value={periodo}
+          onValueChange={(valor) => setPeriodo(valor as PeriodoDashboard)}
+        >
+          <SelectTrigger
+            size="sm"
+            aria-label="Período da visão geral"
+            className="w-28 text-xs bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 shadow-sm"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PERIODOS.map((p) => (
+              <SelectItem key={p.valor} value={p.valor} className="text-xs">
+                {p.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {erro ? (
