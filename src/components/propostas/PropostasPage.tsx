@@ -94,9 +94,34 @@ export default function PropostasPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [view, setView] = useState<"list" | "details">(() => {
-    return searchParams?.get("abrirModal") === "true" || searchParams?.get("id") ? "details" : "list"
+    if (searchParams?.get("abrirModal") === "true" || searchParams?.get("id")) return "details"
+    if (typeof window !== "undefined") {
+      const storedView = sessionStorage.getItem("propostas_view");
+      if (storedView === "details") return "details";
+    }
+    return "list"
   })
-  const [selected, setSelected] = useState<CotacaoResponse | null>(null)
+  const [selected, setSelected] = useState<CotacaoResponse | null>(() => {
+    if (typeof window !== "undefined" && !searchParams?.get("id")) {
+      const stored = sessionStorage.getItem("propostas_selected");
+      if (stored) {
+        try { return JSON.parse(stored); } catch (e) {}
+      }
+    }
+    return null;
+  })
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("propostas_view", view);
+      if (selected) {
+        sessionStorage.setItem("propostas_selected", JSON.stringify(selected));
+      } else {
+        sessionStorage.removeItem("propostas_selected");
+      }
+    }
+  }, [view, selected]);
+
   const [showFormaEmissaoModal, setShowFormaEmissaoModal] = useState(false)
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)

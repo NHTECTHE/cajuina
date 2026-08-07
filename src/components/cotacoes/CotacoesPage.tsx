@@ -148,7 +148,13 @@ function currencyInputToDecimal(value: string): string | null {
 }
 
 export default function CotacoesPage() {
-  const [view, setView] = useState<"list" | "form" | "details">("list")
+  const [view, setView] = useState<"list" | "form" | "details">(() => {
+    if (typeof window !== "undefined") {
+      const storedView = sessionStorage.getItem("cotacoes_view");
+      if (storedView === "details") return "details";
+    }
+    return "list"
+  })
   // Contexto do formulário: criação de nova cotação ou edição de uma existente.
   const [formMode, setFormMode] = useState<"create" | "edit">("create")
 
@@ -164,8 +170,32 @@ export default function CotacoesPage() {
   const [observacoes, setObservacoes] = useState("")
 
   // Cotação atualmente selecionada (linha clicada → detalhes / edição).
-  const [selectedCotacao, setSelectedCotacao] = useState<CotacaoResponse | null>(null)
+  const [selectedCotacao, setSelectedCotacao] = useState<CotacaoResponse | null>(() => {
+    if (typeof window !== "undefined") {
+      const stored = sessionStorage.getItem("cotacoes_selected");
+      if (stored) {
+        try { return JSON.parse(stored); } catch (e) {}
+      }
+    }
+    return null;
+  })
   const [saving, setSaving] = useState(false)
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (view === "details" || view === "list") {
+        sessionStorage.setItem("cotacoes_view", view);
+      } else {
+        sessionStorage.setItem("cotacoes_view", "list");
+      }
+      
+      if (selectedCotacao) {
+        sessionStorage.setItem("cotacoes_selected", JSON.stringify(selectedCotacao));
+      } else {
+        sessionStorage.removeItem("cotacoes_selected");
+      }
+    }
+  }, [view, selectedCotacao]);
 
   // Confirmação de aprovação da cotação (tela de detalhes).
   

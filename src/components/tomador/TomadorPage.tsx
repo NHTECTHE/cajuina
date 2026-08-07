@@ -1531,7 +1531,7 @@ export default function TomadorPage() {
                                 type="text"
                                 inputMode="decimal"
                                 value={draft.taxa}
-                                placeholder={s.taxa_comissao ? String(s.taxa_comissao) : "0,00"}
+                                placeholder="0,00"
                                 onChange={(e) => setTaxasDraft((prev) => ({
                                   ...prev,
                                   [s.id]: { ...draft, taxa: e.target.value },
@@ -1567,7 +1567,7 @@ export default function TomadorPage() {
                                 type="text"
                                 inputMode="numeric"
                                 value={draft.dias_vencimento}
-                                placeholder={s.vencimento_dias !== null && s.vencimento_dias !== undefined ? String(s.vencimento_dias) : "N/A"}
+                                placeholder="7"
                                 onChange={(e) => setTaxasDraft((prev) => ({
                                   ...prev,
                                   [s.id]: { ...draft, dias_vencimento: e.target.value.replace(/\D/g, "") },
