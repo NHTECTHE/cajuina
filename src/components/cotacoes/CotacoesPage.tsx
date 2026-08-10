@@ -30,9 +30,13 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 )
 
 import { cn, getMediaUrl } from "@/lib/utils"
+import { toPng } from "html-to-image"
+import jsPDF from "jspdf"
+import { CotacaoPdfTemplate, type CotacaoPDFData, type SeguradoraPDFData } from "./CotacaoPdfTemplate"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { AsyncCombobox, type AsyncComboboxOption } from "@/components/ui/async-combobox"
 import {
   AlertDialog,
@@ -172,6 +176,20 @@ export default function CotacoesPage() {
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
+
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
+  const pdfRef = React.useRef<HTMLDivElement>(null)
+
+  // Estados para envio de WhatsApp
+  const [editableMessage, setEditableMessage] = useState("")
+  const [telefoneDestino, setTelefoneDestino] = useState("")
+  const [isLoadingTelefone, setIsLoadingTelefone] = useState(false)
+
+  // Estados para envio de E-mail
+  const [editableEmailMessage, setEditableEmailMessage] = useState("")
+  const [emailDestino, setEmailDestino] = useState("")
+  const [emailAssunto, setEmailAssunto] = useState("")
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
 
   // Cotação para excluir (estado para o modal de confirmação)
   const [deleteTarget, setDeleteTarget] = useState<CotacaoResponse | null>(null)
@@ -395,6 +413,37 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
 (86) 3081-0282`
   }, [selectedCotacao, diasVencimento, seguradoras, vinculosTomador])
 
+  React.useEffect(() => {
+    if (isMessageModalOpen) {
+      setEditableMessage(generatedMessage)
+      if (selectedCotacao?.tomador) {
+        setIsLoadingTelefone(true)
+        tomadoresApi.get(selectedCotacao.tomador)
+          .then(res => {
+            setTelefoneDestino(res.celular || res.telefone || "")
+          })
+          .catch(() => {})
+          .finally(() => setIsLoadingTelefone(false))
+      }
+    } else {
+      setTelefoneDestino("")
+    }
+  }, [isMessageModalOpen, generatedMessage, selectedCotacao])
+
+  const handleSendWhatsApp = () => {
+    let phone = telefoneDestino.replace(/\D/g, "")
+    if (!phone) {
+      toast.error("Informe um número de telefone válido.")
+      return
+    }
+    if (phone.length <= 11) {
+      phone = "55" + phone
+    }
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(editableMessage)}`
+    window.open(url, '_blank')
+    setIsMessageModalOpen(false)
+  }
+
   const emailMessage = useMemo(() => {
     if (!selectedCotacao) return ""
 
@@ -443,12 +492,47 @@ Caso tenha qualquer dúvida, estamos à disposição.
 
 Atenciosamente,
 
-CAJUINA CORRETORA DE SEGUROS EIRELI
-
-Telefone: (86) 3081-0282
-
 E-mail: garantia@cajuinaseguros.com.br`
   }, [selectedCotacao, seguradoras, vinculosTomador])
+
+  React.useEffect(() => {
+    if (isEmailModalOpen) {
+      setEditableEmailMessage(emailMessage)
+      setEmailAssunto("Cotação de Seguro Garantia")
+      if (selectedCotacao?.tomador) {
+        tomadoresApi.get(selectedCotacao.tomador)
+          .then(res => {
+            setEmailDestino(res.email || "")
+          })
+          .catch(() => {})
+      }
+    } else {
+      setEmailDestino("")
+    }
+  }, [isEmailModalOpen, emailMessage, selectedCotacao])
+
+  const handleSendEmail = async () => {
+    if (!emailDestino) {
+      toast.error("Informe um e-mail de destino válido.")
+      return
+    }
+    if (!selectedCotacao) return
+
+    setIsSendingEmail(true)
+    try {
+      await cotacoesApi.enviarEmail(selectedCotacao.id, {
+        assunto: emailAssunto,
+        mensagem: editableEmailMessage,
+        destinatario: emailDestino
+      })
+      toast.success("E-mail enviado com sucesso!")
+      setIsEmailModalOpen(false)
+    } catch (err) {
+      toast.error("Erro ao enviar o e-mail.")
+    } finally {
+      setIsSendingEmail(false)
+    }
+  }
 
   const handleCopyEmailMessage = async () => {
     try {
@@ -468,6 +552,85 @@ E-mail: garantia@cajuinaseguros.com.br`
     } catch {
       toast.error("Erro ao copiar a mensagem.")
     }
+  }
+
+  const pdfData = useMemo<CotacaoPDFData | null>(() => {
+    if (!selectedCotacao) return null
+    const baseVal = Number(selectedCotacao.importancia_segurada) || 0
+    const validSeguradoras: SeguradoraPDFData[] = []
+    
+    seguradoras.forEach(seg => {
+      const vinculo = vinculosTomador[seg.id]
+      if (!vinculo || !vinculo.apto) return
+      
+      const taxa = vinculo.taxa
+      const premioMinimo = vinculo.premio_minimo_efetivo
+      
+      const is = Number(selectedCotacao.importancia_segurada) || 0
+      const prazo = selectedCotacao.prazo_dias || 0
+      const taxaNum = Number(taxa) || 0
+      const min = Number(premioMinimo) || 0
+      const calc = (is / 365) * (taxaNum / 100) * prazo
+      const premioFinal = Math.max(calc, min)
+      
+      if (premioFinal > 0) {
+        validSeguradoras.push({
+          id: seg.id,
+          nome: seg.nome,
+          logo: seg.logo ? getMediaUrl(seg.logo) : null,
+          premio: formatBRL(premioFinal)
+        })
+      }
+    })
+
+    return {
+      tomador_nome: selectedCotacao.tomador_nome,
+      tomador_cnpj: selectedCotacao.tomador_cnpj,
+      modalidade_nome: selectedCotacao.modalidade_nome,
+      edital: selectedCotacao.edital || "—",
+      segurado_nome: selectedCotacao.segurado_nome || "—",
+      segurado_cnpj: selectedCotacao.segurado_cnpj || "",
+      importancia_segurada: formatBRL(selectedCotacao.importancia_segurada),
+      data_inicio: isoToBR(selectedCotacao.data_inicio) || "—",
+      data_final: isoToBR(selectedCotacao.data_final) || "—",
+      prazo_dias: selectedCotacao.prazo_dias != null ? `${selectedCotacao.prazo_dias} Dias` : "—",
+      criado_por_nome: selectedCotacao.criado_por_nome || "—",
+      observacoes: selectedCotacao.observacoes || "—",
+      seguradoras: validSeguradoras
+    }
+  }, [selectedCotacao, seguradoras, vinculosTomador])
+
+  const handleGeneratePdf = async () => {
+    if (!pdfRef.current || !selectedCotacao) return
+    setIsGeneratingPdf(true)
+    
+    setTimeout(async () => {
+      try {
+        const dataUrl = await toPng(pdfRef.current!, {
+          cacheBust: true,
+          pixelRatio: 2,
+        })
+        
+        const pdf = new jsPDF({
+          orientation: "portrait",
+          unit: "mm",
+          format: "a4"
+        })
+        
+        const pdfWidth = pdf.internal.pageSize.getWidth()
+        const imgProps = pdf.getImageProperties(dataUrl)
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width
+        
+        pdf.addImage(dataUrl, "PNG", 0, 0, pdfWidth, pdfHeight)
+        pdf.save(`cotacao-${selectedCotacao.id}.pdf`)
+        toast.success("PDF gerado com sucesso!")
+      } catch (err) {
+        console.error("Erro ao gerar PDF", err)
+        toast.error("Erro ao gerar PDF")
+      } finally {
+        setIsGeneratingPdf(false)
+      }
+    }, 500)
   }
 
   // Seleciona a cotação em foco. A seguradora escolhida vem da própria cotação
@@ -1024,7 +1187,14 @@ E-mail: garantia@cajuinaseguros.com.br`
             </div>
             
             <div className="flex gap-2">
-              <button className="w-8 h-8 rounded-full border border-red-200 text-red-500 flex items-center justify-center bg-white shadow-sm hover:bg-red-50"><FileDown className="size-4" /></button>
+              <button 
+                onClick={handleGeneratePdf}
+                disabled={isGeneratingPdf}
+                className="w-8 h-8 rounded-full border border-red-200 text-red-500 flex items-center justify-center bg-white shadow-sm hover:bg-red-50 disabled:opacity-50"
+                title="Baixar PDF"
+              >
+                {isGeneratingPdf ? <div className="size-4 rounded-full border-2 border-red-500 border-t-transparent animate-spin" /> : <FileDown className="size-4" />}
+              </button>
               <button 
                 onClick={() => setIsMessageModalOpen(true)}
                 className="w-8 h-8 rounded-full border border-green-200 text-green-500 flex items-center justify-center bg-white shadow-sm hover:bg-green-50 transition-colors"
@@ -1073,27 +1243,50 @@ E-mail: garantia@cajuinaseguros.com.br`
 
             {/* Modal Mensagem para o Cliente */}
             <Dialog open={isMessageModalOpen} onOpenChange={setIsMessageModalOpen}>
-              <DialogContent aria-describedby={undefined} className="sm:max-w-[450px] bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+              <DialogContent aria-describedby={undefined} className="sm:max-w-[450px] max-h-[90vh] flex flex-col bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
                 <DialogHeader>
-                  <DialogTitle className="text-[#e85c5c] dark:text-[#cf7458] text-lg font-bold tracking-wide">
-                    MENSAGEM PARA O CLIENTE
+                  <DialogTitle className="text-[#e85c5c] dark:text-[#cf7458] text-lg font-bold tracking-wide flex items-center gap-2">
+                    <WhatsAppIcon className="size-5" /> MENSAGEM PARA O CLIENTE
                   </DialogTitle>
                 </DialogHeader>
                 
-                <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700/50 relative max-h-[300px] overflow-y-auto">
-                  <pre className="text-[13px] text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap font-sans">
-                    {generatedMessage}
-                  </pre>
+                <div className="flex flex-col gap-4 mt-2 overflow-y-auto pr-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-zinc-600 dark:text-zinc-300">Telefone do Destinatário</Label>
+                    <Input 
+                      value={telefoneDestino}
+                      onChange={(e) => setTelefoneDestino(e.target.value)}
+                      placeholder="(00) 00000-0000"
+                      disabled={isLoadingTelefone}
+                      className="bg-zinc-50 dark:bg-zinc-800/50"
+                    />
+                  </div>
+                  
+                  <div className="space-y-1.5 flex flex-col">
+                    <Label className="text-zinc-600 dark:text-zinc-300">Mensagem</Label>
+                    <Textarea 
+                      value={editableMessage}
+                      onChange={(e) => setEditableMessage(e.target.value)}
+                      className="min-h-[150px] resize-y text-[13px] bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 font-sans"
+                    />
+                  </div>
                 </div>
                 
-                <div className="mt-2 flex justify-end">
+                <div className="mt-4 flex justify-between shrink-0">
                   <Button 
                     onClick={handleCopyMessage}
-                    variant="outline"
-                    className="gap-2 text-zinc-600 dark:text-zinc-300 border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    variant="ghost"
+                    className="gap-2 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
                   >
                     <Copy className="size-4" />
-                    <span>Copiar mensagem</span>
+                    <span>Copiar</span>
+                  </Button>
+                  <Button 
+                    onClick={handleSendWhatsApp}
+                    className="gap-2 bg-green-500 hover:bg-green-600 text-white"
+                  >
+                    <WhatsAppIcon className="size-4" />
+                    <span>Enviar WhatsApp</span>
                   </Button>
                 </div>
               </DialogContent>
@@ -1101,27 +1294,52 @@ E-mail: garantia@cajuinaseguros.com.br`
 
             {/* Modal Mensagem de E-mail */}
             <Dialog open={isEmailModalOpen} onOpenChange={setIsEmailModalOpen}>
-              <DialogContent aria-describedby={undefined} className="sm:max-w-[550px] bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+              <DialogContent aria-describedby={undefined} className="sm:max-w-[550px] max-h-[90vh] flex flex-col bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
                 <DialogHeader>
-                  <DialogTitle className="text-blue-500 text-lg font-bold tracking-wide">
-                    MENSAGEM DE E-MAIL
+                  <DialogTitle className="text-blue-500 text-lg font-bold tracking-wide flex items-center gap-2">
+                    <Mail className="size-5" /> MENSAGEM DE E-MAIL
                   </DialogTitle>
                 </DialogHeader>
                 
-                <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700/50 relative max-h-[400px] overflow-y-auto">
-                  <pre className="text-[13px] text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap font-sans">
-                    {emailMessage}
-                  </pre>
+                <div className="flex flex-col gap-4 mt-2 overflow-y-auto pr-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-zinc-600 dark:text-zinc-300">E-mail do Destinatário</Label>
+                    <Input 
+                      value={emailDestino}
+                      onChange={(e) => setEmailDestino(e.target.value)}
+                      placeholder="email@exemplo.com"
+                      className="bg-zinc-50 dark:bg-zinc-800/50"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-zinc-600 dark:text-zinc-300">Assunto</Label>
+                    <Input 
+                      value={emailAssunto}
+                      onChange={(e) => setEmailAssunto(e.target.value)}
+                      placeholder="Assunto do e-mail"
+                      className="bg-zinc-50 dark:bg-zinc-800/50"
+                    />
+                  </div>
+                  
+                  <div className="space-y-1.5 flex flex-col">
+                    <Label className="text-zinc-600 dark:text-zinc-300">Mensagem</Label>
+                    <Textarea 
+                      value={editableEmailMessage}
+                      onChange={(e) => setEditableEmailMessage(e.target.value)}
+                      className="min-h-[150px] flex-1 resize-y text-[13px] bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 font-sans"
+                    />
+                  </div>
                 </div>
                 
-                <div className="mt-2 flex justify-end">
+                <div className="mt-4 flex justify-end shrink-0">
                   <Button 
-                    onClick={handleCopyEmailMessage}
-                    variant="outline"
-                    className="gap-2 text-zinc-600 dark:text-zinc-300 border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    onClick={handleSendEmail}
+                    disabled={isSendingEmail}
+                    className="gap-2 bg-blue-500 hover:bg-blue-600 text-white"
                   >
-                    <Copy className="size-4" />
-                    <span>Copiar mensagem</span>
+                    <Mail className="size-4" />
+                    <span>{isSendingEmail ? "Enviando..." : "Enviar e-mail"}</span>
                   </Button>
                 </div>
               </DialogContent>
@@ -1286,6 +1504,12 @@ E-mail: garantia@cajuinaseguros.com.br`
         </div>
       )}
 
+      {/* PDF TEMPLATE HIDDEN RENDERING */}
+      {pdfData && (
+        <div className="fixed top-0 left-[-9999px] z-[-1]">
+          <CotacaoPdfTemplate ref={pdfRef} data={pdfData} />
+        </div>
+      )}
     </div>
   )
 }
