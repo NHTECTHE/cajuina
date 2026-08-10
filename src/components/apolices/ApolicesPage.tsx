@@ -60,8 +60,22 @@ function ApolicesPageContent() {
   const openId = searchParams.get("id")
   const initialView = openId || searchParams.get("view") === "details" ? "details" : "list"
 
-  const [view, setView] = useState<"list" | "details">(initialView)
+  const [view, setView] = useState<"list" | "details">(() => {
+    if (typeof window !== "undefined") {
+      const storedView = sessionStorage.getItem("apolices_view");
+      if (initialView !== "details" && storedView === "details") {
+        return "details";
+      }
+    }
+    return initialView;
+  })
   const [selected, setSelected] = useState<ApoliceResponse | null>(() => {
+    if (typeof window !== "undefined" && initialView !== "details") {
+      const stored = sessionStorage.getItem("apolices_selected");
+      if (stored) {
+        try { return JSON.parse(stored); } catch(e) {}
+      }
+    }
     if (initialView === "details" && searchParams.get("mock") === "1") {
       return {
         id: 9999,
@@ -88,6 +102,17 @@ function ApolicesPageContent() {
 
   const [apolices, setApolices] = useState<ApoliceResponse[]>([])
   const [loading, setLoading] = useState(true)
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("apolices_view", view);
+      if (selected) {
+        sessionStorage.setItem("apolices_selected", JSON.stringify(selected));
+      } else {
+        sessionStorage.removeItem("apolices_selected");
+      }
+    }
+  }, [view, selected]);
 
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
