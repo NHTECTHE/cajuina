@@ -27,6 +27,7 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 )
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +48,7 @@ import {
 import {
   cotacoesApi,
   seguradorasApi,
+  tomadoresApi,
   getTomadorSeguradoraVinculo,
   type CotacaoResponse,
   type SeguradoraResponse,
@@ -94,12 +96,44 @@ export default function PropostasPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [view, setView] = useState<"list" | "details">(() => {
-    return searchParams?.get("abrirModal") === "true" || searchParams?.get("id") ? "details" : "list"
+    if (searchParams?.get("abrirModal") === "true" || searchParams?.get("id")) return "details"
+    if (typeof window !== "undefined") {
+      const storedView = sessionStorage.getItem("propostas_view");
+      if (storedView === "details") return "details";
+    }
+    return "list"
   })
-  const [selected, setSelected] = useState<CotacaoResponse | null>(null)
+  const [selected, setSelected] = useState<CotacaoResponse | null>(() => {
+    if (typeof window !== "undefined" && !searchParams?.get("id")) {
+      const stored = sessionStorage.getItem("propostas_selected");
+      if (stored) {
+        try { return JSON.parse(stored); } catch (e) {}
+      }
+    }
+    return null;
+  })
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("propostas_view", view);
+      if (selected) {
+        sessionStorage.setItem("propostas_selected", JSON.stringify(selected));
+      } else {
+        sessionStorage.removeItem("propostas_selected");
+      }
+    }
+  }, [view, selected]);
+
   const [showFormaEmissaoModal, setShowFormaEmissaoModal] = useState(false)
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
+
+  // Estados para envio de WhatsApp
+  // `null` = ainda não tocado pelo usuário; exibe o valor de origem. Guardar a
+  // edição separada da origem evita semear o estado dentro de um efeito.
+  const [mensagemEditada, setMensagemEditada] = useState<string | null>(null)
+  const [telefoneEditado, setTelefoneEditado] = useState<string | null>(null)
+  const [telefoneCarregado, setTelefoneCarregado] = useState<string | null>(null)
 
   // Propostas = cotações com status "Aprovado".
   const [propostas, setPropostas] = useState<CotacaoResponse[]>([])
@@ -198,6 +232,41 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
 
 (86) 3081-0282`
   }, [selected, vencimentoBoleto, seguradoras, seguradoraEscolhidaId, calculatedPremio])
+
+
+  const editableMessage = mensagemEditada ?? generatedMessage
+  const telefoneDestino = telefoneEditado ?? telefoneCarregado ?? ""
+  const isLoadingTelefone =
+    isMessageModalOpen && Boolean(selected?.tomador) && telefoneCarregado === null
+
+  React.useEffect(() => {
+    if (!isMessageModalOpen || !selected?.tomador) return
+
+    let cancelado = false
+    tomadoresApi.get(selected.tomador)
+      .then(res => {
+        if (!cancelado) setTelefoneCarregado(res.celular || res.telefone || "")
+      })
+      .catch(() => {
+        if (!cancelado) setTelefoneCarregado("")
+      })
+
+    return () => { cancelado = true }
+  }, [isMessageModalOpen, selected])
+
+  const handleSendWhatsApp = () => {
+    let phone = telefoneDestino.replace(/\D/g, "")
+    if (!phone) {
+      toast.error("Informe um número de telefone válido.")
+      return
+    }
+    if (phone.length <= 11) {
+      phone = "55" + phone
+    }
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(editableMessage)}`
+    window.open(url, '_blank')
+    setIsMessageModalOpen(false)
+  }
 
   const handleCopyMessage = async () => {
     try {
@@ -695,28 +764,61 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
           </div>
 
           {/* Modal Mensagem para o Cliente */}
-          <Dialog open={isMessageModalOpen} onOpenChange={setIsMessageModalOpen}>
+          <Dialog
+            open={isMessageModalOpen}
+            onOpenChange={(aberto) => {
+              setIsMessageModalOpen(aberto)
+              if (!aberto) {
+                setMensagemEditada(null)
+                setTelefoneEditado(null)
+                setTelefoneCarregado(null)
+              }
+            }}
+          >
             <DialogContent aria-describedby={undefined} className="sm:max-w-[450px] bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
               <DialogHeader>
-                <DialogTitle className="text-[#e85c5c] dark:text-[#cf7458] text-lg font-bold tracking-wide">
-                  MENSAGEM PARA O CLIENTE
+                <DialogTitle className="text-[#e85c5c] dark:text-[#cf7458] text-lg font-bold tracking-wide flex items-center gap-2">
+                  <WhatsAppIcon className="size-5" /> MENSAGEM PARA O CLIENTE
                 </DialogTitle>
               </DialogHeader>
               
-              <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700/50 relative max-h-[300px] overflow-y-auto">
-                <pre className="text-[13px] text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap font-sans">
-                  {generatedMessage}
-                </pre>
+              <div className="flex flex-col gap-4 mt-2">
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-600 dark:text-zinc-300">Telefone do Destinatário</Label>
+                  <Input 
+                    value={telefoneDestino}
+                    onChange={(e) => setTelefoneEditado(e.target.value)}
+                    placeholder="(00) 00000-0000"
+                    disabled={isLoadingTelefone}
+                    className="bg-zinc-50 dark:bg-zinc-800/50"
+                  />
+                </div>
+                
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-600 dark:text-zinc-300">Mensagem</Label>
+                  <Textarea 
+                    value={editableMessage}
+                    onChange={(e) => setMensagemEditada(e.target.value)}
+                    className="min-h-[200px] resize-none text-[13px] bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 font-sans"
+                  />
+                </div>
               </div>
               
-              <div className="mt-2 flex justify-end">
+              <div className="mt-4 flex justify-between">
                 <Button 
                   onClick={handleCopyMessage}
-                  variant="outline"
-                  className="gap-2 text-zinc-600 dark:text-zinc-300 border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  variant="ghost"
+                  className="gap-2 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
                 >
                   <Copy className="size-4" />
-                  <span>Copiar mensagem</span>
+                  <span>Copiar</span>
+                </Button>
+                <Button 
+                  onClick={handleSendWhatsApp}
+                  className="gap-2 bg-green-500 hover:bg-green-600 text-white"
+                >
+                  <WhatsAppIcon className="size-4" />
+                  <span>Enviar WhatsApp</span>
                 </Button>
               </div>
             </DialogContent>

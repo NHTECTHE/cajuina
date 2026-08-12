@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -30,7 +31,7 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 )
 
 import { Button } from "@/components/ui/button"
-import { apolicesApi, seguradorasApi, type ApoliceResponse, type SeguradoraResponse } from "@/services/api"
+import { apolicesApi, seguradorasApi, tomadoresApi, type ApoliceResponse, type EmailPreview, type SeguradoraResponse } from "@/services/api"
 import { toast } from "sonner"
 
 // Formata um decimal ("180.00") como moeda pt-BR. "—" quando não informado.
@@ -59,8 +60,22 @@ function ApolicesPageContent() {
   const openId = searchParams.get("id")
   const initialView = openId || searchParams.get("view") === "details" ? "details" : "list"
 
-  const [view, setView] = useState<"list" | "details">(initialView)
+  const [view, setView] = useState<"list" | "details">(() => {
+    if (typeof window !== "undefined") {
+      const storedView = sessionStorage.getItem("apolices_view");
+      if (initialView !== "details" && storedView === "details") {
+        return "details";
+      }
+    }
+    return initialView;
+  })
   const [selected, setSelected] = useState<ApoliceResponse | null>(() => {
+    if (typeof window !== "undefined" && initialView !== "details") {
+      const stored = sessionStorage.getItem("apolices_selected");
+      if (stored) {
+        try { return JSON.parse(stored); } catch(e) {}
+      }
+    }
     if (initialView === "details" && searchParams.get("mock") === "1") {
       return {
         id: 9999,
@@ -88,10 +103,35 @@ function ApolicesPageContent() {
   const [apolices, setApolices] = useState<ApoliceResponse[]>([])
   const [loading, setLoading] = useState(true)
 
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("apolices_view", view);
+      if (selected) {
+        sessionStorage.setItem("apolices_selected", JSON.stringify(selected));
+      } else {
+        sessionStorage.removeItem("apolices_selected");
+      }
+    }
+  }, [view, selected]);
+
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+
+  // Estados para envio de WhatsApp
+  // `null` = ainda não tocado pelo usuário; exibe o valor de origem. Guardar a
+  // edição separada da origem evita semear o estado dentro de um efeito.
+  const [mensagemEditada, setMensagemEditada] = useState<string | null>(null)
+  const [telefoneEditado, setTelefoneEditado] = useState<string | null>(null)
+  const [telefoneCarregado, setTelefoneCarregado] = useState<string | null>(null)
+
+  // Estados para envio de E-mail
+  // Destinatário, assunto e corpo vêm prontos do servidor; daqui só sai a observação.
+  const [emailPreview, setEmailPreview] = useState<EmailPreview | null>(null)
+  const [emailObservacao, setEmailObservacao] = useState("")
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
+  const isLoadingPreview = isEmailModalOpen && emailPreview === null
 
   const [showEditModal, setShowEditModal] = useState(false)
   const [editStatusPremio, setEditStatusPremio] = useState("Pendente")
@@ -167,21 +207,76 @@ Olá! Sua apólice foi emitida com sucesso.
 Agradecemos a confiança!`
   }, [selected])
 
-  const emailMessage = useMemo(() => {
-    if (!selected) return ""
-    const premio = Number(selected.valor_seguradora) || 0
-    return `Prezado(a),
 
-Sua apólice foi emitida com sucesso.
+  const editableMessage = mensagemEditada ?? generatedMessage
+  const telefoneDestino = telefoneEditado ?? telefoneCarregado ?? ""
+  const isLoadingTelefone =
+    isMessageModalOpen && Boolean(selected?.tomador) && telefoneCarregado === null
 
-Detalhes:
-- Segurado: ${selected.segurado_nome || selected.tomador_nome}
-- Seguradora: ${selected.seguradora_nome}
-- Prêmio: ${formatBRL(premio)}
+  React.useEffect(() => {
+    if (!isMessageModalOpen || !selected?.tomador) return
 
-Atenciosamente,
-Equipe Cajuína Seguros.`
-  }, [selected])
+    let cancelado = false
+    tomadoresApi.get(selected.tomador)
+      .then(res => {
+        if (!cancelado) setTelefoneCarregado(res.celular || res.telefone || "")
+      })
+      .catch(() => {
+        if (!cancelado) setTelefoneCarregado("")
+      })
+
+    return () => { cancelado = true }
+  }, [isMessageModalOpen, selected])
+
+  // O corpo do e-mail é montado pelo servidor a partir da apólice; aqui só
+  // buscamos o que será enviado, para exibir.
+  React.useEffect(() => {
+    if (!isEmailModalOpen || !selected) return
+
+    let cancelado = false
+    apolicesApi.emailPreview(selected.id, emailObservacao)
+      .then(preview => {
+        if (!cancelado) setEmailPreview(preview)
+      })
+      .catch(() => {
+        if (!cancelado) toast.error("Não foi possível carregar a prévia do e-mail.")
+      })
+    return () => { cancelado = true }
+  }, [isEmailModalOpen, selected, emailObservacao])
+
+  const handleSendWhatsApp = () => {
+    let phone = telefoneDestino.replace(/\D/g, "")
+    if (!phone) {
+      toast.error("Informe um número de telefone válido.")
+      return
+    }
+    if (phone.length <= 11) {
+      phone = "55" + phone
+    }
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(editableMessage)}`
+    window.open(url, '_blank')
+    setIsMessageModalOpen(false)
+  }
+
+  const handleSendEmail = async () => {
+    if (!selected) return
+    if (!emailPreview?.destinatario) {
+      toast.error("O tomador desta apólice não tem e-mail cadastrado.")
+      return
+    }
+
+    setIsSendingEmail(true)
+    try {
+      await apolicesApi.enviarEmail(selected.id, { observacao: emailObservacao })
+      toast.success("E-mail enviado com sucesso!")
+      setIsEmailModalOpen(false)
+      setEmailObservacao("")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao enviar o e-mail.")
+    } finally {
+      setIsSendingEmail(false)
+    }
+  }
 
   const handleCopyMessage = () => {
     navigator.clipboard.writeText(generatedMessage)
@@ -190,7 +285,8 @@ Equipe Cajuína Seguros.`
   }
 
   const handleCopyEmailMessage = () => {
-    navigator.clipboard.writeText(emailMessage)
+    if (!emailPreview) return
+    navigator.clipboard.writeText(emailPreview.mensagem)
     setIsEmailModalOpen(false)
     setShowSuccessModal(true)
   }
@@ -898,8 +994,18 @@ Equipe Cajuína Seguros.`
           </Dialog>
 
           {/* Modal Mensagem WhatsApp */}
-          <Dialog open={isMessageModalOpen} onOpenChange={setIsMessageModalOpen}>
-            <DialogContent aria-describedby={undefined} className="sm:max-w-[450px] bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+          <Dialog
+            open={isMessageModalOpen}
+            onOpenChange={(aberto) => {
+              setIsMessageModalOpen(aberto)
+              if (!aberto) {
+                setMensagemEditada(null)
+                setTelefoneEditado(null)
+                setTelefoneCarregado(null)
+              }
+            }}
+          >
+            <DialogContent aria-describedby={undefined} className="sm:max-w-[450px] max-h-[90vh] flex flex-col bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
               <DialogHeader>
                 <DialogTitle className="text-[#e85c5c] dark:text-[#cf7458] text-lg font-bold tracking-wide flex items-center gap-2">
                   <WhatsAppIcon className="size-5" />
@@ -907,49 +1013,133 @@ Equipe Cajuína Seguros.`
                 </DialogTitle>
               </DialogHeader>
               
-              <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700/50 relative max-h-[300px] overflow-y-auto mt-2">
-                <pre className="text-[13px] text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap font-sans">
-                  {generatedMessage}
-                </pre>
+              <div className="flex flex-col gap-4 mt-2 overflow-y-auto pr-2">
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-600 dark:text-zinc-300">Telefone do Destinatário</Label>
+                  <Input 
+                    value={telefoneDestino}
+                    onChange={(e) => setTelefoneEditado(e.target.value)}
+                    placeholder="(00) 00000-0000"
+                    disabled={isLoadingTelefone}
+                    className="bg-zinc-50 dark:bg-zinc-800/50"
+                  />
+                </div>
+                
+                <div className="space-y-1.5 flex flex-col">
+                  <Label className="text-zinc-600 dark:text-zinc-300">Mensagem</Label>
+                  <Textarea 
+                    value={editableMessage}
+                    onChange={(e) => setMensagemEditada(e.target.value)}
+                    className="min-h-[150px] resize-y text-[13px] bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 font-sans"
+                  />
+                </div>
               </div>
               
-              <div className="mt-4 flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsMessageModalOpen(false)}>Cancelar</Button>
+              <div className="mt-4 flex justify-between shrink-0">
                 <Button 
                   onClick={handleCopyMessage}
-                  className="gap-2 bg-green-500 hover:bg-green-600 text-white"
+                  variant="ghost"
+                  className="gap-2 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
                 >
                   <Copy className="size-4" />
-                  <span>Copiar mensagem</span>
+                  <span>Copiar</span>
+                </Button>
+                <Button 
+                  onClick={handleSendWhatsApp}
+                  className="gap-2 bg-green-500 hover:bg-green-600 text-white"
+                >
+                  <WhatsAppIcon className="size-4" />
+                  <span>Enviar WhatsApp</span>
                 </Button>
               </div>
             </DialogContent>
           </Dialog>
 
           {/* Modal Mensagem Email */}
-          <Dialog open={isEmailModalOpen} onOpenChange={setIsEmailModalOpen}>
-            <DialogContent aria-describedby={undefined} className="sm:max-w-[550px] bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+          <Dialog
+              open={isEmailModalOpen}
+              onOpenChange={(aberto) => {
+                setIsEmailModalOpen(aberto)
+                if (!aberto) {
+                  setEmailPreview(null)
+                  setEmailObservacao("")
+                }
+              }}
+            >
+            <DialogContent aria-describedby={undefined} className="sm:max-w-[550px] max-h-[90vh] flex flex-col bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
               <DialogHeader>
                 <DialogTitle className="text-blue-500 text-lg font-bold tracking-wide flex items-center gap-2">
                   <Mail className="size-5" />
-                  CORPO DO E-MAIL
+                  MENSAGEM DE E-MAIL
                 </DialogTitle>
               </DialogHeader>
               
-              <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700/50 relative max-h-[300px] overflow-y-auto mt-2">
-                <pre className="text-[13px] text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap font-sans">
-                  {emailMessage}
-                </pre>
+              <div className="flex flex-col gap-4 mt-2 overflow-y-auto pr-2">
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-600 dark:text-zinc-300">E-mail do Destinatário</Label>
+                  <Input
+                    value={emailPreview?.destinatario ?? ""}
+                    readOnly
+                    disabled
+                    placeholder={isLoadingPreview ? "Carregando..." : "Tomador sem e-mail cadastrado"}
+                    className="bg-zinc-50 dark:bg-zinc-800/50"
+                  />
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    Vem do cadastro do tomador. Para alterar, edite o tomador.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-600 dark:text-zinc-300">Assunto</Label>
+                  <Input
+                    value={emailPreview?.assunto ?? ""}
+                    readOnly
+                    disabled
+                    className="bg-zinc-50 dark:bg-zinc-800/50"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-600 dark:text-zinc-300">Observação (opcional)</Label>
+                  <Textarea
+                    value={emailObservacao}
+                    onChange={(e) => setEmailObservacao(e.target.value)}
+                    maxLength={500}
+                    placeholder="Acrescente uma observação à mensagem, se precisar."
+                    className="min-h-[70px] resize-y text-[13px] bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 font-sans"
+                  />
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    {emailObservacao.length}/500
+                  </p>
+                </div>
+
+                <div className="space-y-1.5 flex flex-col">
+                  <Label className="text-zinc-600 dark:text-zinc-300">Mensagem</Label>
+                  <Textarea
+                    value={isLoadingPreview ? "Carregando prévia..." : (emailPreview?.mensagem ?? "")}
+                    readOnly
+                    className="min-h-[150px] flex-1 resize-y text-[13px] bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 font-sans"
+                  />
+                </div>
               </div>
-              
-              <div className="mt-4 flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsEmailModalOpen(false)}>Cancelar</Button>
-                <Button 
+
+              <div className="mt-4 flex justify-between shrink-0">
+                <Button
                   onClick={handleCopyEmailMessage}
-                  className="gap-2 bg-blue-500 hover:bg-blue-600 text-white"
+                  disabled={!emailPreview}
+                  variant="ghost"
+                  className="gap-2 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
                 >
                   <Copy className="size-4" />
-                  <span>Copiar mensagem</span>
+                  <span>Copiar</span>
+                </Button>
+                <Button
+                  onClick={handleSendEmail}
+                  disabled={isSendingEmail || isLoadingPreview || !emailPreview?.destinatario}
+                  className="gap-2 bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  <Mail className="size-4" />
+                  <span>{isSendingEmail ? "Enviando..." : "Enviar e-mail"}</span>
                 </Button>
               </div>
             </DialogContent>
