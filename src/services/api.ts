@@ -35,6 +35,17 @@ async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
   return handleApiResponse<T>(response);
 }
 
+// ─── E-mail ──────────────────────────────────────────────────────────────────
+
+/** Mensagem montada pelo servidor a partir do objeto (cotação/apólice).
+ *  O cliente exibe e envia, mas não compõe: é isso que impede o endpoint de
+ *  ser usado para mandar qualquer texto para qualquer endereço. */
+export interface EmailPreview {
+  destinatario: string;
+  assunto: string;
+  mensagem: string;
+}
+
 // ─── Tomadores ───────────────────────────────────────────────────────────────
 
 export interface ContatoAdicional {
@@ -368,7 +379,14 @@ export const cotacoesApi = {
   remove: (id: number) =>
     apiRequest<void>(`/cotacoes/${id}`, { method: "DELETE" }),
 
-  enviarEmail: (id: number, data: { assunto: string; mensagem: string; destinatario: string }) =>
+  // O corpo, o assunto e o destinatário são montados no servidor a partir da
+  // cotação. Daqui só sai a observação — ver EmailPreview.
+  emailPreview: (id: number, observacao = "") =>
+    apiRequest<EmailPreview>(
+      `/cotacoes/${id}/email-preview/?observacao=${encodeURIComponent(observacao)}`
+    ),
+
+  enviarEmail: (id: number, data: { observacao?: string }) =>
     apiRequest<void>(`/cotacoes/${id}/enviar-email/`, {
       method: "POST",
       body: JSON.stringify(data),
@@ -458,7 +476,12 @@ export const apolicesApi = {
   remove: (id: number) =>
     apiRequest<void>(`/apolices/${id}`, { method: "DELETE" }),
 
-  enviarEmail: (id: number, data: { assunto: string; mensagem: string; destinatario: string }) =>
+  emailPreview: (id: number, observacao = "") =>
+    apiRequest<EmailPreview>(
+      `/apolices/${id}/email-preview/?observacao=${encodeURIComponent(observacao)}`
+    ),
+
+  enviarEmail: (id: number, data: { observacao?: string }) =>
     apiRequest<void>(`/apolices/${id}/enviar-email/`, {
       method: "POST",
       body: JSON.stringify(data),

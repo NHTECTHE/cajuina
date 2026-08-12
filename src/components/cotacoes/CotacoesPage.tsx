@@ -64,6 +64,7 @@ import {
   type SeguradoraResponse,
   type CotacaoResponse,
   type CotacaoPayload,
+  type EmailPreview,
 } from "@/services/api"
 import {
   listTomadorSeguradorasAction,
@@ -211,15 +212,18 @@ export default function CotacoesPage() {
   const pdfRef = React.useRef<HTMLDivElement>(null)
 
   // Estados para envio de WhatsApp
-  const [editableMessage, setEditableMessage] = useState("")
-  const [telefoneDestino, setTelefoneDestino] = useState("")
-  const [isLoadingTelefone, setIsLoadingTelefone] = useState(false)
+  // `null` = ainda não tocado pelo usuário; exibe o valor de origem. Guardar a
+  // edição separada da origem evita semear o estado dentro de um efeito.
+  const [mensagemEditada, setMensagemEditada] = useState<string | null>(null)
+  const [telefoneEditado, setTelefoneEditado] = useState<string | null>(null)
+  const [telefoneCarregado, setTelefoneCarregado] = useState<string | null>(null)
 
-  // Estados para envio de E-mail
-  const [editableEmailMessage, setEditableEmailMessage] = useState("")
-  const [emailDestino, setEmailDestino] = useState("")
-  const [emailAssunto, setEmailAssunto] = useState("")
+  // Estados para envio de E-mail. Destinatário, assunto e corpo vêm prontos do
+  // servidor (emailPreview); daqui só sai a observação.
+  const [emailPreview, setEmailPreview] = useState<EmailPreview | null>(null)
+  const [emailObservacao, setEmailObservacao] = useState("")
   const [isSendingEmail, setIsSendingEmail] = useState(false)
+  const isLoadingPreview = isEmailModalOpen && emailPreview === null
 
   // Cotação para excluir (estado para o modal de confirmação)
   const [deleteTarget, setDeleteTarget] = useState<CotacaoResponse | null>(null)
@@ -443,22 +447,26 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
 (86) 3081-0282`
   }, [selectedCotacao, diasVencimento, seguradoras, vinculosTomador])
 
+
+  const editableMessage = mensagemEditada ?? generatedMessage
+  const telefoneDestino = telefoneEditado ?? telefoneCarregado ?? ""
+  const isLoadingTelefone =
+    isMessageModalOpen && Boolean(selectedCotacao?.tomador) && telefoneCarregado === null
+
   React.useEffect(() => {
-    if (isMessageModalOpen) {
-      setEditableMessage(generatedMessage)
-      if (selectedCotacao?.tomador) {
-        setIsLoadingTelefone(true)
-        tomadoresApi.get(selectedCotacao.tomador)
-          .then(res => {
-            setTelefoneDestino(res.celular || res.telefone || "")
-          })
-          .catch(() => {})
-          .finally(() => setIsLoadingTelefone(false))
-      }
-    } else {
-      setTelefoneDestino("")
-    }
-  }, [isMessageModalOpen, generatedMessage, selectedCotacao])
+    if (!isMessageModalOpen || !selectedCotacao?.tomador) return
+
+    let cancelado = false
+    tomadoresApi.get(selectedCotacao.tomador)
+      .then(res => {
+        if (!cancelado) setTelefoneCarregado(res.celular || res.telefone || "")
+      })
+      .catch(() => {
+        if (!cancelado) setTelefoneCarregado("")
+      })
+
+    return () => { cancelado = true }
+  }, [isMessageModalOpen, selectedCotacao])
 
   const handleSendWhatsApp = () => {
     let phone = telefoneDestino.replace(/\D/g, "")
@@ -474,99 +482,47 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
     setIsMessageModalOpen(false)
   }
 
-  const emailMessage = useMemo(() => {
-    if (!selectedCotacao) return ""
-
-    const seguradorasList = seguradoras
-      .filter(seg => vinculosTomador[seg.id]?.apto)
-      .map(seg => {
-        const vinculo = vinculosTomador[seg.id]
-        const taxa = Number(vinculo.taxa) || 0
-        const premioMinimo = Number(vinculo.premio_minimo_efetivo) || 0
-        const isValor = Number(selectedCotacao.importancia_segurada) || 0
-        const prazo = selectedCotacao.prazo_dias || 0
-        const calcPremio = (isValor / 365) * (taxa / 100) * prazo
-        const premio = Math.max(premioMinimo, calcPremio)
-        return `${seg.nome}: ${formatBRL(premio)}`
-      }).join('\n')
-
-    return `Cotação de Seguro Garantia
-
-Olá, ${selectedCotacao.tomador_nome}!
-
-Segue abaixo os dados da sua cotação.
-
-**Dados da Cotação**
-Cliente:
-${selectedCotacao.tomador_nome} - ${selectedCotacao.tomador_cnpj}
-
-Edital / Contrato:
-${selectedCotacao.edital || '—'}
-
-Modalidade:
-${selectedCotacao.modalidade_nome || '—'}
-
-Importância Segurada:
-${formatBRL(selectedCotacao.importancia_segurada)}
-
-Prazo:
-${selectedCotacao.prazo_dias != null ? `${selectedCotacao.prazo_dias} Dias` : '—'}
-
-**Valores das Seguradoras**
-
-${seguradorasList || 'Nenhuma seguradora disponível'}
-
-Sua cotação já está aprovada e pronta para emissão da apólice.
-
-Caso tenha qualquer dúvida, estamos à disposição.
-
-Atenciosamente,
-
-E-mail: garantia@cajuinaseguros.com.br`
-  }, [selectedCotacao, seguradoras, vinculosTomador])
-
+  // O corpo do e-mail é montado pelo servidor a partir da cotação — inclusive o
+  // cálculo de prêmio por seguradora, que antes era refeito aqui. Este efeito só
+  // busca o que será enviado, para exibir.
   React.useEffect(() => {
-    if (isEmailModalOpen) {
-      setEditableEmailMessage(emailMessage)
-      setEmailAssunto("Cotação de Seguro Garantia")
-      if (selectedCotacao?.tomador) {
-        tomadoresApi.get(selectedCotacao.tomador)
-          .then(res => {
-            setEmailDestino(res.email || "")
-          })
-          .catch(() => {})
-      }
-    } else {
-      setEmailDestino("")
-    }
-  }, [isEmailModalOpen, emailMessage, selectedCotacao])
+    if (!isEmailModalOpen || !selectedCotacao) return
+
+    let cancelado = false
+    cotacoesApi.emailPreview(selectedCotacao.id, emailObservacao)
+      .then(preview => {
+        if (!cancelado) setEmailPreview(preview)
+      })
+      .catch(() => {
+        if (!cancelado) toast.error("Não foi possível carregar a prévia do e-mail.")
+      })
+    return () => { cancelado = true }
+  }, [isEmailModalOpen, selectedCotacao, emailObservacao])
 
   const handleSendEmail = async () => {
-    if (!emailDestino) {
-      toast.error("Informe um e-mail de destino válido.")
+    if (!selectedCotacao) return
+    if (!emailPreview?.destinatario) {
+      toast.error("O tomador desta cotação não tem e-mail cadastrado.")
       return
     }
-    if (!selectedCotacao) return
 
     setIsSendingEmail(true)
     try {
-      await cotacoesApi.enviarEmail(selectedCotacao.id, {
-        assunto: emailAssunto,
-        mensagem: editableEmailMessage,
-        destinatario: emailDestino
-      })
+      await cotacoesApi.enviarEmail(selectedCotacao.id, { observacao: emailObservacao })
       toast.success("E-mail enviado com sucesso!")
       setIsEmailModalOpen(false)
+      setEmailObservacao("")
     } catch (err) {
-      toast.error("Erro ao enviar o e-mail.")
+      toast.error(err instanceof Error ? err.message : "Erro ao enviar o e-mail.")
     } finally {
       setIsSendingEmail(false)
     }
   }
 
   const handleCopyEmailMessage = async () => {
+    if (!emailPreview) return
     try {
-      await navigator.clipboard.writeText(emailMessage)
+      await navigator.clipboard.writeText(emailPreview.mensagem)
       setIsEmailModalOpen(false)
       setShowSuccessModal(true)
     } catch {
@@ -1272,7 +1228,17 @@ E-mail: garantia@cajuinaseguros.com.br`
 
 
             {/* Modal Mensagem para o Cliente */}
-            <Dialog open={isMessageModalOpen} onOpenChange={setIsMessageModalOpen}>
+            <Dialog
+            open={isMessageModalOpen}
+            onOpenChange={(aberto) => {
+              setIsMessageModalOpen(aberto)
+              if (!aberto) {
+                setMensagemEditada(null)
+                setTelefoneEditado(null)
+                setTelefoneCarregado(null)
+              }
+            }}
+          >
               <DialogContent aria-describedby={undefined} className="sm:max-w-[450px] max-h-[90vh] flex flex-col bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
                 <DialogHeader>
                   <DialogTitle className="text-[#e85c5c] dark:text-[#cf7458] text-lg font-bold tracking-wide flex items-center gap-2">
@@ -1285,7 +1251,7 @@ E-mail: garantia@cajuinaseguros.com.br`
                     <Label className="text-zinc-600 dark:text-zinc-300">Telefone do Destinatário</Label>
                     <Input 
                       value={telefoneDestino}
-                      onChange={(e) => setTelefoneDestino(e.target.value)}
+                      onChange={(e) => setTelefoneEditado(e.target.value)}
                       placeholder="(00) 00000-0000"
                       disabled={isLoadingTelefone}
                       className="bg-zinc-50 dark:bg-zinc-800/50"
@@ -1296,7 +1262,7 @@ E-mail: garantia@cajuinaseguros.com.br`
                     <Label className="text-zinc-600 dark:text-zinc-300">Mensagem</Label>
                     <Textarea 
                       value={editableMessage}
-                      onChange={(e) => setEditableMessage(e.target.value)}
+                      onChange={(e) => setMensagemEditada(e.target.value)}
                       className="min-h-[150px] resize-y text-[13px] bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 font-sans"
                     />
                   </div>
@@ -1323,7 +1289,16 @@ E-mail: garantia@cajuinaseguros.com.br`
             </Dialog>
 
             {/* Modal Mensagem de E-mail */}
-            <Dialog open={isEmailModalOpen} onOpenChange={setIsEmailModalOpen}>
+            <Dialog
+              open={isEmailModalOpen}
+              onOpenChange={(aberto) => {
+                setIsEmailModalOpen(aberto)
+                if (!aberto) {
+                  setEmailPreview(null)
+                  setEmailObservacao("")
+                }
+              }}
+            >
               <DialogContent aria-describedby={undefined} className="sm:max-w-[550px] max-h-[90vh] flex flex-col bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
                 <DialogHeader>
                   <DialogTitle className="text-blue-500 text-lg font-bold tracking-wide flex items-center gap-2">
@@ -1334,38 +1309,65 @@ E-mail: garantia@cajuinaseguros.com.br`
                 <div className="flex flex-col gap-4 mt-2 overflow-y-auto pr-2">
                   <div className="space-y-1.5">
                     <Label className="text-zinc-600 dark:text-zinc-300">E-mail do Destinatário</Label>
-                    <Input 
-                      value={emailDestino}
-                      onChange={(e) => setEmailDestino(e.target.value)}
-                      placeholder="email@exemplo.com"
+                    <Input
+                      value={emailPreview?.destinatario ?? ""}
+                      readOnly
+                      disabled
+                      placeholder={isLoadingPreview ? "Carregando..." : "Tomador sem e-mail cadastrado"}
+                      className="bg-zinc-50 dark:bg-zinc-800/50"
+                    />
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                      Vem do cadastro do tomador. Para alterar, edite o tomador.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-zinc-600 dark:text-zinc-300">Assunto</Label>
+                    <Input
+                      value={emailPreview?.assunto ?? ""}
+                      readOnly
+                      disabled
                       className="bg-zinc-50 dark:bg-zinc-800/50"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-zinc-600 dark:text-zinc-300">Assunto</Label>
-                    <Input 
-                      value={emailAssunto}
-                      onChange={(e) => setEmailAssunto(e.target.value)}
-                      placeholder="Assunto do e-mail"
-                      className="bg-zinc-50 dark:bg-zinc-800/50"
+                    <Label className="text-zinc-600 dark:text-zinc-300">Observação (opcional)</Label>
+                    <Textarea
+                      value={emailObservacao}
+                      onChange={(e) => setEmailObservacao(e.target.value)}
+                      maxLength={500}
+                      placeholder="Acrescente uma observação à mensagem, se precisar."
+                      className="min-h-[70px] resize-y text-[13px] bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 font-sans"
                     />
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                      {emailObservacao.length}/500
+                    </p>
                   </div>
-                  
+
                   <div className="space-y-1.5 flex flex-col">
                     <Label className="text-zinc-600 dark:text-zinc-300">Mensagem</Label>
-                    <Textarea 
-                      value={editableEmailMessage}
-                      onChange={(e) => setEditableEmailMessage(e.target.value)}
+                    <Textarea
+                      value={isLoadingPreview ? "Carregando prévia..." : (emailPreview?.mensagem ?? "")}
+                      readOnly
                       className="min-h-[150px] flex-1 resize-y text-[13px] bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 font-sans"
                     />
                   </div>
                 </div>
-                
-                <div className="mt-4 flex justify-end shrink-0">
-                  <Button 
+
+                <div className="mt-4 flex justify-between shrink-0">
+                  <Button
+                    onClick={handleCopyEmailMessage}
+                    disabled={!emailPreview}
+                    variant="ghost"
+                    className="gap-2 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                  >
+                    <Copy className="size-4" />
+                    <span>Copiar</span>
+                  </Button>
+                  <Button
                     onClick={handleSendEmail}
-                    disabled={isSendingEmail}
+                    disabled={isSendingEmail || isLoadingPreview || !emailPreview?.destinatario}
                     className="gap-2 bg-blue-500 hover:bg-blue-600 text-white"
                   >
                     <Mail className="size-4" />

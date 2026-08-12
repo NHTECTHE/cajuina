@@ -129,9 +129,11 @@ export default function PropostasPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false)
 
   // Estados para envio de WhatsApp
-  const [editableMessage, setEditableMessage] = useState("")
-  const [telefoneDestino, setTelefoneDestino] = useState("")
-  const [isLoadingTelefone, setIsLoadingTelefone] = useState(false)
+  // `null` = ainda não tocado pelo usuário; exibe o valor de origem. Guardar a
+  // edição separada da origem evita semear o estado dentro de um efeito.
+  const [mensagemEditada, setMensagemEditada] = useState<string | null>(null)
+  const [telefoneEditado, setTelefoneEditado] = useState<string | null>(null)
+  const [telefoneCarregado, setTelefoneCarregado] = useState<string | null>(null)
 
   // Propostas = cotações com status "Aprovado".
   const [propostas, setPropostas] = useState<CotacaoResponse[]>([])
@@ -231,22 +233,26 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
 (86) 3081-0282`
   }, [selected, vencimentoBoleto, seguradoras, seguradoraEscolhidaId, calculatedPremio])
 
+
+  const editableMessage = mensagemEditada ?? generatedMessage
+  const telefoneDestino = telefoneEditado ?? telefoneCarregado ?? ""
+  const isLoadingTelefone =
+    isMessageModalOpen && Boolean(selected?.tomador) && telefoneCarregado === null
+
   React.useEffect(() => {
-    if (isMessageModalOpen) {
-      setEditableMessage(generatedMessage)
-      if (selected?.tomador) {
-        setIsLoadingTelefone(true)
-        tomadoresApi.get(selected.tomador)
-          .then(res => {
-            setTelefoneDestino(res.celular || res.telefone || "")
-          })
-          .catch(() => {})
-          .finally(() => setIsLoadingTelefone(false))
-      }
-    } else {
-      setTelefoneDestino("")
-    }
-  }, [isMessageModalOpen, generatedMessage, selected])
+    if (!isMessageModalOpen || !selected?.tomador) return
+
+    let cancelado = false
+    tomadoresApi.get(selected.tomador)
+      .then(res => {
+        if (!cancelado) setTelefoneCarregado(res.celular || res.telefone || "")
+      })
+      .catch(() => {
+        if (!cancelado) setTelefoneCarregado("")
+      })
+
+    return () => { cancelado = true }
+  }, [isMessageModalOpen, selected])
 
   const handleSendWhatsApp = () => {
     let phone = telefoneDestino.replace(/\D/g, "")
@@ -758,7 +764,17 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
           </div>
 
           {/* Modal Mensagem para o Cliente */}
-          <Dialog open={isMessageModalOpen} onOpenChange={setIsMessageModalOpen}>
+          <Dialog
+            open={isMessageModalOpen}
+            onOpenChange={(aberto) => {
+              setIsMessageModalOpen(aberto)
+              if (!aberto) {
+                setMensagemEditada(null)
+                setTelefoneEditado(null)
+                setTelefoneCarregado(null)
+              }
+            }}
+          >
             <DialogContent aria-describedby={undefined} className="sm:max-w-[450px] bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
               <DialogHeader>
                 <DialogTitle className="text-[#e85c5c] dark:text-[#cf7458] text-lg font-bold tracking-wide flex items-center gap-2">
@@ -771,7 +787,7 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                   <Label className="text-zinc-600 dark:text-zinc-300">Telefone do Destinatário</Label>
                   <Input 
                     value={telefoneDestino}
-                    onChange={(e) => setTelefoneDestino(e.target.value)}
+                    onChange={(e) => setTelefoneEditado(e.target.value)}
                     placeholder="(00) 00000-0000"
                     disabled={isLoadingTelefone}
                     className="bg-zinc-50 dark:bg-zinc-800/50"
@@ -782,7 +798,7 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                   <Label className="text-zinc-600 dark:text-zinc-300">Mensagem</Label>
                   <Textarea 
                     value={editableMessage}
-                    onChange={(e) => setEditableMessage(e.target.value)}
+                    onChange={(e) => setMensagemEditada(e.target.value)}
                     className="min-h-[200px] resize-none text-[13px] bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 font-sans"
                   />
                 </div>
