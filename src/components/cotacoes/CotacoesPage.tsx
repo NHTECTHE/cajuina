@@ -15,7 +15,8 @@ import {
   Pencil,
   CheckCircle2,
   Copy,
-  Check
+  Check,
+  Loader2
 } from "lucide-react"
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -60,12 +61,15 @@ import {
   modalidadesApi,
   seguradorasApi,
   cotacoesApi,
+  emissaoApi,
   getTomadorSeguradoraVinculo,
   type SeguradoraResponse,
   type CotacaoResponse,
   type CotacaoPayload,
   type EmailPreview,
+  type EmissaoResponse,
 } from "@/services/api"
+import { premioEfetivo } from "@/lib/premio"
 import {
   listTomadorSeguradorasAction,
   type TomadorSeguradora,
@@ -297,6 +301,61 @@ export default function CotacoesPage() {
   // Taxas), com fallback para os valores da própria seguradora.
   const [vinculosTomador, setVinculosTomador] = useState<Record<number, TomadorSeguradora>>({})
 
+  // Emissões já criadas na seguradora, indexadas por seguradora. Alimenta o
+  // prêmio real nos cards, no PDF e no WhatsApp. Carrega junto de qual cotação
+  // veio: sem isso, trocar de simulação mostra o prêmio real da anterior até a
+  // resposta nova chegar.
+  const [emissoes, setEmissoes] = useState<{
+    cotacaoId: number
+    porSeguradora: Record<number, EmissaoResponse>
+  } | null>(null)
+
+  // Id da seguradora sendo cotada agora: o spinner é do card, não da tela.
+  const [cotandoSeguradoraId, setCotandoSeguradoraId] = useState<number | null>(null)
+
+  React.useEffect(() => {
+    const id = selectedCotacao?.id
+    if (!id) return
+    let ativo = true
+    emissaoApi
+      .estado(id)
+      .then((lista) => {
+        if (!ativo) return
+        setEmissoes({
+          cotacaoId: id,
+          porSeguradora: Object.fromEntries(lista.map((e) => [e.seguradora, e])),
+        })
+      })
+      .catch(() => {
+        if (ativo) setEmissoes({ cotacaoId: id, porSeguradora: {} })
+      })
+    return () => {
+      ativo = false
+    }
+  }, [selectedCotacao?.id])
+
+  // Fonte única do prêmio exibido. Antes esta conta estava escrita em três
+  // lugares deste arquivo — card, PDF e WhatsApp — e agora todas passam aqui.
+  const premioDaSeguradora = React.useCallback(
+    (segId: number, taxa: unknown, premioMinimo: unknown) =>
+      premioEfetivo({
+        importanciaSegurada: Number(selectedCotacao?.importancia_segurada) || 0,
+        prazoDias: selectedCotacao?.prazo_dias || 0,
+        taxa: Number(taxa) || 0,
+        premioMinimo: Number(premioMinimo) || 0,
+        premioReal:
+          emissoes?.cotacaoId === selectedCotacao?.id
+            ? (emissoes?.porSeguradora[segId]?.premio_total ?? null)
+            : null,
+      }),
+    [
+      selectedCotacao?.id,
+      selectedCotacao?.importancia_segurada,
+      selectedCotacao?.prazo_dias,
+      emissoes,
+    ]
+  )
+
   React.useEffect(() => {
     if (view !== "details") return
     let active = true
@@ -344,6 +403,39 @@ export default function CotacoesPage() {
       setSelectedCotacao(atualizada)
     } catch {
       toast.error("Não foi possível salvar a seguradora escolhida.")
+    }
+  }
+
+  // Cota de verdade na seguradora. Não escolhe: escolher é o clique no corpo
+  // do card. Dá para cotar em três e decidir depois.
+  const handleCotarSeguradora = async (seguradoraId: number) => {
+    if (!selectedCotacao) return
+    const nomeSeguradora = seguradoras.find(s => s.id === seguradoraId)?.nome ?? "seguradora"
+    setCotandoSeguradoraId(seguradoraId)
+    // Toast com id fixo: a chamada leva ~6s e pode ir a 30s, e o spinner do card
+    // some de vista se o usuário rolar a tela. O mesmo id vira sucesso ou erro.
+    const aviso = toast.loading(`Cotando na ${nomeSeguradora}...`, {
+      description: "Consultando a seguradora, isso pode levar alguns segundos.",
+    })
+    try {
+      const emissao = await emissaoApi.cotar(selectedCotacao.id, seguradoraId)
+      setEmissoes((atual) => ({
+        cotacaoId: selectedCotacao.id,
+        porSeguradora: {
+          ...(atual?.cotacaoId === selectedCotacao.id ? atual.porSeguradora : {}),
+          [seguradoraId]: emissao,
+        },
+      }))
+      toast.success(`${nomeSeguradora}: prêmio real recebido.`, { id: aviso, description: undefined })
+    } catch (err) {
+      // A mensagem vem da seguradora quando o erro é de negócio ("limite
+      // insuficiente", "tomador não cadastrado") — é o que o usuário precisa ler.
+      toast.error(err instanceof Error ? err.message : "Não foi possível cotar na seguradora.", {
+        id: aviso,
+        description: undefined,
+      })
+    } finally {
+      setCotandoSeguradoraId(null)
     }
   }
 
@@ -411,13 +503,8 @@ export default function CotacoesPage() {
       .filter(seg => vinculosTomador[seg.id]?.apto)
       .map(seg => {
         const vinculo = vinculosTomador[seg.id]
-        const taxa = Number(vinculo.taxa) || 0
-        const premioMinimo = Number(vinculo.premio_minimo_efetivo) || 0
-        const isValor = Number(selectedCotacao.importancia_segurada) || 0
-        const prazo = selectedCotacao.prazo_dias || 0
-        const calcPremio = (isValor / 365) * (taxa / 100) * prazo
-        const premio = Math.max(premioMinimo, calcPremio)
-        return `${seg.nome}: ${formatBRL(premio)}`
+        const { valor } = premioDaSeguradora(seg.id, vinculo.taxa, vinculo.premio_minimo_efetivo)
+        return `${seg.nome}: ${formatBRL(valor)}`
       })
 
     const valoresTexto = seguradorasDisponiveis.length > 0
@@ -445,7 +532,7 @@ Vencimento do Boleto: ${isoToBR(addDays(new Date().toISOString().slice(0, 10), d
 Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o nosso suporte:
 
 (86) 3081-0282`
-  }, [selectedCotacao, diasVencimento, seguradoras, vinculosTomador])
+  }, [selectedCotacao, diasVencimento, seguradoras, vinculosTomador, premioDaSeguradora])
 
 
   const editableMessage = mensagemEditada ?? generatedMessage
@@ -542,22 +629,17 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
 
   const pdfData = useMemo<CotacaoPDFData | null>(() => {
     if (!selectedCotacao) return null
-    const baseVal = Number(selectedCotacao.importancia_segurada) || 0
     const validSeguradoras: SeguradoraPDFData[] = []
     
     seguradoras.forEach(seg => {
       const vinculo = vinculosTomador[seg.id]
       if (!vinculo || !vinculo.apto) return
       
-      const taxa = vinculo.taxa
-      const premioMinimo = vinculo.premio_minimo_efetivo
-      
-      const is = Number(selectedCotacao.importancia_segurada) || 0
-      const prazo = selectedCotacao.prazo_dias || 0
-      const taxaNum = Number(taxa) || 0
-      const min = Number(premioMinimo) || 0
-      const calc = (is / 365) * (taxaNum / 100) * prazo
-      const premioFinal = Math.max(calc, min)
+      const { valor: premioFinal } = premioDaSeguradora(
+        seg.id,
+        vinculo.taxa,
+        vinculo.premio_minimo_efetivo
+      )
       
       if (premioFinal > 0) {
         validSeguradoras.push({
@@ -584,7 +666,7 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
       observacoes: selectedCotacao.observacoes || "—",
       seguradoras: validSeguradoras
     }
-  }, [selectedCotacao, seguradoras, vinculosTomador])
+  }, [selectedCotacao, seguradoras, vinculosTomador, premioDaSeguradora])
 
   const handleGeneratePdf = async () => {
     if (!pdfRef.current || !selectedCotacao) return
@@ -1424,15 +1506,30 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                     return (
                     <div
                       key={seg.id}
-                      onClick={() => selecionavel && handleEscolherSeguradora(seg.id)}
+                      onClick={() => !cotandoSeguradoraId && selecionavel && handleEscolherSeguradora(seg.id)}
                       title={!apto ? "Tomador sem taxa cadastrada para esta seguradora." : undefined}
                       className={cn(
                         "relative bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-40 flex flex-col items-center justify-between p-4 border transition-all",
                         selecionavel ? "cursor-pointer hover:border-brand-red/50 hover:bg-red-50/50 dark:hover:bg-red-500/10" : "opacity-70 border-zinc-200 dark:border-zinc-700/50",
                         !apto ? "cursor-not-allowed" : "",
-                        escolhida ? "ring-2 ring-brand-red border-brand-red bg-red-50/50 dark:bg-red-500/10 shadow-sm" : ""
+                        escolhida ? "ring-2 ring-brand-red border-brand-red bg-red-50/50 dark:bg-red-500/10 shadow-sm" : "",
+                        // Enquanto uma cotação está em curso os outros cards saem de
+                        // cena: evita trocar a escolhida no meio da chamada e deixa
+                        // claro qual seguradora está sendo consultada.
+                        cotandoSeguradoraId && cotandoSeguradoraId !== seg.id ? "opacity-40 pointer-events-none" : ""
                       )}
                     >
+                      {cotandoSeguradoraId === seg.id && (
+                        <div className="absolute inset-0 z-20 rounded-xl bg-white/85 dark:bg-zinc-900/85 backdrop-blur-[1px] flex flex-col items-center justify-center gap-2">
+                          <Loader2 className="size-7 animate-spin text-brand-red dark:text-[#cf7458]" />
+                          <span className="text-[11px] font-bold uppercase tracking-wide text-brand-red dark:text-[#cf7458]">
+                            Cotando...
+                          </span>
+                          <span className="text-[9.5px] text-zinc-500 dark:text-zinc-400 text-center px-2 leading-tight">
+                            consultando a seguradora
+                          </span>
+                        </div>
+                      )}
                       <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide text-center leading-tight">{seg.nome}</span>
 
                       <div className="flex-1 flex items-center justify-center py-1">
@@ -1444,19 +1541,41 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                         )}
                       </div>
 
+                      {seg.integracao && seg.tem_credencial_api && (
+                        <button
+                          type="button"
+                          title={
+                            emissoes?.cotacaoId === selectedCotacao?.id && emissoes?.porSeguradora[seg.id]
+                              ? "Recotar na seguradora"
+                              : "Cotar na seguradora"
+                          }
+                          disabled={cotandoSeguradoraId === seg.id}
+                          onClick={(e) => {
+                            // Sem isto o clique sobe para o card e escolhe a
+                            // seguradora sem querer — cotar não é escolher.
+                            e.stopPropagation()
+                            handleCotarSeguradora(seg.id)
+                          }}
+                          className="absolute -right-2 -top-2 w-9 h-9 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-sm flex items-center justify-center text-brand-red dark:text-[#cf7458] hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          {cotandoSeguradoraId === seg.id ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Search className="size-4" />
+                          )}
+                        </button>
+                      )}
+
                       {(() => {
-                        const is = Number(selectedCotacao?.importancia_segurada) || 0;
-                        const prazo = selectedCotacao?.prazo_dias || 0;
-                        const taxaNum = Number(taxa) || 0;
-                        const min = Number(premioMinimo) || 0;
-                        const calc = (is / 365) * (taxaNum / 100) * prazo;
-                        const premioFinal = Math.max(calc, min);
+                        const { valor, real } = premioDaSeguradora(seg.id, taxa, premioMinimo)
 
                         return (
                           <div className="w-full flex flex-col gap-1 text-[10.5px] text-zinc-600 dark:text-zinc-400 border-t border-zinc-200/70 dark:border-zinc-700/50 pt-2">
                             <div className="flex items-center justify-between">
-                              <span className="uppercase font-medium opacity-70">Prêmio</span>
-                              <span className="font-bold text-brand-red dark:text-[#cf7458]">{formatBRL(premioFinal)}</span>
+                              <span className="uppercase font-medium opacity-70">
+                                {real ? "Prêmio real" : "Prêmio"}
+                              </span>
+                              <span className="font-bold text-brand-red dark:text-[#cf7458]">{formatBRL(valor)}</span>
                             </div>
                           </div>
                         )
