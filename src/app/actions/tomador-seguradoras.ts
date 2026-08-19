@@ -23,6 +23,10 @@ export interface TomadorSeguradora {
   seguradora_ativo: boolean
   status: string
   taxa: string
+  taxa_origem?: string
+  taxa_junto_modalidade_id?: string
+  taxa_junto_modalidade_descricao?: string
+  taxa_data_atualizacao?: string | null
   premio_minimo: string | null
   premio_minimo_efetivo: string
   dias_vencimento: number | null
@@ -36,6 +40,10 @@ export interface TomadorSeguradoraInput {
   seguradora: number
   status: string
   taxa: string
+  taxa_origem?: string
+  taxa_junto_modalidade_id?: string
+  taxa_junto_modalidade_descricao?: string
+  taxa_data_atualizacao?: string | null
   premio_minimo: string | null
   dias_vencimento: number | null
 }
