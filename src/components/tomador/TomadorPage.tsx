@@ -101,6 +101,12 @@ interface ContactRow {
   email: string;
 }
 
+
+
+
+
+
+
 interface SocioRow {
   nome: string;
   cpf: string;
@@ -205,7 +211,12 @@ export default function TomadorPage() {
 
   const [formData, setFormData] = useState(initialFormState)
   const [seguradoraInicial, setSeguradoraInicial] = useState<number | null>(null)
+  const [seguradoraInicialLabel, setSeguradoraInicialLabel] = useState<string | null>(null)
   const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false)
+  const [juntoModalOpen, setJuntoModalOpen] = useState(false)
+  const [juntoModalContext, setJuntoModalContext] = useState<{ tomadorId: number | null; seguradoraId: number | null } | null>(null)
+  const [juntoProcessing, setJuntoProcessing] = useState(false)
+  const [juntoCheckingIds, setJuntoCheckingIds] = useState<Record<number, boolean>>({})
 
   // Dynamic Contact Form Row Input Temp States
   const [newContact, setNewContact] = useState<ContactRow>({ nome: "", telefone: "", email: "" })
@@ -413,10 +424,43 @@ export default function TomadorPage() {
           await saveTomadorSeguradorasAction(created.id, [{
             seguradora: seguradoraInicial,
             taxa: "0",
-            status: "cadastro_ok",
+            status: "sem_cadastro",
             premio_minimo: "",
             dias_vencimento: null
           }])
+
+          // Verifica automaticamente na Junto se a seguradora selecionada for Junto
+          const segInicialObj = seguradoras.find(s => s.id === seguradoraInicial)
+          const isJuntoInicial = segInicialObj?.integracao === "junto" || segInicialObj?.nome?.toLowerCase().includes("junto")
+
+          if (isJuntoInicial) {
+            try {
+              // Valida CNPJ antes de chamar a Junto
+              const cnpjDigits = somenteDigitos(created.cnpj || "")
+              if (!cnpjDigits || cnpjDigits.length !== 14) {
+                toast.dismiss()
+                toast.error("CNPJ inválido. Não é possível verificar na Junto.")
+              } else {
+                const checkingToast = toast.loading("Verificando na Junto...")
+                const res = await fetch(`/api/tomadores/${created.id}/seguradoras/${seguradoraInicial}/junto/verificar/`, { method: "POST" })
+                let payload = null
+                try { payload = await res.json() } catch (_) { payload = null }
+                toast.dismiss(checkingToast)
+                if (!res.ok) {
+                  const message = payload?.error || payload?.detail || payload?.message || 'Erro ao verificar na Junto.'
+                  toast.error(String(message))
+                } else if (payload?.data?.status === "cadastro_ok") {
+                  toast.success("Tomador encontrado e cadastrado na Junto.")
+                  setTaxasLoadedFor(null)
+                } else {
+                  setJuntoModalContext({ tomadorId: created.id, seguradoraId: seguradoraInicial })
+                  setJuntoModalOpen(true)
+                }
+              }
+            } catch (err) {
+              toast.error("Erro ao verificar cadastro na Junto.")
+            }
+          }
         }
         setTomadores(prev => [created, ...prev])
         toast.success("Tomador cadastrado com sucesso!")
@@ -424,13 +468,14 @@ export default function TomadorPage() {
       setView("list")
       setFormData(initialFormState)
       setSeguradoraInicial(null)
+      setSeguradoraInicialLabel(null)
       setEditingId(null)
       setCadastroManual(false)
       setCnpjNaoEncontrado(false)
       setCnpjDuplicado(null)
       setIsFinalizeModalOpen(false)
       setAtividadesLoadedFor(null)
-    } catch (err: unknown) {
+    } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao salvar tomador."
       if (message.toLowerCase().includes("cnpj") && message.toLowerCase().includes("já existe")) {
         toast.error("Já existe um tomador cadastrado com esse CNPJ. Edite o cadastro existente na lista.")
@@ -726,7 +771,7 @@ export default function TomadorPage() {
         socios: prev.socios,
       }));
       toast.success("Dados do CNPJ preenchidos automaticamente.");
-    } catch (err: unknown) {
+    } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao buscar CNPJ";
       setCnpjNaoEncontrado(true);
       toast.error(msg);
@@ -808,6 +853,58 @@ export default function TomadorPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={juntoModalOpen} onOpenChange={(open) => { if (!open) { setJuntoModalOpen(false); setJuntoModalContext(null); } }}>
+        <DialogContent className="max-w-md rounded-2xl p-6 border-zinc-200 dark:border-zinc-800">
+          <DialogHeader>
+            <DialogTitle className="text-center font-bold">Cadastrar na Junto Seguros?</DialogTitle>
+            <DialogDescription className="text-center text-sm text-zinc-500 mt-1">
+              Este tomador não tem cadastro na Junto Seguros. Deseja cadastrar agora?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 flex gap-3 justify-center">
+            <Button
+              disabled={juntoProcessing}
+              onClick={async () => {
+                if (!juntoModalContext) return
+                setJuntoProcessing(true)
+                try {
+                  const res = await fetch(`/api/tomadores/${juntoModalContext.tomadorId}/seguradoras/${juntoModalContext.seguradoraId}/junto/solicitar/`, { method: 'POST' })
+                  const json = await res.json().catch(() => null)
+                  setJuntoProcessing(false)
+                  setJuntoModalOpen(false)
+                  setJuntoModalContext(null)
+                  if (res.ok && json?.data?.status === 'cadastro_ok') {
+                    toast.success('Cadastro concluído na Junto.')
+                    setTaxasLoadedFor(null)
+                  } else if (res.ok) {
+                    toast.success('Solicitação enviada. O processamento pode levar alguns segundos.')
+                  } else {
+                    toast.error('Erro ao solicitar o cadastro na Junto.')
+                  }
+                } catch (err) {
+                  setJuntoProcessing(false)
+                  setJuntoModalOpen(false)
+                  setJuntoModalContext(null)
+                  toast.error('Erro ao solicitar o cadastro na Junto.')
+                }
+              }}
+              className="rounded-xl bg-brand-red text-white px-4 py-2"
+            >
+              {juntoProcessing ? 'Enviando...' : 'Cadastrar na Junto'}
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => { setJuntoModalOpen(false); setJuntoModalContext(null) }}
+              className="rounded-xl px-4 py-2"
+            >
+              Agora não
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ──── LIST VIEW ──── */}
       {view === "list" && (
@@ -1591,13 +1688,65 @@ export default function TomadorPage() {
                                 }))}
                                 className="w-full text-xs"
                               >
-                                <option value="cadastro_ok">Cadastro OK</option>
+                                {/* Removido envio manual de cadastro_ok — status é determinado pela integração Junto */}
                                 <option value="sem_cadastro">Sem cadastro</option>
                                 <option value="outro_corretor">Outro corretor</option>
                                 <option value="sem_aceitacao">Sem aceitação</option>
                               </NativeSelect>
                             </span>
                           </label>
+                          {editingId !== null && (s.integracao === "junto" || (s.api_usuario && s.api_senha) || (s.api_client_id && s.api_client_secret)) && (
+                            <div className="w-full mt-2">
+                              <button
+                                type="button"
+                                disabled={!!juntoCheckingIds[s.id]}
+                                onClick={async () => {
+                                  // Valida CNPJ antes de chamar a Junto
+                                  const tomador = tomadores.find(t => t.id === editingId)
+                                  const cnpjDigits = tomador ? somenteDigitos(tomador.cnpj) : ""
+                                  if (!cnpjDigits || cnpjDigits.length !== 14) {
+                                    toast.error("CNPJ inválido. Não é possível verificar na Junto.")
+                                    return
+                                  }
+                                  setJuntoCheckingIds(prev => ({ ...prev, [s.id]: true }))
+                                  try {
+                                    const res = await fetch(`/api/tomadores/${editingId}/seguradoras/${s.id}/junto/verificar/`, { method: "POST" })
+                                    let json = null
+                                    try { json = await res.json() } catch (_) { json = null }
+                                    if (res.ok && json?.data) {
+                                      const novoStatus = json.data.status || "sem_cadastro"
+                                      setTaxasDraft(prev => ({ ...prev, [s.id]: { ...draft, status: novoStatus } }))
+                                      toast.success(novoStatus === "cadastro_ok" ? "Cadastro OK na Junto." : "Sem cadastro na Junto.")
+                                      if (novoStatus !== "cadastro_ok") {
+                                        setJuntoModalContext({ tomadorId: editingId, seguradoraId: s.id })
+                                        setJuntoModalOpen(true)
+                                      }
+                                    } else {
+                                      const message = json?.error || json?.detail || json?.message || 'Erro ao verificar na Junto.'
+                                      toast.error(String(message))
+                                    }
+                                  } catch (err) {
+                                    toast.error('Erro ao verificar na Junto.')
+                                  } finally {
+                                    setJuntoCheckingIds(prev => ({ ...prev, [s.id]: false }))
+                                  }
+                                }}
+                                className={cn(
+                                  "w-full h-8 rounded-xl text-xs font-bold bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800/40 hover:bg-zinc-100",
+                                  !!juntoCheckingIds[s.id] ? "opacity-60 cursor-wait" : ""
+                                )}
+                              >
+                                {juntoCheckingIds[s.id] ? (
+                                  <span className="inline-flex items-center gap-2">
+                                    <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />
+                                    Verificando...
+                                  </span>
+                                ) : (
+                                  'Verificar cadastro'
+                                )}
+                              </button>
+                            </div>
+                          )}
 </div>
                       )
                     })}
@@ -2648,15 +2797,27 @@ export default function TomadorPage() {
               <Label className="text-xs font-bold">Seguradora Inicial *</Label>
               <Combobox
                 items={seguradorasTaxaveis}
-                value={seguradoraInicial}
-                onValueChange={(val) => setSeguradoraInicial(val)}
+                value={seguradoraInicialLabel ?? ""}
+                onValueChange={(val) => {
+                  if (!val) {
+                    setSeguradoraInicial(null)
+                    setSeguradoraInicialLabel(null)
+                    return
+                  }
+                  // value is encoded as "id:::nome"
+                  const parts = String(val).split(":::")
+                  const id = Number(parts[0]) || null
+                  const nome = parts.slice(1).join(":::") || null
+                  setSeguradoraInicial(id)
+                  setSeguradoraInicialLabel(nome)
+                }}
               >
-                <ComboboxInput placeholder="Pesquisar seguradora..." />
+                <ComboboxInput placeholder="Pesquisar seguradora..." value={seguradoraInicialLabel ?? ""} />
                 <ComboboxContent>
                   <ComboboxEmpty>Nenhuma seguradora</ComboboxEmpty>
                   <ComboboxList>
                     {(item: Seguradora & { id: number }) => (
-                      <ComboboxItem key={item.id} value={item.id}>{item.nome}</ComboboxItem>
+                      <ComboboxItem key={item.id} value={`${item.id}:::${item.nome}`}>{item.nome}</ComboboxItem>
                     )}
                   </ComboboxList>
                 </ComboboxContent>
@@ -2674,3 +2835,4 @@ export default function TomadorPage() {
     </div>
   )
 }
+
