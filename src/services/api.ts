@@ -438,6 +438,14 @@ export interface OpcaoParcelamento {
   parcelas: ParcelaEmissao[];
 }
 
+export interface PendenciaEmissao {
+  codigo: number;
+  descricao: string;
+  departamento: string;
+  /** E-mail do setor da seguradora que resolve esta pendência. */
+  email: string;
+}
+
 export type EtapaEmissao = "cotada" | "minuta" | "aguardando" | "emitida" | "recusada";
 
 export interface EmissaoResponse {
@@ -459,7 +467,7 @@ export interface EmissaoResponse {
   numero_max_parcelas: number | null;
   opcoes_parcelamento: OpcaoParcelamento[];
   tem_pendencias: boolean;
-  pendencias: unknown[];
+  pendencias: PendenciaEmissao[];
   anexos_enviados: number;
   codigo_retorno: string;
   mensagem: string;
@@ -481,6 +489,14 @@ export const emissaoApi = {
     apiRequest<EmissaoResponse>(`/cotacoes/${cotacaoId}/emissao/cotar`, {
       method: "POST",
       body: JSON.stringify({ seguradora: seguradoraId }),
+    }),
+
+  /** Passo 2. `forcarUrl` traz o PDF mesmo com pendências — a Junto devolve o
+   *  link vazio quando há alguma, e seguir assim é decisão do usuário. */
+  minuta: (cotacaoId: number, seguradoraId: number, forcarUrl = false) =>
+    apiRequest<EmissaoResponse>(`/cotacoes/${cotacaoId}/emissao/minuta`, {
+      method: "POST",
+      body: JSON.stringify({ seguradora: seguradoraId, forcar_url: forcarUrl }),
     }),
 };
 

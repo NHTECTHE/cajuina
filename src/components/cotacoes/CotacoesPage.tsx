@@ -68,6 +68,7 @@ import {
   type CotacaoPayload,
   type EmailPreview,
   type EmissaoResponse,
+  type PendenciaEmissao,
 } from "@/services/api"
 import { premioEfetivo } from "@/lib/premio"
 import {
@@ -313,6 +314,13 @@ export default function CotacoesPage() {
   // Id da seguradora sendo cotada agora: o spinner é do card, não da tela.
   const [cotandoSeguradoraId, setCotandoSeguradoraId] = useState<number | null>(null)
 
+  // Seguradora cuja minuta está sendo gerada agora.
+  const [gerandoMinutaId, setGerandoMinutaId] = useState<number | null>(null)
+
+  // Pendências devolvidas pela seguradora, junto de quem as devolveu: o modal
+  // precisa saber em qual seguradora repetir a chamada se o usuário forçar.
+  const [pendencias, setPendencias] = useState<{ seguradoraId: number; itens: PendenciaEmissao[] } | null>(null)
+
   React.useEffect(() => {
     const id = selectedCotacao?.id
     if (!id) return
@@ -436,6 +444,41 @@ export default function CotacoesPage() {
       })
     } finally {
       setCotandoSeguradoraId(null)
+    }
+  }
+
+  // Passo 2. Sem `forcar`, a Junto devolve o link vazio quando há pendência —
+  // nesse caso abrimos o modal em vez de fingir que deu certo.
+  const handleGerarMinuta = async (seguradoraId: number, forcar = false) => {
+    if (!selectedCotacao) return
+    const nome = seguradoras.find(s => s.id === seguradoraId)?.nome ?? "seguradora"
+    setGerandoMinutaId(seguradoraId)
+    const aviso = toast.loading(`Gerando minuta na ${nome}...`, {
+      description: "Isso pode levar alguns segundos.",
+    })
+    try {
+      const emissao = await emissaoApi.minuta(selectedCotacao.id, seguradoraId, forcar)
+      setEmissoes((atual) => ({
+        cotacaoId: selectedCotacao.id,
+        porSeguradora: {
+          ...(atual?.cotacaoId === selectedCotacao.id ? atual.porSeguradora : {}),
+          [seguradoraId]: emissao,
+        },
+      }))
+      if (emissao.url_minuta) {
+        setPendencias(null)
+        toast.success("Minuta gerada.", { id: aviso, description: undefined })
+      } else {
+        setPendencias({ seguradoraId, itens: emissao.pendencias })
+        toast.warning("A seguradora apontou pendências.", { id: aviso, description: undefined })
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível gerar a minuta.", {
+        id: aviso,
+        description: undefined,
+      })
+    } finally {
+      setGerandoMinutaId(null)
     }
   }
 
@@ -876,6 +919,60 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ──── MODAL DE PENDÊNCIAS DA MINUTA ──── */}
+      <Dialog open={!!pendencias} onOpenChange={(open) => !open && setPendencias(null)}>
+        <DialogContent className="sm:max-w-lg rounded-2xl p-6 border-zinc-200 dark:border-zinc-800">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
+              A seguradora apontou pendências
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            A minuta foi criada, mas a seguradora não libera o PDF enquanto estas
+            pendências existirem. Você pode gerar mesmo assim — a apólice só será
+            emitida depois que elas forem resolvidas.
+          </p>
+          <div className="flex flex-col gap-2 mt-3 max-h-64 overflow-y-auto">
+            {pendencias?.itens.map((p) => (
+              <div
+                key={p.codigo}
+                className="rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 p-3"
+              >
+                <div className="text-[13px] font-semibold text-amber-800 dark:text-amber-300">
+                  {p.descricao}
+                </div>
+                <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  {p.departamento}{p.email ? ` · ${p.email}` : ""}
+                </div>
+              </div>
+            ))}
+            {pendencias?.itens.length === 0 && (
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                A seguradora não detalhou quais são.
+              </p>
+            )}
+          </div>
+          <div className="flex items-center justify-end gap-3 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setPendencias(null)}
+              className="h-10 px-5 rounded-xl font-semibold border-zinc-200 dark:border-zinc-800"
+            >
+              Fechar
+            </Button>
+            <Button
+              type="button"
+              disabled={gerandoMinutaId !== null}
+              onClick={() => pendencias && handleGerarMinuta(pendencias.seguradoraId, true)}
+              className="h-10 px-5 rounded-xl font-bold bg-brand-red text-white hover:bg-brand-red/90 disabled:opacity-60"
+            >
+              Gerar mesmo assim
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {view === "list" && (
         <>
@@ -1506,7 +1603,7 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                     return (
                     <div
                       key={seg.id}
-                      onClick={() => !cotandoSeguradoraId && selecionavel && handleEscolherSeguradora(seg.id)}
+                      onClick={() => !cotandoSeguradoraId && !gerandoMinutaId && selecionavel && handleEscolherSeguradora(seg.id)}
                       title={!apto ? "Tomador sem taxa cadastrada para esta seguradora." : undefined}
                       className={cn(
                         "relative bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-40 flex flex-col items-center justify-between p-4 border transition-all",
@@ -1516,14 +1613,14 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                         // Enquanto uma cotação está em curso os outros cards saem de
                         // cena: evita trocar a escolhida no meio da chamada e deixa
                         // claro qual seguradora está sendo consultada.
-                        cotandoSeguradoraId && cotandoSeguradoraId !== seg.id ? "opacity-40 pointer-events-none" : ""
+                        (cotandoSeguradoraId ?? gerandoMinutaId) && (cotandoSeguradoraId ?? gerandoMinutaId) !== seg.id ? "opacity-40 pointer-events-none" : ""
                       )}
                     >
-                      {cotandoSeguradoraId === seg.id && (
+                      {(cotandoSeguradoraId === seg.id || gerandoMinutaId === seg.id) && (
                         <div className="absolute inset-0 z-20 rounded-xl bg-white/85 dark:bg-zinc-900/85 backdrop-blur-[1px] flex flex-col items-center justify-center gap-2">
                           <Loader2 className="size-7 animate-spin text-brand-red dark:text-[#cf7458]" />
                           <span className="text-[11px] font-bold uppercase tracking-wide text-brand-red dark:text-[#cf7458]">
-                            Cotando...
+                            {gerandoMinutaId === seg.id ? "Gerando minuta..." : "Cotando..."}
                           </span>
                           <span className="text-[9.5px] text-zinc-500 dark:text-zinc-400 text-center px-2 leading-tight">
                             consultando a seguradora
@@ -1541,30 +1638,55 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                         )}
                       </div>
 
-                      {seg.integracao && seg.tem_credencial_api && (
-                        <button
-                          type="button"
-                          title={
-                            emissoes?.cotacaoId === selectedCotacao?.id && emissoes?.porSeguradora[seg.id]
-                              ? "Recotar na seguradora"
-                              : "Cotar na seguradora"
-                          }
-                          disabled={cotandoSeguradoraId === seg.id}
-                          onClick={(e) => {
-                            // Sem isto o clique sobe para o card e escolhe a
-                            // seguradora sem querer — cotar não é escolher.
-                            e.stopPropagation()
-                            handleCotarSeguradora(seg.id)
-                          }}
-                          className="absolute -right-2 -top-2 w-9 h-9 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-sm flex items-center justify-center text-brand-red dark:text-[#cf7458] hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
-                        >
-                          {cotandoSeguradoraId === seg.id ? (
-                            <Loader2 className="size-4 animate-spin" />
-                          ) : (
-                            <Search className="size-4" />
-                          )}
-                        </button>
-                      )}
+                      {seg.integracao && seg.tem_credencial_api && (() => {
+                        const emissaoSeg =
+                          emissoes?.cotacaoId === selectedCotacao?.id
+                            ? emissoes?.porSeguradora[seg.id]
+                            : undefined
+                        const ocupado = cotandoSeguradoraId === seg.id || gerandoMinutaId === seg.id
+
+                        // 3º estado: minuta pronta, o botão vira link para o PDF.
+                        if (emissaoSeg?.url_minuta) {
+                          return (
+                            <a
+                              href={emissaoSeg.url_minuta}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Abrir a minuta"
+                              onClick={(e) => e.stopPropagation()}
+                              className="absolute -right-2 -top-2 w-9 h-9 rounded-full bg-white dark:bg-zinc-900 border border-green-300 dark:border-green-700 shadow-sm flex items-center justify-center text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors cursor-pointer"
+                            >
+                              <FileText className="size-4" />
+                            </a>
+                          )
+                        }
+
+                        // 2º estado: já cotou, falta a minuta.
+                        const cotado = Boolean(emissaoSeg?.external_id)
+                        return (
+                          <button
+                            type="button"
+                            title={cotado ? "Gerar minuta" : "Cotar na seguradora"}
+                            disabled={ocupado}
+                            onClick={(e) => {
+                              // Sem isto o clique sobe para o card e escolhe a
+                              // seguradora sem querer — cotar não é escolher.
+                              e.stopPropagation()
+                              if (cotado) handleGerarMinuta(seg.id)
+                              else handleCotarSeguradora(seg.id)
+                            }}
+                            className="absolute -right-2 -top-2 w-9 h-9 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-sm flex items-center justify-center text-brand-red dark:text-[#cf7458] hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                          >
+                            {ocupado ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : cotado ? (
+                              <FileDown className="size-4" />
+                            ) : (
+                              <Search className="size-4" />
+                            )}
+                          </button>
+                        )
+                      })()}
 
                       {(() => {
                         const { valor, real } = premioDaSeguradora(seg.id, taxa, premioMinimo)
