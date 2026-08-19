@@ -5,6 +5,8 @@ import SidebarNav from "@/components/sidebar-nav"
 import Topbar from "@/components/topbar"
 import { cn } from "@/lib/utils"
 import { Toaster } from "sonner"
+import { EmissaoJobsProvider } from "@/components/emissao/emissao-jobs"
+import { IndicadorEmissao } from "@/components/emissao/IndicadorEmissao"
 
 export default function DashboardLayout({
   children,
@@ -74,10 +76,13 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className={cn(
-      "min-h-screen w-full max-w-full flex gap-0 md:gap-4 transition-colors duration-300 overflow-hidden p-0 md:p-4 relative font-sans",
-      layoutBackgrounds[theme]
-    )}>
+    // O provider e o indicador ficam aqui, e não nas páginas: é o que faz o
+    // aviso de "gerando minuta" sobreviver à troca de tela.
+    <EmissaoJobsProvider>
+      <div className={cn(
+        "min-h-screen w-full max-w-full flex gap-0 md:gap-4 transition-colors duration-300 overflow-hidden p-0 md:p-4 relative font-sans",
+        layoutBackgrounds[theme]
+      )}>
       {/* ──── GRADIENT ORNAMENT GLOWS (Sophisticated ambient lighting) ──── */}
       {theme === "dark" && (
         <>
@@ -131,6 +136,8 @@ export default function DashboardLayout({
       </main>
 
       <Toaster position="top-right" richColors duration={5000} />
-    </div>
+      <IndicadorEmissao />
+      </div>
+    </EmissaoJobsProvider>
   )
 }

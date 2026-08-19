@@ -71,6 +71,7 @@ import {
   type PendenciaEmissao,
 } from "@/services/api"
 import { premioEfetivo } from "@/lib/premio"
+import { useEmissaoJobs } from "@/components/emissao/emissao-jobs"
 import {
   listTomadorSeguradorasAction,
   type TomadorSeguradora,
@@ -314,8 +315,9 @@ export default function CotacoesPage() {
   // Id da seguradora sendo cotada agora: o spinner é do card, não da tela.
   const [cotandoSeguradoraId, setCotandoSeguradoraId] = useState<number | null>(null)
 
-  // Seguradora cuja minuta está sendo gerada agora.
-  const [gerandoMinutaId, setGerandoMinutaId] = useState<number | null>(null)
+  // A minuta roda fora desta tela: quem guarda o andamento é o provider do
+  // layout, para o indicador continuar visível se o usuário sair daqui.
+  const { gerandoMinuta, gerarMinuta, aoConcluir } = useEmissaoJobs()
 
   // Pendências devolvidas pela seguradora, junto de quem as devolveu: o modal
   // precisa saber em qual seguradora repetir a chamada se o usuário forçar.
@@ -447,40 +449,45 @@ export default function CotacoesPage() {
     }
   }
 
-  // Passo 2. Sem `forcar`, a Junto devolve o link vazio quando há pendência —
-  // nesse caso abrimos o modal em vez de fingir que deu certo.
-  const handleGerarMinuta = async (seguradoraId: number, forcar = false) => {
+  // Dispara e devolve o controle na hora: quem acompanha é o indicador do
+  // layout, que sobrevive à saída desta tela.
+  const dispararMinuta = (seguradoraId: number, forcar = false) => {
     if (!selectedCotacao) return
-    const nome = seguradoras.find(s => s.id === seguradoraId)?.nome ?? "seguradora"
-    setGerandoMinutaId(seguradoraId)
-    const aviso = toast.loading(`Gerando minuta na ${nome}...`, {
-      description: "Isso pode levar alguns segundos.",
-    })
-    try {
-      const emissao = await emissaoApi.minuta(selectedCotacao.id, seguradoraId, forcar)
-      setEmissoes((atual) => ({
+    gerarMinuta(
+      {
         cotacaoId: selectedCotacao.id,
-        porSeguradora: {
-          ...(atual?.cotacaoId === selectedCotacao.id ? atual.porSeguradora : {}),
-          [seguradoraId]: emissao,
-        },
-      }))
-      if (emissao.url_minuta) {
-        setPendencias(null)
-        toast.success("Minuta gerada.", { id: aviso, description: undefined })
-      } else {
-        setPendencias({ seguradoraId, itens: emissao.pendencias })
-        toast.warning("A seguradora apontou pendências.", { id: aviso, description: undefined })
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Não foi possível gerar a minuta.", {
-        id: aviso,
-        description: undefined,
-      })
-    } finally {
-      setGerandoMinutaId(null)
-    }
+        seguradoraId,
+        cotacaoRotulo: `#${selectedCotacao.id}`,
+        seguradoraNome: seguradoras.find(s => s.id === seguradoraId)?.nome ?? "seguradora",
+      },
+      forcar
+    )
+    // Fecha ao reenviar: o modal reabre sozinho se vierem pendências de novo.
+    setPendencias(null)
   }
+
+  // O provider avisa quando uma minuta termina. Só reagimos se for da cotação
+  // que está na tela — se o usuário saiu, o estado é recarregado quando voltar.
+  React.useEffect(
+    () =>
+      aoConcluir(resultado => {
+        if (resultado.cotacaoId !== selectedCotacao?.id) return
+        setEmissoes(atual => ({
+          cotacaoId: resultado.cotacaoId,
+          porSeguradora: {
+            ...(atual?.cotacaoId === resultado.cotacaoId ? atual.porSeguradora : {}),
+            [resultado.seguradoraId]: resultado.emissao,
+          },
+        }))
+        if (!resultado.emissao.url_minuta) {
+          setPendencias({
+            seguradoraId: resultado.seguradoraId,
+            itens: resultado.emissao.pendencias,
+          })
+        }
+      }),
+    [aoConcluir, selectedCotacao?.id]
+  )
 
   const handleDataInicioChange = (value: string) => {
     setDataInicio(value)
@@ -964,8 +971,8 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
             </Button>
             <Button
               type="button"
-              disabled={gerandoMinutaId !== null}
-              onClick={() => pendencias && handleGerarMinuta(pendencias.seguradoraId, true)}
+              disabled={pendencias ? gerandoMinuta(selectedCotacao?.id ?? 0, pendencias.seguradoraId) : false}
+              onClick={() => pendencias && dispararMinuta(pendencias.seguradoraId, true)}
               className="h-10 px-5 rounded-xl font-bold bg-brand-red text-white hover:bg-brand-red/90 disabled:opacity-60"
             >
               Gerar mesmo assim
@@ -1603,7 +1610,7 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                     return (
                     <div
                       key={seg.id}
-                      onClick={() => !cotandoSeguradoraId && !gerandoMinutaId && selecionavel && handleEscolherSeguradora(seg.id)}
+                      onClick={() => !cotandoSeguradoraId && selecionavel && handleEscolherSeguradora(seg.id)}
                       title={!apto ? "Tomador sem taxa cadastrada para esta seguradora." : undefined}
                       className={cn(
                         "relative bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-40 flex flex-col items-center justify-between p-4 border transition-all",
@@ -1613,14 +1620,14 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                         // Enquanto uma cotação está em curso os outros cards saem de
                         // cena: evita trocar a escolhida no meio da chamada e deixa
                         // claro qual seguradora está sendo consultada.
-                        (cotandoSeguradoraId ?? gerandoMinutaId) && (cotandoSeguradoraId ?? gerandoMinutaId) !== seg.id ? "opacity-40 pointer-events-none" : ""
+                        cotandoSeguradoraId && cotandoSeguradoraId !== seg.id ? "opacity-40 pointer-events-none" : ""
                       )}
                     >
-                      {(cotandoSeguradoraId === seg.id || gerandoMinutaId === seg.id) && (
+                      {cotandoSeguradoraId === seg.id && (
                         <div className="absolute inset-0 z-20 rounded-xl bg-white/85 dark:bg-zinc-900/85 backdrop-blur-[1px] flex flex-col items-center justify-center gap-2">
                           <Loader2 className="size-7 animate-spin text-brand-red dark:text-[#cf7458]" />
                           <span className="text-[11px] font-bold uppercase tracking-wide text-brand-red dark:text-[#cf7458]">
-                            {gerandoMinutaId === seg.id ? "Gerando minuta..." : "Cotando..."}
+                            Cotando...
                           </span>
                           <span className="text-[9.5px] text-zinc-500 dark:text-zinc-400 text-center px-2 leading-tight">
                             consultando a seguradora
@@ -1643,7 +1650,12 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                           emissoes?.cotacaoId === selectedCotacao?.id
                             ? emissoes?.porSeguradora[seg.id]
                             : undefined
-                        const ocupado = cotandoSeguradoraId === seg.id || gerandoMinutaId === seg.id
+                        const cotando = cotandoSeguradoraId === seg.id
+                        // A minuta não trava a tela: só o próprio botão espera.
+                        const gerando = selectedCotacao
+                          ? gerandoMinuta(selectedCotacao.id, seg.id)
+                          : false
+                        const ocupado = cotando || gerando
 
                         // 3º estado: minuta pronta, o botão vira link para o PDF.
                         if (emissaoSeg?.url_minuta) {
@@ -1672,7 +1684,7 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                               // Sem isto o clique sobe para o card e escolhe a
                               // seguradora sem querer — cotar não é escolher.
                               e.stopPropagation()
-                              if (cotado) handleGerarMinuta(seg.id)
+                              if (cotado) dispararMinuta(seg.id)
                               else handleCotarSeguradora(seg.id)
                             }}
                             className="absolute -right-2 -top-2 w-9 h-9 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-sm flex items-center justify-center text-brand-red dark:text-[#cf7458] hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
