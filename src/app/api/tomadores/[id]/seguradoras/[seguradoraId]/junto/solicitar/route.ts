@@ -22,6 +22,15 @@ export async function POST(
     headers: await backendHeaders(),
     body: await req.text(),
   });
-  const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
+  // O backend pode responder erro sem corpo JSON (502 de gateway, container
+  // reiniciando). `res.json()` cru aqui derruba o route handler inteiro.
+  const texto = await res.text();
+  try {
+    return NextResponse.json(JSON.parse(texto), { status: res.status });
+  } catch {
+    return NextResponse.json(
+      { data: { error: "A seguradora não respondeu. Tente novamente." } },
+      { status: res.status || 502 },
+    );
+  }
 }

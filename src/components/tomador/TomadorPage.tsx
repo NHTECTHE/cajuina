@@ -101,12 +101,6 @@ interface ContactRow {
   email: string;
 }
 
-
-
-
-
-
-
 interface SocioRow {
   nome: string;
   cpf: string;
@@ -458,8 +452,7 @@ export default function TomadorPage() {
                 try { payload = await res.json() } catch (_) { payload = null }
                 toast.dismiss(checkingToast)
                 if (!res.ok) {
-                  const message = payload?.error || payload?.detail || payload?.message || 'Erro ao verificar na Junto.'
-                  toast.error(String(message))
+                  toastErroJunto(res, payload, 'Não foi possível verificar o cadastro na Junto.')
                 } else if (payload?.data?.status === "cadastro_ok") {
                   toast.success("Tomador encontrado e cadastrado na Junto.")
                   setTaxasLoadedFor(null)
@@ -550,6 +543,17 @@ export default function TomadorPage() {
     })
     return () => { cancelled = true }
   }, [currentTab, seguradorasLoaded])
+
+  // O backend agora distingue "não deu para saber" (502) de "a Junto recusou"
+  // (400/404) e de "já tem uma solicitação em andamento" (409). Antes ele
+  // devolvia 200 com dado inventado, então um catch genérico bastava.
+  function toastErroJunto(res: Response, json: unknown, fallback: string) {
+    const corpo = json as { data?: { error?: string }; error?: string; detail?: string } | null
+    const msg = corpo?.data?.error || corpo?.error || corpo?.detail
+    if (res.status === 409) toast.warning(msg || "Já existe uma solicitação em andamento.")
+    else if (res.status === 502) toast.error(msg || "A seguradora não respondeu. Tente novamente.")
+    else toast.error(msg || fallback)
+  }
 
   function formatTaxaDisplay(val: string | number | null | undefined): string {
     if (val === null || val === undefined || val === "") return ""
@@ -928,13 +932,16 @@ export default function TomadorPage() {
                   setJuntoProcessing(false)
                   setJuntoModalOpen(false)
                   setJuntoModalContext(null)
-                  if (res.ok && json?.data?.status === 'cadastro_ok') {
-                    toast.success('Cadastro concluído na Junto.')
-                    setTaxasLoadedFor(null)
-                  } else if (res.ok) {
-                    toast.success('Solicitação enviada. O processamento pode levar alguns segundos.')
+                  if (res.ok) {
+                    // O endpoint devolve 202 na hora: a Junto processa depois e
+                    // quem confirma é o botão "Verificar cadastro".
+                    //
+                    // Sem recarregar o rascunho: a solicitação não muda taxa nem
+                    // status, e o reload descartaria uma taxa recém-consultada que
+                    // o usuário ainda não salvou.
+                    toast.success('Solicitação enviada. A Junto leva cerca de 10 segundos — use "Verificar cadastro" em instantes.')
                   } else {
-                    toast.error('Erro ao solicitar o cadastro na Junto.')
+                    toastErroJunto(res, json, 'Não foi possível solicitar o cadastro na Junto.')
                   }
                 } catch (err) {
                   setJuntoProcessing(false)
@@ -1724,8 +1731,7 @@ export default function TomadorPage() {
                                             toast.warning("A Junto devolveu taxa zero para este tomador.")
                                           }
                                         } else {
-                                          const msg = json?.error || json?.detail || json?.message || "Erro ao consultar taxa na Junto."
-                                          toast.error(String(msg))
+                                          toastErroJunto(res, json, "Não foi possível consultar a taxa na Junto.")
                                         }
                                       } catch (err) {
                                         toast.error("Erro ao consultar taxa na Junto.")
@@ -1835,14 +1841,17 @@ export default function TomadorPage() {
                                 }))}
                                 className="w-full text-xs"
                               >
-                                {/* Removido envio manual de cadastro_ok — status é determinado pela integração Junto */}
+                                {/* A verificação na Junto grava `cadastro_ok` sozinha, mas a
+                                    opção continua aqui: seguradora sem integração não tem
+                                    outro caminho para chegar em "apto". */}
+                                <option value="cadastro_ok">Cadastro OK</option>
                                 <option value="sem_cadastro">Sem cadastro</option>
                                 <option value="outro_corretor">Outro corretor</option>
                                 <option value="sem_aceitacao">Sem aceitação</option>
                               </NativeSelect>
                             </span>
                           </label>
-                          {editingId !== null && (s.integracao === "junto" || (s.api_usuario && s.api_senha) || (s.api_client_id && s.api_client_secret)) && (
+                          {editingId !== null && s.integracao === "junto" && s.tem_credencial_api && (
                             <div className="w-full mt-2">
                               <button
                                 type="button"
@@ -1869,8 +1878,7 @@ export default function TomadorPage() {
                                         setJuntoModalOpen(true)
                                       }
                                     } else {
-                                      const message = json?.error || json?.detail || json?.message || 'Erro ao verificar na Junto.'
-                                      toast.error(String(message))
+                                      toastErroJunto(res, json, 'Não foi possível verificar o cadastro na Junto.')
                                     }
                                   } catch (err) {
                                     toast.error('Erro ao verificar na Junto.')
