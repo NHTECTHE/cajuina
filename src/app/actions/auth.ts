@@ -61,7 +61,7 @@ export async function loginAction(formData: FormData) {
       console.error("LOGIN error stack:", err.stack ?? err.message ?? err)
     } catch {}
 
-    return { error: `Não foi possível conectar ao backend em ${API_URL}. Verifique se o servidor está rodando e se a variável NEXT_PUBLIC_API_URL está correta.` }
+    return { error: 'Não foi possível conectar ao servidor. Tente novamente em instantes.' }
   }
 }
 
