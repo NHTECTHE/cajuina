@@ -934,13 +934,14 @@ export default function TomadorPage() {
                   } else if (res.ok) {
                     toast.success('Solicitação enviada. O processamento pode levar alguns segundos.')
                   } else {
-                    toast.error('Erro ao solicitar o cadastro na Junto.')
+                    const errorMessage = json?.data?.error || json?.error || json?.message || 'Erro ao solicitar o cadastro na Junto.'
+                    toast.error(errorMessage)
                   }
-                } catch (err) {
+                } catch (err: any) {
                   setJuntoProcessing(false)
                   setJuntoModalOpen(false)
                   setJuntoModalContext(null)
-                  toast.error('Erro ao solicitar o cadastro na Junto.')
+                  toast.error(err?.message || 'Erro ao solicitar o cadastro na Junto.')
                 }
               }}
               className="rounded-xl bg-brand-red text-white px-4 py-2"
@@ -1835,7 +1836,7 @@ export default function TomadorPage() {
                                 }))}
                                 className="w-full text-xs"
                               >
-                                {/* Removido envio manual de cadastro_ok — status é determinado pela integração Junto */}
+                                <option value="cadastro_ok">Cadastro OK</option>
                                 <option value="sem_cadastro">Sem cadastro</option>
                                 <option value="outro_corretor">Outro corretor</option>
                                 <option value="sem_aceitacao">Sem aceitação</option>

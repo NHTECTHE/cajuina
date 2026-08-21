@@ -22,6 +22,13 @@ export async function POST(
     headers: await backendHeaders(),
     body: await req.text(),
   });
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+    console.log("RESPOSTA DA JUNTO NO BACKEND (STATUS " + res.status + "): ", data);
+  } catch (err) {
+    console.error("ERRO AO DAR PARSE NO JSON DA JUNTO:", err);
+    data = { error: "Erro interno no servidor ou resposta inválida." };
+  }
   return NextResponse.json(data, { status: res.status });
 }
