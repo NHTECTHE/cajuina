@@ -101,6 +101,12 @@ interface ContactRow {
   email: string;
 }
 
+
+
+
+
+
+
 interface SocioRow {
   nome: string;
   cpf: string;
@@ -137,7 +143,18 @@ export default function TomadorPage() {
 
   // Vínculos já salvos (tomador × seguradora) e o rascunho editável da tela.
   // A chave do rascunho é o id da seguradora; "" significa "herda da seguradora".
-  const [taxasDraft, setTaxasDraft] = useState<Record<number, { taxa: string; premio_minimo: string; status: string; dias_vencimento: string }>>({})
+  const [taxasDraft, setTaxasDraft] = useState<Record<number, {
+    taxa: string
+    premio_minimo: string
+    status: string
+    dias_vencimento: string
+    taxa_origem?: string
+    taxa_junto_modalidade_id?: string
+    taxa_junto_modalidade_descricao?: string
+    taxa_data_atualizacao?: string | null
+    taxa_zero_aviso?: boolean
+  }>>({})
+  const [fetchingTaxaIds, setFetchingTaxaIds] = useState<Record<number, boolean>>({})
   const [taxasLoadedFor, setTaxasLoadedFor] = useState<number | null>(null)
   const [savingTaxas, setSavingTaxas] = useState(false)
 
@@ -205,7 +222,12 @@ export default function TomadorPage() {
 
   const [formData, setFormData] = useState(initialFormState)
   const [seguradoraInicial, setSeguradoraInicial] = useState<number | null>(null)
+  const [seguradoraInicialLabel, setSeguradoraInicialLabel] = useState<string | null>(null)
   const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false)
+  const [juntoModalOpen, setJuntoModalOpen] = useState(false)
+  const [juntoModalContext, setJuntoModalContext] = useState<{ tomadorId: number | null; seguradoraId: number | null } | null>(null)
+  const [juntoProcessing, setJuntoProcessing] = useState(false)
+  const [juntoCheckingIds, setJuntoCheckingIds] = useState<Record<number, boolean>>({})
 
   // Dynamic Contact Form Row Input Temp States
   const [newContact, setNewContact] = useState<ContactRow>({ nome: "", telefone: "", email: "" })
@@ -413,10 +435,43 @@ export default function TomadorPage() {
           await saveTomadorSeguradorasAction(created.id, [{
             seguradora: seguradoraInicial,
             taxa: "0",
-            status: "cadastro_ok",
+            status: "sem_cadastro",
             premio_minimo: "",
             dias_vencimento: null
           }])
+
+          // Verifica automaticamente na Junto se a seguradora selecionada for Junto
+          const segInicialObj = seguradoras.find(s => s.id === seguradoraInicial)
+          const isJuntoInicial = segInicialObj?.integracao === "junto" || segInicialObj?.nome?.toLowerCase().includes("junto")
+
+          if (isJuntoInicial) {
+            try {
+              // Valida CNPJ antes de chamar a Junto
+              const cnpjDigits = somenteDigitos(created.cnpj || "")
+              if (!cnpjDigits || cnpjDigits.length !== 14) {
+                toast.dismiss()
+                toast.error("CNPJ inválido. Não é possível verificar na Junto.")
+              } else {
+                const checkingToast = toast.loading("Verificando na Junto...")
+                const res = await fetch(`/api/tomadores/${created.id}/seguradoras/${seguradoraInicial}/junto/verificar/`, { method: "POST" })
+                let payload = null
+                try { payload = await res.json() } catch (_) { payload = null }
+                toast.dismiss(checkingToast)
+                if (!res.ok) {
+                  const message = payload?.error || payload?.detail || payload?.message || 'Erro ao verificar na Junto.'
+                  toast.error(String(message))
+                } else if (payload?.data?.status === "cadastro_ok") {
+                  toast.success("Tomador encontrado e cadastrado na Junto.")
+                  setTaxasLoadedFor(null)
+                } else {
+                  setJuntoModalContext({ tomadorId: created.id, seguradoraId: seguradoraInicial })
+                  setJuntoModalOpen(true)
+                }
+              }
+            } catch (err) {
+              toast.error("Erro ao verificar cadastro na Junto.")
+            }
+          }
         }
         setTomadores(prev => [created, ...prev])
         toast.success("Tomador cadastrado com sucesso!")
@@ -424,13 +479,14 @@ export default function TomadorPage() {
       setView("list")
       setFormData(initialFormState)
       setSeguradoraInicial(null)
+      setSeguradoraInicialLabel(null)
       setEditingId(null)
       setCadastroManual(false)
       setCnpjNaoEncontrado(false)
       setCnpjDuplicado(null)
       setIsFinalizeModalOpen(false)
       setAtividadesLoadedFor(null)
-    } catch (err: unknown) {
+    } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao salvar tomador."
       if (message.toLowerCase().includes("cnpj") && message.toLowerCase().includes("já existe")) {
         toast.error("Já existe um tomador cadastrado com esse CNPJ. Edite o cadastro existente na lista.")
@@ -495,6 +551,16 @@ export default function TomadorPage() {
     return () => { cancelled = true }
   }, [currentTab, seguradorasLoaded])
 
+  function formatTaxaDisplay(val: string | number | null | undefined): string {
+    if (val === null || val === undefined || val === "") return ""
+    const str = String(val).replace(",", ".")
+    if (isNaN(Number(str))) return String(val)
+    const parts = str.split(".")
+    if (parts.length === 1) return parts[0]
+    const dec = parts[1].replace(/0+$/, "")
+    return dec.length > 0 ? `${parts[0]},${dec}` : parts[0]
+  }
+
   // Condições já salvas deste tomador. Recarrega ao trocar de tomador; em
   // cadastro novo (editingId null) não há vínculo para buscar.
   useEffect(() => {
@@ -503,13 +569,28 @@ export default function TomadorPage() {
     listTomadorSeguradorasAction(editingId).then((result) => {
       if (cancelled) return
       if (result.data) {
-        const draft: Record<number, { taxa: string; premio_minimo: string; status: string; dias_vencimento: string }> = {}
+        const draft: Record<number, {
+          taxa: string
+          premio_minimo: string
+          status: string
+          dias_vencimento: string
+          taxa_origem?: string
+          taxa_junto_modalidade_id?: string
+          taxa_junto_modalidade_descricao?: string
+          taxa_data_atualizacao?: string | null
+          taxa_zero_aviso?: boolean
+        }> = {}
         for (const v of result.data) {
           draft[v.seguradora] = {
-            taxa: v.taxa ?? "",
+            taxa: formatTaxaDisplay(v.taxa ?? ""),
             premio_minimo: v.premio_minimo ?? "",
             dias_vencimento: v.dias_vencimento !== null ? String(v.dias_vencimento) : "",
             status: v.status || "sem_cadastro",
+            taxa_origem: v.taxa_origem || "",
+            taxa_junto_modalidade_id: v.taxa_junto_modalidade_id || "",
+            taxa_junto_modalidade_descricao: v.taxa_junto_modalidade_descricao || "",
+            taxa_data_atualizacao: v.taxa_data_atualizacao || null,
+            taxa_zero_aviso: false,
           }
         }
         setTaxasDraft(draft)
@@ -521,20 +602,14 @@ export default function TomadorPage() {
     return () => { cancelled = true }
   }, [currentTab, editingId, taxasLoadedFor])
 
-  // Converte o texto do input para o decimal que a API espera ("1.50").
-  // Aceita tanto o que o usuário digita em pt-BR ("1.234,56") quanto o que volta
-  // da API já no formato americano ("1234.56"), que é o que preenche o campo
-  // depois de salvar ou recarregar. Retorna null quando vazio, o que faz o
-  // backend herdar o valor da seguradora.
   function taxaInputToDecimal(value: string): string | null {
     const trimmed = value.trim()
     if (!trimmed) return null
-    // Só tratamos "." como separador de milhar quando há vírgula decimal junto.
     const cleaned = trimmed.includes(",")
       ? trimmed.replace(/\./g, "").replace(",", ".")
       : trimmed
     const num = Number(cleaned)
-    return Number.isFinite(num) ? num.toFixed(2) : null
+    return Number.isFinite(num) ? cleaned : null
   }
 
   async function handleSaveTaxas() {
@@ -545,8 +620,11 @@ export default function TomadorPage() {
       return {
         seguradora: s.id,
         status: draft.status,
-        // taxa é obrigatória no model; em branco vira "0.00" (vínculo não-apto)
         taxa: taxaInputToDecimal(draft.taxa) ?? "0.00",
+        taxa_origem: draft.taxa_origem || "",
+        taxa_junto_modalidade_id: draft.taxa_junto_modalidade_id || "",
+        taxa_junto_modalidade_descricao: draft.taxa_junto_modalidade_descricao || "",
+        taxa_data_atualizacao: draft.taxa_data_atualizacao || null,
         premio_minimo: taxaInputToDecimal(draft.premio_minimo),
         dias_vencimento: draft.dias_vencimento ? parseInt(draft.dias_vencimento.replace(/\D/g, ""), 10) : null,
       }
@@ -561,9 +639,29 @@ export default function TomadorPage() {
       return
     }
     if (result.data) {
-      const draft: Record<number, { taxa: string; premio_minimo: string; status: string; dias_vencimento: string }> = {}
+      const draft: Record<number, {
+        taxa: string
+        premio_minimo: string
+        status: string
+        dias_vencimento: string
+        taxa_origem?: string
+        taxa_junto_modalidade_id?: string
+        taxa_junto_modalidade_descricao?: string
+        taxa_data_atualizacao?: string | null
+        taxa_zero_aviso?: boolean
+      }> = {}
       for (const v of result.data) {
-        draft[v.seguradora] = { taxa: v.taxa ?? "", premio_minimo: v.premio_minimo ?? "", status: v.status || "sem_cadastro", dias_vencimento: v.dias_vencimento !== null ? String(v.dias_vencimento) : "" }
+        draft[v.seguradora] = {
+          taxa: formatTaxaDisplay(v.taxa ?? ""),
+          premio_minimo: v.premio_minimo ?? "",
+          dias_vencimento: v.dias_vencimento !== null ? String(v.dias_vencimento) : "",
+          status: v.status || "sem_cadastro",
+          taxa_origem: v.taxa_origem || "",
+          taxa_junto_modalidade_id: v.taxa_junto_modalidade_id || "",
+          taxa_junto_modalidade_descricao: v.taxa_junto_modalidade_descricao || "",
+          taxa_data_atualizacao: v.taxa_data_atualizacao || null,
+          taxa_zero_aviso: false,
+        }
       }
       setTaxasDraft(draft)
       toast.success("Taxas salvas com sucesso.")
@@ -726,7 +824,7 @@ export default function TomadorPage() {
         socios: prev.socios,
       }));
       toast.success("Dados do CNPJ preenchidos automaticamente.");
-    } catch (err: unknown) {
+    } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao buscar CNPJ";
       setCnpjNaoEncontrado(true);
       toast.error(msg);
@@ -808,6 +906,58 @@ export default function TomadorPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={juntoModalOpen} onOpenChange={(open) => { if (!open) { setJuntoModalOpen(false); setJuntoModalContext(null); } }}>
+        <DialogContent className="max-w-md rounded-2xl p-6 border-zinc-200 dark:border-zinc-800">
+          <DialogHeader>
+            <DialogTitle className="text-center font-bold">Cadastrar na Junto Seguros?</DialogTitle>
+            <DialogDescription className="text-center text-sm text-zinc-500 mt-1">
+              Este tomador não tem cadastro na Junto Seguros. Deseja cadastrar agora?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 flex gap-3 justify-center">
+            <Button
+              disabled={juntoProcessing}
+              onClick={async () => {
+                if (!juntoModalContext) return
+                setJuntoProcessing(true)
+                try {
+                  const res = await fetch(`/api/tomadores/${juntoModalContext.tomadorId}/seguradoras/${juntoModalContext.seguradoraId}/junto/solicitar/`, { method: 'POST' })
+                  const json = await res.json().catch(() => null)
+                  setJuntoProcessing(false)
+                  setJuntoModalOpen(false)
+                  setJuntoModalContext(null)
+                  if (res.ok && json?.data?.status === 'cadastro_ok') {
+                    toast.success('Cadastro concluído na Junto.')
+                    setTaxasLoadedFor(null)
+                  } else if (res.ok) {
+                    toast.success('Solicitação enviada. O processamento pode levar alguns segundos.')
+                  } else {
+                    toast.error('Erro ao solicitar o cadastro na Junto.')
+                  }
+                } catch (err) {
+                  setJuntoProcessing(false)
+                  setJuntoModalOpen(false)
+                  setJuntoModalContext(null)
+                  toast.error('Erro ao solicitar o cadastro na Junto.')
+                }
+              }}
+              className="rounded-xl bg-brand-red text-white px-4 py-2"
+            >
+              {juntoProcessing ? 'Enviando...' : 'Cadastrar na Junto'}
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => { setJuntoModalOpen(false); setJuntoModalContext(null) }}
+              className="rounded-xl px-4 py-2"
+            >
+              Agora não
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ──── LIST VIEW ──── */}
       {view === "list" && (
@@ -1524,23 +1674,117 @@ export default function TomadorPage() {
                           </div>
 
                           
-                          <label className="w-full flex items-center justify-between text-xs gap-2">
-                            <span className="opacity-60 shrink-0">Taxa</span>
-                            <span className="relative flex-1 max-w-[92px]">
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={draft.taxa}
-                                placeholder="0,00"
-                                onChange={(e) => setTaxasDraft((prev) => ({
-                                  ...prev,
-                                  [s.id]: { ...draft, taxa: e.target.value },
-                                }))}
-                                className="w-full h-7 rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent pl-2 pr-5 text-right text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand-red/40"
-                              />
-                              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] opacity-50">%</span>
-                            </span>
-                          </label>
+                          <div className="w-full space-y-1">
+                            <label className="w-full flex items-center justify-between text-xs gap-2">
+                              <span className="opacity-60 shrink-0">Taxa</span>
+                              <div className="flex items-center gap-1.5 flex-1 max-w-[130px] justify-end">
+                                {editingId !== null && (s.integracao === "junto" || s.nome.toLowerCase().includes("junto")) && (
+                                  <button
+                                    type="button"
+                                    disabled={!!fetchingTaxaIds[s.id]}
+                                    title="Consultar taxa na Junto"
+                                    onClick={async () => {
+                                      const tomador = tomadores.find(t => t.id === editingId)
+                                      const cnpjDigits = tomador ? somenteDigitos(tomador.cnpj) : ""
+                                      if (!cnpjDigits || cnpjDigits.length !== 14) {
+                                        toast.error("CNPJ inválido. Não é possível consultar a taxa na Junto.")
+                                        return
+                                      }
+                                      setFetchingTaxaIds(prev => ({ ...prev, [s.id]: true }))
+                                      try {
+                                        const res = await fetch(`/api/tomadores/${editingId}/seguradoras/${s.id}/junto/taxa/`, { method: "POST" })
+                                        const json = await res.json().catch(() => null)
+                                        if (res.ok && json?.data) {
+                                          const data = json.data
+                                          const taxaRaw = data.taxa != null ? String(data.taxa) : "0"
+                                          const taxaDec = parseFloat(taxaRaw.replace(",", ".")) || 0
+                                          if (taxaDec > 0) {
+                                            const taxaFormatada = formatTaxaDisplay(taxaRaw)
+                                            setTaxasDraft(prev => ({
+                                              ...prev,
+                                              [s.id]: {
+                                                ...draft,
+                                                taxa: taxaFormatada,
+                                                taxa_origem: "junto",
+                                                taxa_junto_modalidade_id: String(data.modalidade_id || ""),
+                                                taxa_junto_modalidade_descricao: String(data.modalidade_descricao || ""),
+                                                taxa_data_atualizacao: data.data_consulta || new Date().toISOString(),
+                                                taxa_zero_aviso: false,
+                                              }
+                                            }))
+                                            toast.success(`Taxa consultada na Junto: ${taxaFormatada}%`)
+                                          } else {
+                                            setTaxasDraft(prev => ({
+                                              ...prev,
+                                              [s.id]: {
+                                                ...draft,
+                                                taxa_zero_aviso: true,
+                                              }
+                                            }))
+                                            toast.warning("A Junto devolveu taxa zero para este tomador.")
+                                          }
+                                        } else {
+                                          const msg = json?.error || json?.detail || json?.message || "Erro ao consultar taxa na Junto."
+                                          toast.error(String(msg))
+                                        }
+                                      } catch (err) {
+                                        toast.error("Erro ao consultar taxa na Junto.")
+                                      } finally {
+                                        setFetchingTaxaIds(prev => ({ ...prev, [s.id]: false }))
+                                      }
+                                    }}
+                                    className="p-1 rounded text-zinc-500 hover:text-brand-red hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                                  >
+                                    {fetchingTaxaIds[s.id] ? (
+                                      <span className="w-3.5 h-3.5 border border-brand-red border-t-transparent rounded-full animate-spin block" />
+                                    ) : (
+                                      <RefreshCw className="size-3.5" />
+                                    )}
+                                  </button>
+                                )}
+                                <span className="relative flex-1 max-w-[92px]">
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={draft.taxa}
+                                    placeholder="0,00"
+                                    onChange={(e) => setTaxasDraft((prev) => ({
+                                      ...prev,
+                                      [s.id]: {
+                                        ...draft,
+                                        taxa: e.target.value,
+                                        taxa_origem: "",
+                                        taxa_junto_modalidade_id: "",
+                                        taxa_junto_modalidade_descricao: "",
+                                        taxa_data_atualizacao: null,
+                                        taxa_zero_aviso: false,
+                                      },
+                                    }))}
+                                    className="w-full h-7 rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent pl-2 pr-5 text-right text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand-red/40"
+                                  />
+                                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] opacity-50">%</span>
+                                </span>
+                              </div>
+                            </label>
+                            {draft.taxa_origem === "junto" && draft.taxa_junto_modalidade_id && (
+                              <div className="w-full text-[10px] text-zinc-500 dark:text-zinc-400 text-left bg-zinc-50 dark:bg-zinc-900/50 p-1.5 rounded border border-zinc-100 dark:border-zinc-800">
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">Junto</span>
+                                {" · "}
+                                <span>modalidade {draft.taxa_junto_modalidade_id} ({draft.taxa_junto_modalidade_descricao})</span>
+                                {draft.taxa_data_atualizacao && (
+                                  <>
+                                    {" · "}
+                                    <span>{new Date(draft.taxa_data_atualizacao).toLocaleDateString("pt-BR")}</span>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                            {draft.taxa_zero_aviso && (
+                              <div className="w-full text-[10px] text-amber-600 dark:text-amber-400 text-left bg-amber-50 dark:bg-amber-950/30 p-1.5 rounded border border-amber-200/50 dark:border-amber-800/40">
+                                A Junto devolveu taxa zero para este tomador.
+                              </div>
+                            )}
+                          </div>
 
                           <label className="w-full flex items-center justify-between text-xs gap-2">
                             <span className="opacity-60 shrink-0">P. M.</span>
@@ -1591,13 +1835,65 @@ export default function TomadorPage() {
                                 }))}
                                 className="w-full text-xs"
                               >
-                                <option value="cadastro_ok">Cadastro OK</option>
+                                {/* Removido envio manual de cadastro_ok — status é determinado pela integração Junto */}
                                 <option value="sem_cadastro">Sem cadastro</option>
                                 <option value="outro_corretor">Outro corretor</option>
                                 <option value="sem_aceitacao">Sem aceitação</option>
                               </NativeSelect>
                             </span>
                           </label>
+                          {editingId !== null && (s.integracao === "junto" || (s.api_usuario && s.api_senha) || (s.api_client_id && s.api_client_secret)) && (
+                            <div className="w-full mt-2">
+                              <button
+                                type="button"
+                                disabled={!!juntoCheckingIds[s.id]}
+                                onClick={async () => {
+                                  // Valida CNPJ antes de chamar a Junto
+                                  const tomador = tomadores.find(t => t.id === editingId)
+                                  const cnpjDigits = tomador ? somenteDigitos(tomador.cnpj) : ""
+                                  if (!cnpjDigits || cnpjDigits.length !== 14) {
+                                    toast.error("CNPJ inválido. Não é possível verificar na Junto.")
+                                    return
+                                  }
+                                  setJuntoCheckingIds(prev => ({ ...prev, [s.id]: true }))
+                                  try {
+                                    const res = await fetch(`/api/tomadores/${editingId}/seguradoras/${s.id}/junto/verificar/`, { method: "POST" })
+                                    let json = null
+                                    try { json = await res.json() } catch (_) { json = null }
+                                    if (res.ok && json?.data) {
+                                      const novoStatus = json.data.status || "sem_cadastro"
+                                      setTaxasDraft(prev => ({ ...prev, [s.id]: { ...draft, status: novoStatus } }))
+                                      toast.success(novoStatus === "cadastro_ok" ? "Cadastro OK na Junto." : "Sem cadastro na Junto.")
+                                      if (novoStatus !== "cadastro_ok") {
+                                        setJuntoModalContext({ tomadorId: editingId, seguradoraId: s.id })
+                                        setJuntoModalOpen(true)
+                                      }
+                                    } else {
+                                      const message = json?.error || json?.detail || json?.message || 'Erro ao verificar na Junto.'
+                                      toast.error(String(message))
+                                    }
+                                  } catch (err) {
+                                    toast.error('Erro ao verificar na Junto.')
+                                  } finally {
+                                    setJuntoCheckingIds(prev => ({ ...prev, [s.id]: false }))
+                                  }
+                                }}
+                                className={cn(
+                                  "w-full h-8 rounded-xl text-xs font-bold bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800/40 hover:bg-zinc-100",
+                                  !!juntoCheckingIds[s.id] ? "opacity-60 cursor-wait" : ""
+                                )}
+                              >
+                                {juntoCheckingIds[s.id] ? (
+                                  <span className="inline-flex items-center gap-2">
+                                    <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />
+                                    Verificando...
+                                  </span>
+                                ) : (
+                                  'Verificar cadastro'
+                                )}
+                              </button>
+                            </div>
+                          )}
 </div>
                       )
                     })}
@@ -2648,15 +2944,27 @@ export default function TomadorPage() {
               <Label className="text-xs font-bold">Seguradora Inicial *</Label>
               <Combobox
                 items={seguradorasTaxaveis}
-                value={seguradoraInicial}
-                onValueChange={(val) => setSeguradoraInicial(val)}
+                value={seguradoraInicialLabel ?? ""}
+                onValueChange={(val) => {
+                  if (!val) {
+                    setSeguradoraInicial(null)
+                    setSeguradoraInicialLabel(null)
+                    return
+                  }
+                  // value is encoded as "id:::nome"
+                  const parts = String(val).split(":::")
+                  const id = Number(parts[0]) || null
+                  const nome = parts.slice(1).join(":::") || null
+                  setSeguradoraInicial(id)
+                  setSeguradoraInicialLabel(nome)
+                }}
               >
-                <ComboboxInput placeholder="Pesquisar seguradora..." />
+                <ComboboxInput placeholder="Pesquisar seguradora..." value={seguradoraInicialLabel ?? ""} />
                 <ComboboxContent>
                   <ComboboxEmpty>Nenhuma seguradora</ComboboxEmpty>
                   <ComboboxList>
                     {(item: Seguradora & { id: number }) => (
-                      <ComboboxItem key={item.id} value={item.id}>{item.nome}</ComboboxItem>
+                      <ComboboxItem key={item.id} value={`${item.id}:::${item.nome}`}>{item.nome}</ComboboxItem>
                     )}
                   </ComboboxList>
                 </ComboboxContent>
@@ -2674,3 +2982,4 @@ export default function TomadorPage() {
     </div>
   )
 }
+
