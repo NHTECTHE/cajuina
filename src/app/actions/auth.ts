@@ -53,15 +53,13 @@ export async function loginAction(formData: FormData) {
     }
 
     return { success: true }
-  } catch (e: unknown) { console.error("ACTION ERROR:", e);
-    // Log more context to help debugging connectivity issues
-    try {
-      const err = e as Error
-      console.error("LOGIN fetch to:", `${API_URL}/auth/login/`)
-      console.error("LOGIN error stack:", err.stack ?? err.message ?? err)
-    } catch (__) {}
+  } catch (e: unknown) {
+    // O detalhe fica no log do servidor; a tela de login não expõe a topologia
+    // interna (URL do backend) para quem ainda nem se autenticou.
+    const err = e as Error
+    console.error("LOGIN falhou:", `${API_URL}/auth/login/`, err?.stack ?? err?.message ?? e)
 
-    return { error: `Não foi possível conectar ao backend em ${API_URL}. Verifique se o servidor está rodando e se a variável NEXT_PUBLIC_API_URL está correta.` }
+    return { error: 'Não foi possível conectar ao servidor. Tente novamente em instantes.' }
   }
 }
 
