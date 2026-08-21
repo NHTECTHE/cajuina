@@ -4,7 +4,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import {
   ArrowLeft, UserCheck, Plus, Search, Trash2,
-  Loader2, AlertCircle, CheckCircle2, X, ChevronDown,
+  Loader2, AlertCircle, CheckCircle2, X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { TableSkeleton } from "@/components/ui/skeleton"

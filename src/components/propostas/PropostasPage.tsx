@@ -109,7 +109,7 @@ export default function PropostasPage() {
     if (typeof window !== "undefined" && !searchParams?.get("id")) {
       const stored = sessionStorage.getItem("propostas_selected");
       if (stored) {
-        try { return JSON.parse(stored); } catch (e) {}
+        try { return JSON.parse(stored); } catch {}
       }
     }
     return null;

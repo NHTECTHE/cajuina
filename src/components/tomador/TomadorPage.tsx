@@ -455,7 +455,7 @@ export default function TomadorPage() {
                 const checkingToast = toast.loading("Verificando na Junto...")
                 const res = await fetch(`/api/tomadores/${created.id}/seguradoras/${seguradoraInicial}/junto/verificar/`, { method: "POST" })
                 let payload = null
-                try { payload = await res.json() } catch (_) { payload = null }
+                try { payload = await res.json() } catch { payload = null }
                 toast.dismiss(checkingToast)
                 if (!res.ok) {
                   const message = payload?.error || payload?.detail || payload?.message || 'Erro ao verificar na Junto.'
@@ -468,7 +468,7 @@ export default function TomadorPage() {
                   setJuntoModalOpen(true)
                 }
               }
-            } catch (err) {
+            } catch {
               toast.error("Erro ao verificar cadastro na Junto.")
             }
           }
@@ -937,11 +937,11 @@ export default function TomadorPage() {
                     const errorMessage = json?.data?.error || json?.error || json?.message || 'Erro ao solicitar o cadastro na Junto.'
                     toast.error(errorMessage)
                   }
-                } catch (err: any) {
+                } catch (err) {
                   setJuntoProcessing(false)
                   setJuntoModalOpen(false)
                   setJuntoModalContext(null)
-                  toast.error(err?.message || 'Erro ao solicitar o cadastro na Junto.')
+                  toast.error(err instanceof Error ? err.message : 'Erro ao solicitar o cadastro na Junto.')
                 }
               }}
               className="rounded-xl bg-brand-red text-white px-4 py-2"
@@ -1728,7 +1728,7 @@ export default function TomadorPage() {
                                           const msg = json?.error || json?.detail || json?.message || "Erro ao consultar taxa na Junto."
                                           toast.error(String(msg))
                                         }
-                                      } catch (err) {
+                                      } catch {
                                         toast.error("Erro ao consultar taxa na Junto.")
                                       } finally {
                                         setFetchingTaxaIds(prev => ({ ...prev, [s.id]: false }))
@@ -1860,7 +1860,7 @@ export default function TomadorPage() {
                                   try {
                                     const res = await fetch(`/api/tomadores/${editingId}/seguradoras/${s.id}/junto/verificar/`, { method: "POST" })
                                     let json = null
-                                    try { json = await res.json() } catch (_) { json = null }
+                                    try { json = await res.json() } catch { json = null }
                                     if (res.ok && json?.data) {
                                       const novoStatus = json.data.status || "sem_cadastro"
                                       setTaxasDraft(prev => ({ ...prev, [s.id]: { ...draft, status: novoStatus } }))
@@ -1873,7 +1873,7 @@ export default function TomadorPage() {
                                       const message = json?.error || json?.detail || json?.message || 'Erro ao verificar na Junto.'
                                       toast.error(String(message))
                                     }
-                                  } catch (err) {
+                                  } catch {
                                     toast.error('Erro ao verificar na Junto.')
                                   } finally {
                                     setJuntoCheckingIds(prev => ({ ...prev, [s.id]: false }))

@@ -1,5 +1,6 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react"
-import { Phone, Globe, MapPin, Mail } from "lucide-react"
+import { Phone, MapPin, Mail } from "lucide-react"
 
 export interface SeguradoraPDFData {
   id: number

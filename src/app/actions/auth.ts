@@ -59,7 +59,7 @@ export async function loginAction(formData: FormData) {
       const err = e as Error
       console.error("LOGIN fetch to:", `${API_URL}/auth/login/`)
       console.error("LOGIN error stack:", err.stack ?? err.message ?? err)
-    } catch (__) {}
+    } catch {}
 
     return { error: `Não foi possível conectar ao backend em ${API_URL}. Verifique se o servidor está rodando e se a variável NEXT_PUBLIC_API_URL está correta.` }
   }
