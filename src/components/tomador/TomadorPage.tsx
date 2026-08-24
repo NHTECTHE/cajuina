@@ -148,7 +148,6 @@ export default function TomadorPage() {
     taxa_data_atualizacao?: string | null
     taxa_zero_aviso?: boolean
   }>>({})
-  const [fetchingTaxaIds, setFetchingTaxaIds] = useState<Record<number, boolean>>({})
   const [taxasLoadedFor, setTaxasLoadedFor] = useState<number | null>(null)
   const [savingTaxas, setSavingTaxas] = useState(false)
 
@@ -455,6 +454,9 @@ export default function TomadorPage() {
                   toastErroJunto(res, payload, 'Não foi possível verificar o cadastro na Junto.')
                 } else if (payload?.data?.status === "cadastro_ok") {
                   toast.success("Tomador encontrado e cadastrado na Junto.")
+                  setTaxasLoadedFor(null)
+                } else if (payload?.data?.status === "em_analise") {
+                  toast.info("Tomador já cadastrado na Junto, em análise. Verifique de novo em alguns minutos.")
                   setTaxasLoadedFor(null)
                 } else {
                   setJuntoModalContext({ tomadorId: created.id, seguradoraId: seguradoraInicial })
@@ -934,12 +936,12 @@ export default function TomadorPage() {
                   setJuntoModalContext(null)
                   if (res.ok) {
                     // O endpoint devolve 202 na hora: a Junto processa depois e
-                    // quem confirma é o botão "Verificar cadastro".
+                    // quem confirma é o ⟳ no canto do card.
                     //
                     // Sem recarregar o rascunho: a solicitação não muda taxa nem
                     // status, e o reload descartaria uma taxa recém-consultada que
                     // o usuário ainda não salvou.
-                    toast.success('Solicitação enviada. A Junto leva cerca de 10 segundos — use "Verificar cadastro" em instantes.')
+                    toast.success('Solicitação enviada. A Junto pode levar de 10 segundos a 1 minuto — use o ⟳ no canto do card em instantes.')
                   } else {
                     toastErroJunto(res, json, 'Não foi possível solicitar o cadastro na Junto.')
                   }
@@ -1660,9 +1662,11 @@ export default function TomadorPage() {
                         <div
                           key={s.id}
                           className={cn(
-                            "bg-white dark:bg-zinc-800 rounded-xl border p-4 shadow-sm flex flex-col items-center text-center gap-2.5 transition-colors",
+                            "relative bg-white dark:bg-zinc-800 rounded-xl border p-4 shadow-sm flex flex-col items-center text-center gap-2.5 transition-colors",
                             draft.status === "cadastro_ok"
                               ? "border-emerald-500/50 dark:border-emerald-500/40 ring-1 ring-emerald-500/20"
+                              : draft.status === "em_analise"
+                              ? "border-sky-500/50 dark:border-sky-500/40 ring-1 ring-sky-500/20 opacity-90"
                               : draft.status === "sem_aceitacao"
                               ? "border-red-500/40 dark:border-red-500/30 opacity-70 grayscale"
                               : draft.status === "outro_corretor"
@@ -1670,7 +1674,95 @@ export default function TomadorPage() {
                               : "border-zinc-200/50 dark:border-zinc-800/40 opacity-60 grayscale"
                           )}
                         >
-                          <h4 className="font-bold text-xs uppercase tracking-wide mb-2">{s.nome}</h4>
+                          {editingId !== null && s.integracao === "junto" && s.tem_credencial_api && (
+                            <button
+                              type="button"
+                              disabled={!!juntoCheckingIds[s.id]}
+                              title="Atualizar cadastro e taxa na Junto"
+                              onClick={async () => {
+                                const tomador = tomadores.find(t => t.id === editingId)
+                                const cnpjDigits = tomador ? somenteDigitos(tomador.cnpj) : ""
+                                if (!cnpjDigits || cnpjDigits.length !== 14) {
+                                  toast.error("CNPJ inválido. Não é possível atualizar na Junto.")
+                                  return
+                                }
+                                setJuntoCheckingIds(prev => ({ ...prev, [s.id]: true }))
+                                try {
+                                  // Duas chamadas separadas de propósito, não um endpoint
+                                  // único no back: a Junto já levou 21s numa consulta
+                                  // simples, e duas em sequência no mesmo request
+                                  // estourariam o timeout de 30s do gunicorn.
+                                  const res = await fetch(`/api/tomadores/${editingId}/seguradoras/${s.id}/junto/verificar/`, { method: "POST" })
+                                  let json = null
+                                  try { json = await res.json() } catch (_) { json = null }
+                                  if (!res.ok || !json?.data) {
+                                    toastErroJunto(res, json, 'Não foi possível verificar o cadastro na Junto.')
+                                    return
+                                  }
+                                  const novoStatus = json.data.status || "sem_cadastro"
+                                  // `prev[s.id]` e não `draft`: são duas atualizações em
+                                  // sequência no mesmo rascunho, e espalhar o draft
+                                  // capturado na renderização faria a segunda apagar o
+                                  // status que a primeira acabou de gravar.
+                                  setTaxasDraft(prev => ({ ...prev, [s.id]: { ...(prev[s.id] ?? draft), status: novoStatus } }))
+
+                                  if (novoStatus === "em_analise") {
+                                    toast.info("Cadastro em análise na Junto. Atualize de novo em alguns minutos.")
+                                    return
+                                  }
+                                  if (novoStatus !== "cadastro_ok") {
+                                    toast.success("Sem cadastro na Junto.")
+                                    setJuntoModalContext({ tomadorId: editingId, seguradoraId: s.id })
+                                    setJuntoModalOpen(true)
+                                    return
+                                  }
+
+                                  // Cadastro OK: a taxa é a outra metade da mesma pergunta.
+                                  toast.success("Cadastro OK na Junto. Buscando a taxa...")
+                                  const resTaxa = await fetch(`/api/tomadores/${editingId}/seguradoras/${s.id}/junto/taxa/`, { method: "POST" })
+                                  const jsonTaxa = await resTaxa.json().catch(() => null)
+                                  if (!resTaxa.ok || !jsonTaxa?.data) {
+                                    toastErroJunto(resTaxa, jsonTaxa, "Cadastro OK, mas não foi possível consultar a taxa.")
+                                    return
+                                  }
+                                  const dataTaxa = jsonTaxa.data
+                                  const taxaRaw = dataTaxa.taxa != null ? String(dataTaxa.taxa) : "0"
+                                  const taxaDec = parseFloat(taxaRaw.replace(",", ".")) || 0
+                                  if (taxaDec > 0) {
+                                    const taxaFormatada = formatTaxaDisplay(taxaRaw)
+                                    setTaxasDraft(prev => ({
+                                      ...prev,
+                                      [s.id]: {
+                                        ...(prev[s.id] ?? draft),
+                                        taxa: taxaFormatada,
+                                        taxa_origem: "junto",
+                                        taxa_junto_modalidade_id: String(dataTaxa.modalidade_id || ""),
+                                        taxa_junto_modalidade_descricao: String(dataTaxa.modalidade_descricao || ""),
+                                        taxa_data_atualizacao: dataTaxa.data_consulta || new Date().toISOString(),
+                                        taxa_zero_aviso: false,
+                                      }
+                                    }))
+                                    toast.success(`Taxa da Junto: ${taxaFormatada}%`)
+                                  } else {
+                                    setTaxasDraft(prev => ({ ...prev, [s.id]: { ...(prev[s.id] ?? draft), taxa_zero_aviso: true } }))
+                                    toast.warning("A Junto devolveu taxa zero para este tomador.")
+                                  }
+                                } catch (err) {
+                                  toast.error('Erro ao atualizar na Junto.')
+                                } finally {
+                                  setJuntoCheckingIds(prev => ({ ...prev, [s.id]: false }))
+                                }
+                              }}
+                              className="absolute top-2 right-2 p-1.5 rounded-lg bg-emerald-500 text-white shadow-sm hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-500 transition-colors disabled:cursor-wait disabled:opacity-60"
+                            >
+                              {juntoCheckingIds[s.id] ? (
+                                <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin block" />
+                              ) : (
+                                <RefreshCw className="size-3.5" />
+                              )}
+                            </button>
+                          )}
+                          <h4 className="font-bold text-xs uppercase tracking-wide mb-2 px-6">{s.nome}</h4>
                           <div className="w-16 h-16 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/60 flex items-center justify-center overflow-hidden mb-3">
                             {s.logo ? (
                               // eslint-disable-next-line @next/next/no-img-element
@@ -1685,69 +1777,6 @@ export default function TomadorPage() {
                             <label className="w-full flex items-center justify-between text-xs gap-2">
                               <span className="opacity-60 shrink-0">Taxa</span>
                               <div className="flex items-center gap-1.5 flex-1 max-w-[130px] justify-end">
-                                {editingId !== null && (s.integracao === "junto" || s.nome.toLowerCase().includes("junto")) && (
-                                  <button
-                                    type="button"
-                                    disabled={!!fetchingTaxaIds[s.id]}
-                                    title="Consultar taxa na Junto"
-                                    onClick={async () => {
-                                      const tomador = tomadores.find(t => t.id === editingId)
-                                      const cnpjDigits = tomador ? somenteDigitos(tomador.cnpj) : ""
-                                      if (!cnpjDigits || cnpjDigits.length !== 14) {
-                                        toast.error("CNPJ inválido. Não é possível consultar a taxa na Junto.")
-                                        return
-                                      }
-                                      setFetchingTaxaIds(prev => ({ ...prev, [s.id]: true }))
-                                      try {
-                                        const res = await fetch(`/api/tomadores/${editingId}/seguradoras/${s.id}/junto/taxa/`, { method: "POST" })
-                                        const json = await res.json().catch(() => null)
-                                        if (res.ok && json?.data) {
-                                          const data = json.data
-                                          const taxaRaw = data.taxa != null ? String(data.taxa) : "0"
-                                          const taxaDec = parseFloat(taxaRaw.replace(",", ".")) || 0
-                                          if (taxaDec > 0) {
-                                            const taxaFormatada = formatTaxaDisplay(taxaRaw)
-                                            setTaxasDraft(prev => ({
-                                              ...prev,
-                                              [s.id]: {
-                                                ...draft,
-                                                taxa: taxaFormatada,
-                                                taxa_origem: "junto",
-                                                taxa_junto_modalidade_id: String(data.modalidade_id || ""),
-                                                taxa_junto_modalidade_descricao: String(data.modalidade_descricao || ""),
-                                                taxa_data_atualizacao: data.data_consulta || new Date().toISOString(),
-                                                taxa_zero_aviso: false,
-                                              }
-                                            }))
-                                            toast.success(`Taxa consultada na Junto: ${taxaFormatada}%`)
-                                          } else {
-                                            setTaxasDraft(prev => ({
-                                              ...prev,
-                                              [s.id]: {
-                                                ...draft,
-                                                taxa_zero_aviso: true,
-                                              }
-                                            }))
-                                            toast.warning("A Junto devolveu taxa zero para este tomador.")
-                                          }
-                                        } else {
-                                          toastErroJunto(res, json, "Não foi possível consultar a taxa na Junto.")
-                                        }
-                                      } catch (err) {
-                                        toast.error("Erro ao consultar taxa na Junto.")
-                                      } finally {
-                                        setFetchingTaxaIds(prev => ({ ...prev, [s.id]: false }))
-                                      }
-                                    }}
-                                    className="p-1 rounded text-zinc-500 hover:text-brand-red hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
-                                  >
-                                    {fetchingTaxaIds[s.id] ? (
-                                      <span className="w-3.5 h-3.5 border border-brand-red border-t-transparent rounded-full animate-spin block" />
-                                    ) : (
-                                      <RefreshCw className="size-3.5" />
-                                    )}
-                                  </button>
-                                )}
                                 <span className="relative flex-1 max-w-[92px]">
                                   <input
                                     type="text"
@@ -1772,19 +1801,6 @@ export default function TomadorPage() {
                                 </span>
                               </div>
                             </label>
-                            {draft.taxa_origem === "junto" && draft.taxa_junto_modalidade_id && (
-                              <div className="w-full text-[10px] text-zinc-500 dark:text-zinc-400 text-left bg-zinc-50 dark:bg-zinc-900/50 p-1.5 rounded border border-zinc-100 dark:border-zinc-800">
-                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">Junto</span>
-                                {" · "}
-                                <span>modalidade {draft.taxa_junto_modalidade_id} ({draft.taxa_junto_modalidade_descricao})</span>
-                                {draft.taxa_data_atualizacao && (
-                                  <>
-                                    {" · "}
-                                    <span>{new Date(draft.taxa_data_atualizacao).toLocaleDateString("pt-BR")}</span>
-                                  </>
-                                )}
-                              </div>
-                            )}
                             {draft.taxa_zero_aviso && (
                               <div className="w-full text-[10px] text-amber-600 dark:text-amber-400 text-left bg-amber-50 dark:bg-amber-950/30 p-1.5 rounded border border-amber-200/50 dark:border-amber-800/40">
                                 A Junto devolveu taxa zero para este tomador.
@@ -1845,63 +1861,16 @@ export default function TomadorPage() {
                                     opção continua aqui: seguradora sem integração não tem
                                     outro caminho para chegar em "apto". */}
                                 <option value="cadastro_ok">Cadastro OK</option>
+                                {/* `em_analise` só é gravado pela verificação na Junto. Fica
+                                    na lista mesmo assim: sem a option o select renderiza em
+                                    branco quando o backend devolve esse status. */}
+                                <option value="em_analise">Em análise</option>
                                 <option value="sem_cadastro">Sem cadastro</option>
                                 <option value="outro_corretor">Outro corretor</option>
                                 <option value="sem_aceitacao">Sem aceitação</option>
                               </NativeSelect>
                             </span>
                           </label>
-                          {editingId !== null && s.integracao === "junto" && s.tem_credencial_api && (
-                            <div className="w-full mt-2">
-                              <button
-                                type="button"
-                                disabled={!!juntoCheckingIds[s.id]}
-                                onClick={async () => {
-                                  // Valida CNPJ antes de chamar a Junto
-                                  const tomador = tomadores.find(t => t.id === editingId)
-                                  const cnpjDigits = tomador ? somenteDigitos(tomador.cnpj) : ""
-                                  if (!cnpjDigits || cnpjDigits.length !== 14) {
-                                    toast.error("CNPJ inválido. Não é possível verificar na Junto.")
-                                    return
-                                  }
-                                  setJuntoCheckingIds(prev => ({ ...prev, [s.id]: true }))
-                                  try {
-                                    const res = await fetch(`/api/tomadores/${editingId}/seguradoras/${s.id}/junto/verificar/`, { method: "POST" })
-                                    let json = null
-                                    try { json = await res.json() } catch (_) { json = null }
-                                    if (res.ok && json?.data) {
-                                      const novoStatus = json.data.status || "sem_cadastro"
-                                      setTaxasDraft(prev => ({ ...prev, [s.id]: { ...draft, status: novoStatus } }))
-                                      toast.success(novoStatus === "cadastro_ok" ? "Cadastro OK na Junto." : "Sem cadastro na Junto.")
-                                      if (novoStatus !== "cadastro_ok") {
-                                        setJuntoModalContext({ tomadorId: editingId, seguradoraId: s.id })
-                                        setJuntoModalOpen(true)
-                                      }
-                                    } else {
-                                      toastErroJunto(res, json, 'Não foi possível verificar o cadastro na Junto.')
-                                    }
-                                  } catch (err) {
-                                    toast.error('Erro ao verificar na Junto.')
-                                  } finally {
-                                    setJuntoCheckingIds(prev => ({ ...prev, [s.id]: false }))
-                                  }
-                                }}
-                                className={cn(
-                                  "w-full h-8 rounded-xl text-xs font-bold bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800/40 hover:bg-zinc-100",
-                                  !!juntoCheckingIds[s.id] ? "opacity-60 cursor-wait" : ""
-                                )}
-                              >
-                                {juntoCheckingIds[s.id] ? (
-                                  <span className="inline-flex items-center gap-2">
-                                    <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />
-                                    Verificando...
-                                  </span>
-                                ) : (
-                                  'Verificar cadastro'
-                                )}
-                              </button>
-                            </div>
-                          )}
 </div>
                       )
                     })}
