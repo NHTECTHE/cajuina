@@ -25,8 +25,17 @@ export interface Seguradora {
   taxa_comissao: string | null
   vencimento_dias: number | null
   ativo?: boolean
-  api_usuario?: string
+  integracao?: string
+  api_client_id?: string
+  api_ambiente?: string
+  // Só de ida: `api_senha` e `api_client_secret` são write_only no serializer, o
+  // formulário os envia mas eles nunca voltam no GET. Para saber se a seguradora
+  // tem credencial configurada, use `tem_credencial_api` — testar os segredos em
+  // dado vindo da API dá sempre falso.
+  api_client_secret?: string
   api_senha?: string
+  tem_credencial_api?: boolean
+  api_usuario?: string
   api_ou_name?: string
   api_source_app?: string
   criado_em?: string

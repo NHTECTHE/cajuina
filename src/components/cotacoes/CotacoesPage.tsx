@@ -15,7 +15,8 @@ import {
   Pencil,
   CheckCircle2,
   Copy,
-  Check
+  Check,
+  Loader2
 } from "lucide-react"
 
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -60,12 +61,17 @@ import {
   modalidadesApi,
   seguradorasApi,
   cotacoesApi,
+  emissaoApi,
   getTomadorSeguradoraVinculo,
   type SeguradoraResponse,
   type CotacaoResponse,
   type CotacaoPayload,
   type EmailPreview,
+  type EmissaoResponse,
+  type PendenciaEmissao,
 } from "@/services/api"
+import { premioEfetivo } from "@/lib/premio"
+import { useEmissaoJobs } from "@/components/emissao/emissao-jobs"
 import {
   listTomadorSeguradorasAction,
   type TomadorSeguradora,
@@ -297,6 +303,69 @@ export default function CotacoesPage() {
   // Taxas), com fallback para os valores da própria seguradora.
   const [vinculosTomador, setVinculosTomador] = useState<Record<number, TomadorSeguradora>>({})
 
+  // Emissões já criadas na seguradora, indexadas por seguradora. Alimenta o
+  // prêmio real nos cards, no PDF e no WhatsApp. Carrega junto de qual cotação
+  // veio: sem isso, trocar de simulação mostra o prêmio real da anterior até a
+  // resposta nova chegar.
+  const [emissoes, setEmissoes] = useState<{
+    cotacaoId: number
+    porSeguradora: Record<number, EmissaoResponse>
+  } | null>(null)
+
+  // Id da seguradora sendo cotada agora: o spinner é do card, não da tela.
+  const [cotandoSeguradoraId, setCotandoSeguradoraId] = useState<number | null>(null)
+
+  // A minuta roda fora desta tela: quem guarda o andamento é o provider do
+  // layout, para o indicador continuar visível se o usuário sair daqui.
+  const { gerandoMinuta, gerarMinuta, aoConcluir } = useEmissaoJobs()
+
+  // Pendências devolvidas pela seguradora, junto de quem as devolveu: o modal
+  // precisa saber em qual seguradora repetir a chamada se o usuário forçar.
+  const [pendencias, setPendencias] = useState<{ seguradoraId: number; itens: PendenciaEmissao[] } | null>(null)
+
+  React.useEffect(() => {
+    const id = selectedCotacao?.id
+    if (!id) return
+    let ativo = true
+    emissaoApi
+      .estado(id)
+      .then((lista) => {
+        if (!ativo) return
+        setEmissoes({
+          cotacaoId: id,
+          porSeguradora: Object.fromEntries(lista.map((e) => [e.seguradora, e])),
+        })
+      })
+      .catch(() => {
+        if (ativo) setEmissoes({ cotacaoId: id, porSeguradora: {} })
+      })
+    return () => {
+      ativo = false
+    }
+  }, [selectedCotacao?.id])
+
+  // Fonte única do prêmio exibido. Antes esta conta estava escrita em três
+  // lugares deste arquivo — card, PDF e WhatsApp — e agora todas passam aqui.
+  const premioDaSeguradora = React.useCallback(
+    (segId: number, taxa: unknown, premioMinimo: unknown) =>
+      premioEfetivo({
+        importanciaSegurada: Number(selectedCotacao?.importancia_segurada) || 0,
+        prazoDias: selectedCotacao?.prazo_dias || 0,
+        taxa: Number(taxa) || 0,
+        premioMinimo: Number(premioMinimo) || 0,
+        premioReal:
+          emissoes?.cotacaoId === selectedCotacao?.id
+            ? (emissoes?.porSeguradora[segId]?.premio_total ?? null)
+            : null,
+      }),
+    [
+      selectedCotacao?.id,
+      selectedCotacao?.importancia_segurada,
+      selectedCotacao?.prazo_dias,
+      emissoes,
+    ]
+  )
+
   React.useEffect(() => {
     if (view !== "details") return
     let active = true
@@ -346,6 +415,79 @@ export default function CotacoesPage() {
       toast.error("Não foi possível salvar a seguradora escolhida.")
     }
   }
+
+  // Cota de verdade na seguradora. Não escolhe: escolher é o clique no corpo
+  // do card. Dá para cotar em três e decidir depois.
+  const handleCotarSeguradora = async (seguradoraId: number) => {
+    if (!selectedCotacao) return
+    const nomeSeguradora = seguradoras.find(s => s.id === seguradoraId)?.nome ?? "seguradora"
+    setCotandoSeguradoraId(seguradoraId)
+    // Toast com id fixo: a chamada leva ~6s e pode ir a 30s, e o spinner do card
+    // some de vista se o usuário rolar a tela. O mesmo id vira sucesso ou erro.
+    const aviso = toast.loading(`Cotando na ${nomeSeguradora}...`, {
+      description: "Consultando a seguradora, isso pode levar alguns segundos.",
+    })
+    try {
+      const emissao = await emissaoApi.cotar(selectedCotacao.id, seguradoraId)
+      setEmissoes((atual) => ({
+        cotacaoId: selectedCotacao.id,
+        porSeguradora: {
+          ...(atual?.cotacaoId === selectedCotacao.id ? atual.porSeguradora : {}),
+          [seguradoraId]: emissao,
+        },
+      }))
+      toast.success(`${nomeSeguradora}: prêmio real recebido.`, { id: aviso, description: undefined })
+    } catch (err) {
+      // A mensagem vem da seguradora quando o erro é de negócio ("limite
+      // insuficiente", "tomador não cadastrado") — é o que o usuário precisa ler.
+      toast.error(err instanceof Error ? err.message : "Não foi possível cotar na seguradora.", {
+        id: aviso,
+        description: undefined,
+      })
+    } finally {
+      setCotandoSeguradoraId(null)
+    }
+  }
+
+  // Dispara e devolve o controle na hora: quem acompanha é o indicador do
+  // layout, que sobrevive à saída desta tela.
+  const dispararMinuta = (seguradoraId: number, forcar = false) => {
+    if (!selectedCotacao) return
+    gerarMinuta(
+      {
+        cotacaoId: selectedCotacao.id,
+        seguradoraId,
+        cotacaoRotulo: `#${selectedCotacao.id}`,
+        seguradoraNome: seguradoras.find(s => s.id === seguradoraId)?.nome ?? "seguradora",
+      },
+      forcar
+    )
+    // Fecha ao reenviar: o modal reabre sozinho se vierem pendências de novo.
+    setPendencias(null)
+  }
+
+  // O provider avisa quando uma minuta termina. Só reagimos se for da cotação
+  // que está na tela — se o usuário saiu, o estado é recarregado quando voltar.
+  React.useEffect(
+    () =>
+      aoConcluir(resultado => {
+        if (resultado.cotacaoId !== selectedCotacao?.id) return
+        setEmissoes(atual => ({
+          cotacaoId: resultado.cotacaoId,
+          porSeguradora: {
+            ...(atual?.cotacaoId === resultado.cotacaoId ? atual.porSeguradora : {}),
+            [resultado.seguradoraId]: resultado.emissao,
+          },
+        }))
+        if (!resultado.emissao.url_minuta) {
+          setPendencias({
+            seguradoraId: resultado.seguradoraId,
+            itens: resultado.emissao.pendencias,
+          })
+        }
+      }),
+    [aoConcluir, selectedCotacao?.id]
+  )
 
   const handleDataInicioChange = (value: string) => {
     setDataInicio(value)
@@ -411,13 +553,8 @@ export default function CotacoesPage() {
       .filter(seg => vinculosTomador[seg.id]?.apto)
       .map(seg => {
         const vinculo = vinculosTomador[seg.id]
-        const taxa = Number(vinculo.taxa) || 0
-        const premioMinimo = Number(vinculo.premio_minimo_efetivo) || 0
-        const isValor = Number(selectedCotacao.importancia_segurada) || 0
-        const prazo = selectedCotacao.prazo_dias || 0
-        const calcPremio = (isValor / 365) * (taxa / 100) * prazo
-        const premio = Math.max(premioMinimo, calcPremio)
-        return `${seg.nome}: ${formatBRL(premio)}`
+        const { valor } = premioDaSeguradora(seg.id, vinculo.taxa, vinculo.premio_minimo_efetivo)
+        return `${seg.nome}: ${formatBRL(valor)}`
       })
 
     const valoresTexto = seguradorasDisponiveis.length > 0
@@ -445,7 +582,7 @@ Vencimento do Boleto: ${isoToBR(addDays(new Date().toISOString().slice(0, 10), d
 Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o nosso suporte:
 
 (86) 3081-0282`
-  }, [selectedCotacao, diasVencimento, seguradoras, vinculosTomador])
+  }, [selectedCotacao, diasVencimento, seguradoras, vinculosTomador, premioDaSeguradora])
 
 
   const editableMessage = mensagemEditada ?? generatedMessage
@@ -542,22 +679,17 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
 
   const pdfData = useMemo<CotacaoPDFData | null>(() => {
     if (!selectedCotacao) return null
-    const baseVal = Number(selectedCotacao.importancia_segurada) || 0
     const validSeguradoras: SeguradoraPDFData[] = []
     
     seguradoras.forEach(seg => {
       const vinculo = vinculosTomador[seg.id]
       if (!vinculo || !vinculo.apto) return
       
-      const taxa = vinculo.taxa
-      const premioMinimo = vinculo.premio_minimo_efetivo
-      
-      const is = Number(selectedCotacao.importancia_segurada) || 0
-      const prazo = selectedCotacao.prazo_dias || 0
-      const taxaNum = Number(taxa) || 0
-      const min = Number(premioMinimo) || 0
-      const calc = (is / 365) * (taxaNum / 100) * prazo
-      const premioFinal = Math.max(calc, min)
+      const { valor: premioFinal } = premioDaSeguradora(
+        seg.id,
+        vinculo.taxa,
+        vinculo.premio_minimo_efetivo
+      )
       
       if (premioFinal > 0) {
         validSeguradoras.push({
@@ -584,7 +716,7 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
       observacoes: selectedCotacao.observacoes || "—",
       seguradoras: validSeguradoras
     }
-  }, [selectedCotacao, seguradoras, vinculosTomador])
+  }, [selectedCotacao, seguradoras, vinculosTomador, premioDaSeguradora])
 
   const handleGeneratePdf = async () => {
     if (!pdfRef.current || !selectedCotacao) return
@@ -794,6 +926,60 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ──── MODAL DE PENDÊNCIAS DA MINUTA ──── */}
+      <Dialog open={!!pendencias} onOpenChange={(open) => !open && setPendencias(null)}>
+        <DialogContent className="sm:max-w-lg rounded-2xl p-6 border-zinc-200 dark:border-zinc-800">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
+              A seguradora apontou pendências
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            A minuta foi criada, mas a seguradora não libera o PDF enquanto estas
+            pendências existirem. Você pode gerar mesmo assim — a apólice só será
+            emitida depois que elas forem resolvidas.
+          </p>
+          <div className="flex flex-col gap-2 mt-3 max-h-64 overflow-y-auto">
+            {pendencias?.itens.map((p) => (
+              <div
+                key={p.codigo}
+                className="rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 p-3"
+              >
+                <div className="text-[13px] font-semibold text-amber-800 dark:text-amber-300">
+                  {p.descricao}
+                </div>
+                <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  {p.departamento}{p.email ? ` · ${p.email}` : ""}
+                </div>
+              </div>
+            ))}
+            {pendencias?.itens.length === 0 && (
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                A seguradora não detalhou quais são.
+              </p>
+            )}
+          </div>
+          <div className="flex items-center justify-end gap-3 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setPendencias(null)}
+              className="h-10 px-5 rounded-xl font-semibold border-zinc-200 dark:border-zinc-800"
+            >
+              Fechar
+            </Button>
+            <Button
+              type="button"
+              disabled={pendencias ? gerandoMinuta(selectedCotacao?.id ?? 0, pendencias.seguradoraId) : false}
+              onClick={() => pendencias && dispararMinuta(pendencias.seguradoraId, true)}
+              className="h-10 px-5 rounded-xl font-bold bg-brand-red text-white hover:bg-brand-red/90 disabled:opacity-60"
+            >
+              Gerar mesmo assim
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {view === "list" && (
         <>
@@ -1424,15 +1610,30 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                     return (
                     <div
                       key={seg.id}
-                      onClick={() => selecionavel && handleEscolherSeguradora(seg.id)}
+                      onClick={() => !cotandoSeguradoraId && selecionavel && handleEscolherSeguradora(seg.id)}
                       title={!apto ? "Tomador sem taxa cadastrada para esta seguradora." : undefined}
                       className={cn(
                         "relative bg-zinc-100 dark:bg-zinc-800/50 rounded-xl h-40 flex flex-col items-center justify-between p-4 border transition-all",
                         selecionavel ? "cursor-pointer hover:border-brand-red/50 hover:bg-red-50/50 dark:hover:bg-red-500/10" : "opacity-70 border-zinc-200 dark:border-zinc-700/50",
                         !apto ? "cursor-not-allowed" : "",
-                        escolhida ? "ring-2 ring-brand-red border-brand-red bg-red-50/50 dark:bg-red-500/10 shadow-sm" : ""
+                        escolhida ? "ring-2 ring-brand-red border-brand-red bg-red-50/50 dark:bg-red-500/10 shadow-sm" : "",
+                        // Enquanto uma cotação está em curso os outros cards saem de
+                        // cena: evita trocar a escolhida no meio da chamada e deixa
+                        // claro qual seguradora está sendo consultada.
+                        cotandoSeguradoraId && cotandoSeguradoraId !== seg.id ? "opacity-40 pointer-events-none" : ""
                       )}
                     >
+                      {cotandoSeguradoraId === seg.id && (
+                        <div className="absolute inset-0 z-20 rounded-xl bg-white/85 dark:bg-zinc-900/85 backdrop-blur-[1px] flex flex-col items-center justify-center gap-2">
+                          <Loader2 className="size-7 animate-spin text-brand-red dark:text-[#cf7458]" />
+                          <span className="text-[11px] font-bold uppercase tracking-wide text-brand-red dark:text-[#cf7458]">
+                            Cotando...
+                          </span>
+                          <span className="text-[9.5px] text-zinc-500 dark:text-zinc-400 text-center px-2 leading-tight">
+                            consultando a seguradora
+                          </span>
+                        </div>
+                      )}
                       <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide text-center leading-tight">{seg.nome}</span>
 
                       <div className="flex-1 flex items-center justify-center py-1">
@@ -1444,19 +1645,71 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                         )}
                       </div>
 
+                      {seg.integracao && seg.tem_credencial_api && (() => {
+                        const emissaoSeg =
+                          emissoes?.cotacaoId === selectedCotacao?.id
+                            ? emissoes?.porSeguradora[seg.id]
+                            : undefined
+                        const cotando = cotandoSeguradoraId === seg.id
+                        // A minuta não trava a tela: só o próprio botão espera.
+                        const gerando = selectedCotacao
+                          ? gerandoMinuta(selectedCotacao.id, seg.id)
+                          : false
+                        const ocupado = cotando || gerando
+
+                        // 3º estado: minuta pronta, o botão vira link para o PDF.
+                        if (emissaoSeg?.url_minuta) {
+                          return (
+                            <a
+                              href={emissaoSeg.url_minuta}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Abrir a minuta"
+                              onClick={(e) => e.stopPropagation()}
+                              className="absolute -right-2 -top-2 w-9 h-9 rounded-full bg-white dark:bg-zinc-900 border border-green-300 dark:border-green-700 shadow-sm flex items-center justify-center text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors cursor-pointer"
+                            >
+                              <FileText className="size-4" />
+                            </a>
+                          )
+                        }
+
+                        // 2º estado: já cotou, falta a minuta.
+                        const cotado = Boolean(emissaoSeg?.external_id)
+                        return (
+                          <button
+                            type="button"
+                            title={cotado ? "Gerar minuta" : "Cotar na seguradora"}
+                            disabled={ocupado}
+                            onClick={(e) => {
+                              // Sem isto o clique sobe para o card e escolhe a
+                              // seguradora sem querer — cotar não é escolher.
+                              e.stopPropagation()
+                              if (cotado) dispararMinuta(seg.id)
+                              else handleCotarSeguradora(seg.id)
+                            }}
+                            className="absolute -right-2 -top-2 w-9 h-9 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-sm flex items-center justify-center text-brand-red dark:text-[#cf7458] hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                          >
+                            {ocupado ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : cotado ? (
+                              <FileDown className="size-4" />
+                            ) : (
+                              <Search className="size-4" />
+                            )}
+                          </button>
+                        )
+                      })()}
+
                       {(() => {
-                        const is = Number(selectedCotacao?.importancia_segurada) || 0;
-                        const prazo = selectedCotacao?.prazo_dias || 0;
-                        const taxaNum = Number(taxa) || 0;
-                        const min = Number(premioMinimo) || 0;
-                        const calc = (is / 365) * (taxaNum / 100) * prazo;
-                        const premioFinal = Math.max(calc, min);
+                        const { valor, real } = premioDaSeguradora(seg.id, taxa, premioMinimo)
 
                         return (
                           <div className="w-full flex flex-col gap-1 text-[10.5px] text-zinc-600 dark:text-zinc-400 border-t border-zinc-200/70 dark:border-zinc-700/50 pt-2">
                             <div className="flex items-center justify-between">
-                              <span className="uppercase font-medium opacity-70">Prêmio</span>
-                              <span className="font-bold text-brand-red dark:text-[#cf7458]">{formatBRL(premioFinal)}</span>
+                              <span className="uppercase font-medium opacity-70">
+                                {real ? "Prêmio real" : "Prêmio"}
+                              </span>
+                              <span className="font-bold text-brand-red dark:text-[#cf7458]">{formatBRL(valor)}</span>
                             </div>
                           </div>
                         )

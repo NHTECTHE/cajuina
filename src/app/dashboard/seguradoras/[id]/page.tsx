@@ -48,6 +48,12 @@ export default function SeguradoraDetailPage() {
           taxa_comissao: s.taxa_comissao,
           vencimento_dias: s.vencimento_dias,
           ativo: s.ativo,
+          integracao: s.integracao ?? "",
+          api_ambiente: s.api_ambiente ?? "sandbox",
+          api_client_id: s.api_client_id ?? "",
+          // Segredo é write_only: nunca volta no GET. Campo entra vazio e só é
+          // enviado quando o usuário digita algo — ver o submit mais abaixo.
+          api_client_secret: "",
           api_usuario: s.api_usuario ?? "",
           api_senha: s.api_senha ?? "",
           api_ou_name: s.api_ou_name ?? "",
@@ -69,11 +75,17 @@ export default function SeguradoraDetailPage() {
     setSaving(true)
     setFeedback(null)
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       ...form,
       taxa_comissao: form.taxa_comissao === "" ? null : form.taxa_comissao,
       vencimento_dias: form.vencimento_dias === null ? null : Number(form.vencimento_dias),
     }
+
+    // Segredos em branco são OMITIDOS, não enviados vazios: o campo sempre
+    // carrega em branco (é write_only e não volta do GET), então mandá-lo assim
+    // apagaria a credencial gravada a cada salvamento da tela.
+    if (!form.api_client_secret) delete payload.api_client_secret
+    if (!form.api_senha) delete payload.api_senha
 
     const res = await updateSeguradoraAction(id, payload, logoFile)
     setSaving(false)
@@ -91,22 +103,20 @@ export default function SeguradoraDetailPage() {
     setTestingApi(true)
     setApiTestResult(null)
 
-    // Ainda não há integração real com nenhuma seguradora — apenas valida
-    // se as credenciais necessárias estão preenchidas.
-    await new Promise(resolve => setTimeout(resolve, 600))
-
-    const camposFaltando = [
-      !form.api_usuario && "Usuário",
-      !form.api_senha && "Senha",
-      !form.api_ou_name && "OUName",
-      !form.api_source_app && "SourceApp",
-    ].filter(Boolean)
-
-    setTestingApi(false)
-    if (camposFaltando.length > 0) {
-      setApiTestResult({ ok: false, message: `Preencha: ${camposFaltando.join(", ")}.` })
-    } else {
-      setApiTestResult({ ok: true, message: "Credenciais preenchidas. Integração ainda não implementada para esta seguradora." })
+    // Testa a credencial JÁ GRAVADA: o segredo é write_only e não está no
+    // formulário. Se acabou de digitar, salve antes de testar.
+    try {
+      const res = await fetch(`/api/seguradoras/${id}/testar-conexao/`, { method: "POST" })
+      const json = await res.json().catch(() => null)
+      const msg = json?.data?.mensagem
+      setApiTestResult({
+        ok: res.ok && json?.data?.ok === true,
+        message: msg || "Não foi possível testar a conexão.",
+      })
+    } catch {
+      setApiTestResult({ ok: false, message: "Erro ao testar a conexão." })
+    } finally {
+      setTestingApi(false)
     }
   }
 
@@ -240,6 +250,34 @@ export default function SeguradoraDetailPage() {
             Integração API
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Integração">
+              <select className={inputCls}
+                value={form.integracao ?? ""}
+                onChange={e => set("integracao", e.target.value)}>
+                <option value="">Nenhuma (manual)</option>
+                <option value="junto">Junto Seguros</option>
+              </select>
+            </Field>
+            <Field label="Ambiente">
+              <select className={inputCls}
+                value={form.api_ambiente ?? "sandbox"}
+                onChange={e => set("api_ambiente", e.target.value)}>
+                <option value="sandbox">Sandbox (testes)</option>
+                <option value="producao">Produção</option>
+              </select>
+            </Field>
+            <Field label="Client ID">
+              <input className={inputCls} type="text" autoComplete="off"
+                placeholder="clientId da API v2"
+                value={form.api_client_id ?? ""}
+                onChange={e => set("api_client_id", e.target.value)} />
+            </Field>
+            <Field label="Client Secret">
+              <input className={inputCls} type="password" autoComplete="new-password"
+                placeholder={form.tem_credencial_api ? "•••••• (já configurado)" : "clientSecret da API v2"}
+                value={form.api_client_secret ?? ""}
+                onChange={e => set("api_client_secret", e.target.value)} />
+            </Field>
             <Field label="Usuário">
               <input className={inputCls} type="text" autoComplete="off"
                 placeholder="Usuário da API"
@@ -265,6 +303,12 @@ export default function SeguradoraDetailPage() {
                 onChange={e => set("api_source_app", e.target.value)} />
             </Field>
           </div>
+
+          <p className="text-[11px] text-zinc-400 dark:text-zinc-500 -mt-1">
+            O Client Secret nunca volta do servidor. Deixe em branco para manter o
+            atual; preencha só para trocar. &quot;Testar API&quot; valida o que já está
+            salvo, então salve antes de testar.
+          </p>
 
           <div className="flex items-center gap-3">
             <button type="button" onClick={handleTestApi} disabled={testingApi}

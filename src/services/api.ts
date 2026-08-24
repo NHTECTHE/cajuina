@@ -266,6 +266,10 @@ export interface SeguradoraResponse {
   taxa_comissao: string | null;
   vencimento_dias: number | null;
   ativo: boolean;
+  /** `""` = emissão manual; `"junto"` = Junto Seguros API v2. */
+  integracao: string;
+  /** O backend diz que a credencial existe sem devolver o segredo. */
+  tem_credencial_api: boolean;
   criado_em: string;
   atualizado_em: string;
 }
@@ -346,6 +350,9 @@ export interface CotacaoResponse {
   data_final: string | null;
   importancia_segurada: string | null;
   premio: string | null;
+  /** Prêmio real da seguradora escolhida, quando ela já foi cotada. `null` no
+   *  caso contrário — aí vale o `premio`, que é a nossa estimativa. */
+  premio_seguradora: string | null;
   observacoes: string;
   criado_por: number | null;
   criado_por_nome: string | null;
@@ -410,6 +417,87 @@ export const cotacoesApi = {
     });
     return handleApiResponse<ApoliceResponse>(response);
   },
+};
+
+// ─── Emissão integrada com a seguradora ──────────────────────────────────────
+
+export interface ParcelaEmissao {
+  numero: number;
+  vencimento: string | null;
+  /** Dinheiro chega como string para não perder centavo no float do JS. */
+  valor: string;
+  iof: string;
+  custo_apolice: string;
+  adicional_fracionamento: string;
+}
+
+export interface OpcaoParcelamento {
+  numero_parcelas: number;
+  vencimento_primeira_parcela: string | null;
+  premio_total: string;
+  parcelas: ParcelaEmissao[];
+}
+
+export interface PendenciaEmissao {
+  codigo: number;
+  descricao: string;
+  departamento: string;
+  /** E-mail do setor da seguradora que resolve esta pendência. */
+  email: string;
+}
+
+export type EtapaEmissao = "cotada" | "minuta" | "aguardando" | "emitida" | "recusada";
+
+export interface EmissaoResponse {
+  id: number;
+  cotacao: number;
+  seguradora: number;
+  seguradora_nome: string;
+  integracao: string;
+  ambiente: "sandbox" | "producao";
+  etapa: EtapaEmissao;
+  external_id: string;
+  document_number: string;
+  premio_liquido: string | null;
+  premio_total: string | null;
+  taxa: string | null;
+  comissao_percentual: string | null;
+  comissao_valor: string | null;
+  numero_parcelas: number | null;
+  numero_max_parcelas: number | null;
+  opcoes_parcelamento: OpcaoParcelamento[];
+  tem_pendencias: boolean;
+  pendencias: PendenciaEmissao[];
+  anexos_enviados: number;
+  codigo_retorno: string;
+  mensagem: string;
+  url_cotacao: string;
+  url_minuta: string;
+  tem_apolice: boolean;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+export const emissaoApi = {
+  /** Estado persistido do wizard: uma linha por seguradora já cotada. */
+  estado: (cotacaoId: number) =>
+    apiRequest<EmissaoResponse[]>(`/cotacoes/${cotacaoId}/emissao`),
+
+  /** Passo 1 para uma seguradora. Chamar de novo não duplica: o backend vira
+   *  PUT na seguradora em vez de criar uma segunda cotação lá. */
+  cotar: (cotacaoId: number, seguradoraId: number) =>
+    apiRequest<EmissaoResponse>(`/cotacoes/${cotacaoId}/emissao/cotar`, {
+      method: "POST",
+      body: JSON.stringify({ seguradora: seguradoraId }),
+    }),
+
+  /** Passo 2. `forcarUrl` traz o PDF mesmo com pendências — a Junto devolve o
+   *  link vazio quando há alguma, e seguir assim é decisão do usuário. */
+  minuta: (cotacaoId: number, seguradoraId: number, forcarUrl = false) =>
+    apiRequest<EmissaoResponse>(`/cotacoes/${cotacaoId}/emissao/minuta`, {
+      method: "POST",
+      body: JSON.stringify({ seguradora: seguradoraId, forcar_url: forcarUrl }),
+    }),
 };
 
 export interface EmitirPayload {

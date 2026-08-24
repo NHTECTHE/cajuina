@@ -47,10 +47,12 @@ import {
 } from "@/components/ui/dialog"
 import {
   cotacoesApi,
+  emissaoApi,
   seguradorasApi,
   tomadoresApi,
   getTomadorSeguradoraVinculo,
   type CotacaoResponse,
+  type EmissaoResponse,
   type SeguradoraResponse,
 } from "@/services/api"
 import { toast } from "sonner"
@@ -125,6 +127,10 @@ export default function PropostasPage() {
   }, [view, selected]);
 
   const [showFormaEmissaoModal, setShowFormaEmissaoModal] = useState(false)
+  // Emissão integrada — passo 1 (cotar na seguradora).
+  const [emissao, setEmissao] = useState<EmissaoResponse | null>(null)
+  const [cotandoNaSeguradora, setCotandoNaSeguradora] = useState(false)
+  const [showEmissaoModal, setShowEmissaoModal] = useState(false)
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
 
@@ -162,6 +168,10 @@ export default function PropostasPage() {
   const [emitindo, setEmitindo] = useState(false)
   
   const [calculatedPremio, setCalculatedPremio] = useState<number | null>(null)
+
+  // O prêmio da seguradora ganha do estimado: depois de cotar de verdade,
+  // mostrar o cálculo local seria mostrar um preço que ninguém honra.
+  const premioExibido = selected?.premio_seguradora ?? calculatedPremio ?? selected?.premio
 
   // Calcula o vencimento do boleto (hoje + dias_vencimento_efetivo do par
   // tomador x seguradora). Roda ao abrir a proposta, pois a data é exibida
@@ -224,14 +234,14 @@ IS: ${formatBRL(selected.importancia_segurada)}
 Prazo: ${selected.prazo_dias != null ? `${selected.prazo_dias} Dias` : '—'}
 Início: ${isoToBR(selected.data_inicio)}
 Fim: ${isoToBR(selected.data_final)}
-Valor (Prêmio): ${formatBRL(calculatedPremio ?? selected.premio)}
+Valor (Prêmio): ${formatBRL(premioExibido)}
 Seguradora: ${selected.seguradora_nome || seguradoras.find(s => s.id === seguradoraEscolhidaId)?.nome || '—'}
 Vencimento do Boleto: ${isoToBR(vencimentoBoleto) || '—'}
 
 Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o nosso suporte:
 
 (86) 3081-0282`
-  }, [selected, vencimentoBoleto, seguradoras, seguradoraEscolhidaId, calculatedPremio])
+  }, [selected, vencimentoBoleto, seguradoras, seguradoraEscolhidaId, premioExibido])
 
 
   const editableMessage = mensagemEditada ?? generatedMessage
@@ -369,6 +379,57 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
       toast.error(err instanceof Error ? err.message : "Erro ao excluir a proposta.")
     } finally {
       setDeleteTarget(null)
+    }
+  }
+
+  // A lista vem por seguradora; aqui interessa a da escolhida. Sem isto o
+  // modal reoferece "cotar" numa cotação que já foi cotada.
+  React.useEffect(() => {
+    const id = selected?.id
+    const seguradoraId = selected?.seguradora
+    if (!id || !seguradoraId) return
+    let ativo = true
+    emissaoApi
+      .estado(id)
+      .then((lista) => {
+        if (!ativo) return
+        setEmissao(lista.find((e) => e.seguradora === seguradoraId) ?? null)
+      })
+      .catch(() => {
+        if (ativo) setEmissao(null)
+      })
+    return () => {
+      ativo = false
+    }
+  }, [selected?.id, selected?.seguradora])
+
+  // Passo 1 da emissão integrada: manda a cotação para a seguradora e traz
+  // prêmio, taxa, comissão e parcelamento reais. Não emite nada ainda — a
+  // apólice só nasce nos passos seguintes do wizard.
+  //
+  // Chamar de novo é seguro: o backend vira PUT na seguradora em vez de criar
+  // uma segunda cotação lá.
+  const handleCotarNaSeguradora = async () => {
+    if (!selected?.seguradora) {
+      toast.error("Escolha a seguradora antes de cotar.")
+      return
+    }
+
+    setCotandoNaSeguradora(true)
+    try {
+      const resultado = await emissaoApi.cotar(selected.id, selected.seguradora)
+      setEmissao(resultado)
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`forma_emissao_${selected.id}`, "api")
+      }
+      setShowFormaEmissaoModal(false)
+      setShowEmissaoModal(true)
+    } catch (err) {
+      // A mensagem vem da seguradora quando o erro é de negócio ("limite
+      // insuficiente", "tomador não cadastrado") — é o que o usuário precisa ler.
+      toast.error(err instanceof Error ? err.message : "Não foi possível cotar na seguradora.")
+    } finally {
+      setCotandoNaSeguradora(false)
     }
   }
 
@@ -688,7 +749,7 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                 <div>
                   <div className="mb-4">
                     <span className="text-[10px] text-zinc-500 uppercase tracking-wide">VALOR (PRÊMIO)</span>
-                    <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5">{formatBRL(calculatedPremio ?? selected.premio)}</p>
+                    <p className="text-[13px] text-zinc-800 dark:text-zinc-200 font-bold mt-0.5">{formatBRL(premioExibido)}</p>
                   </div>
                   <div>
                     <span className="text-[10px] text-zinc-500 uppercase tracking-wide">VENCIMENTO</span>
@@ -744,7 +805,7 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                 <button 
                   onClick={() => {
                     if (selected) {
-                      const v = calculatedPremio ?? selected.premio
+                      const v = premioExibido
                       if (v != null) {
                         const num = Number(v)
                         if (!isNaN(num)) {
@@ -965,27 +1026,27 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
               ?
             </div>
             <DialogTitle className="text-lg font-bold text-zinc-900 dark:text-zinc-50 text-center">
-              Forma de Emissão
+              Como deseja seguir?
             </DialogTitle>
           </DialogHeader>
           <div className="py-1">
             <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center">
-              Como deseja realizar esta emissão?
+              Cotar na seguradora traz prêmio e parcelamento reais — a apólice
+              <span className="font-semibold"> não é emitida</span> nesse passo.
+              O cadastro manual registra uma apólice emitida fora do sistema.
             </p>
           </div>
           <div className="flex items-center justify-center gap-3 mt-4">
-            <button
-              type="button"
-              onClick={() => {
-                if (selected && typeof window !== "undefined") {
-                  localStorage.setItem(`forma_emissao_${selected.id}`, "api")
-                }
-                setShowFormaEmissaoModal(false)
-              }}
-              className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl text-xs font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-md shadow-green-600/20 transition-all active:scale-[0.98] cursor-pointer flex-1"
-            >
-              Utilizar API
-            </button>
+            {!emissao && (
+              <button
+                type="button"
+                onClick={handleCotarNaSeguradora}
+                disabled={cotandoNaSeguradora}
+                className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl text-xs font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-md shadow-green-600/20 transition-all active:scale-[0.98] cursor-pointer flex-1 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {cotandoNaSeguradora ? "Cotando…" : "Cotar na seguradora"}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -996,9 +1057,122 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
               }}
               className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl text-xs font-bold uppercase tracking-wide text-white bg-brand-red hover:bg-brand-red/90 shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] cursor-pointer flex-1"
             >
-              Cadastrar Manualmente
+              Cadastrar manualmente
             </button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ──── MODAL RESULTADO DA COTAÇÃO NA SEGURADORA ──── */}
+      <Dialog open={showEmissaoModal} onOpenChange={setShowEmissaoModal}>
+        <DialogContent className="sm:max-w-lg rounded-2xl p-6 border-zinc-200 dark:border-zinc-800">
+          <DialogHeader>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">
+              Passo 1 de 3 · Cotação
+            </p>
+            <DialogTitle className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
+              Cotação criada na {emissao?.seguradora_nome}
+            </DialogTitle>
+          </DialogHeader>
+
+          {emissao && (
+            <div className="space-y-4">
+              {emissao.ambiente === "sandbox" && (
+                <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 px-3 py-2">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                    Ambiente de testes (sandbox)
+                  </p>
+                  <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80 mt-0.5">
+                    Esta cotação não tem validade comercial.
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">Prêmio total</p>
+                  <p className="text-base font-bold text-zinc-900 dark:text-zinc-50 mt-0.5">
+                    {formatBRL(emissao.premio_total)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">Prêmio líquido</p>
+                  <p className="text-base font-bold text-zinc-900 dark:text-zinc-50 mt-0.5">
+                    {formatBRL(emissao.premio_liquido)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">Taxa</p>
+                  <p className="text-sm font-bold text-zinc-900 dark:text-zinc-50 mt-0.5">
+                    {emissao.taxa ? `${Number(emissao.taxa).toLocaleString("pt-BR", { maximumFractionDigits: 6 })}%` : "—"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">Comissão</p>
+                  <p className="text-sm font-bold text-zinc-900 dark:text-zinc-50 mt-0.5">
+                    {emissao.comissao_percentual ? `${Number(emissao.comissao_percentual).toLocaleString("pt-BR")}%` : "—"}
+                    <span className="font-normal text-zinc-500"> · {formatBRL(emissao.comissao_valor)}</span>
+                  </p>
+                </div>
+              </div>
+
+              {emissao.opcoes_parcelamento.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-500 mb-1.5">
+                    Parcelamento
+                    {emissao.numero_max_parcelas ? ` (até ${emissao.numero_max_parcelas}x)` : ""}
+                  </p>
+                  <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {emissao.opcoes_parcelamento[0].parcelas.map((parcela) => (
+                      <div key={parcela.numero} className="flex items-center justify-between px-3 py-2">
+                        <span className="text-xs text-zinc-600 dark:text-zinc-400">
+                          {parcela.numero}ª parcela
+                          {parcela.vencimento ? ` · vence ${isoToBR(parcela.vencimento)}` : ""}
+                        </span>
+                        <span className="text-xs font-bold text-zinc-900 dark:text-zinc-50">
+                          {formatBRL(parcela.valor)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sem isto o usuário fecha o modal achando que emitiu: ele veio
+                  de uma pergunta sobre como seguir e recebeu números de volta. */}
+              <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-2">
+                <p className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300">
+                  A apólice ainda não foi emitida.
+                </p>
+                <p className="text-[11px] text-zinc-500 mt-0.5">
+                  Faltam a minuta (passo 2) e a emissão (passo 3). Até lá, nada foi
+                  contratado na seguradora e esta cotação pode ser refeita.
+                </p>
+              </div>
+
+              <p className="text-[11px] text-zinc-500">
+                Identificador na seguradora: <span className="font-mono">{emissao.external_id}</span>
+              </p>
+            </div>
+          )}
+
+          <DialogFooter className="mt-2">
+            <div className="flex items-center justify-end gap-2 w-full">
+              {emissao?.url_cotacao && (
+                <a
+                  href={emissao.url_cotacao}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center h-10 px-5 rounded-xl text-xs font-bold uppercase tracking-wide border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all"
+                >
+                  Ver na seguradora
+                </a>
+              )}
+              <Button onClick={() => setShowEmissaoModal(false)} className="h-10 px-5 rounded-xl text-xs font-bold uppercase tracking-wide">
+                Continuar depois
+              </Button>
+            </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

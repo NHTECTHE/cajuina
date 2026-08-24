@@ -53,8 +53,13 @@ export async function loginAction(formData: FormData) {
     }
 
     return { success: true }
-  } catch (e: unknown) { console.error("ACTION ERROR:", e);
-    return { error: 'Ocorreu um erro ao conectar com o servidor.' }
+  } catch (e: unknown) {
+    // O detalhe fica no log do servidor; a tela de login não expõe a topologia
+    // interna (URL do backend) para quem ainda nem se autenticou.
+    const err = e as Error
+    console.error("LOGIN falhou:", `${API_URL}/auth/login/`, err?.stack ?? err?.message ?? e)
+
+    return { error: 'Não foi possível conectar ao servidor. Tente novamente em instantes.' }
   }
 }
 
