@@ -353,6 +353,9 @@ export interface CotacaoResponse {
   /** Prêmio real da seguradora escolhida, quando ela já foi cotada. `null` no
    *  caso contrário — aí vale o `premio`, que é a nossa estimativa. */
   premio_seguradora: string | null;
+  /** Alguma seguradora ficou com a emissão em análise nesta simulação. Serve
+   *  ao selo da lista, para não ser preciso abrir cotação por cotação. */
+  emissao_aguardando: boolean;
   observacoes: string;
   criado_por: number | null;
   criado_por_nome: string | null;
@@ -448,6 +451,12 @@ export interface PendenciaEmissao {
 
 export type EtapaEmissao = "cotada" | "minuta" | "aguardando" | "emitida" | "recusada";
 
+/** Um documento já anexado à análise, como a seguradora o enumera de volta. */
+export interface AnexoEmissao {
+  nome: string;
+  tamanho: number;
+}
+
 export interface EmissaoResponse {
   id: number;
   cotacao: number;
@@ -469,10 +478,21 @@ export interface EmissaoResponse {
   tem_pendencias: boolean;
   pendencias: PendenciaEmissao[];
   anexos_enviados: number;
+  anexos: AnexoEmissao[];
+  /** Número da apólice na seguradora. Vazio enquanto ela não emite. */
+  policy_number: string;
+  emitida_em: string | null;
+  condicoes_adicionais: string;
+  /** `quoteStatusId` e a descrição que a seguradora deu ao documento
+   *  (3 emitida, 6 em análise…). É o vocabulário dela; `etapa` é o nosso. */
   codigo_retorno: string;
   mensagem: string;
   url_cotacao: string;
   url_minuta: string;
+  /** PDFs finais. Só vêm preenchidos depois de emitida — a apólice integrada
+   *  não baixa arquivo, então é daqui que a tela oferece os documentos. */
+  url_apolice: string;
+  url_boleto: string;
   tem_apolice: boolean;
   criado_em: string;
   atualizado_em: string;
@@ -484,11 +504,14 @@ export const emissaoApi = {
     apiRequest<EmissaoResponse[]>(`/cotacoes/${cotacaoId}/emissao`),
 
   /** Passo 1 para uma seguradora. Chamar de novo não duplica: o backend vira
-   *  PUT na seguradora em vez de criar uma segunda cotação lá. */
-  cotar: (cotacaoId: number, seguradoraId: number) =>
+   *  PUT na seguradora em vez de criar uma segunda cotação lá.
+   *
+   *  `parcelas` é como se escolhe o parcelamento — a seguradora só aceita esse
+   *  campo na atualização, então a primeira cotação nunca o leva. */
+  cotar: (cotacaoId: number, seguradoraId: number, parcelas?: number) =>
     apiRequest<EmissaoResponse>(`/cotacoes/${cotacaoId}/emissao/cotar`, {
       method: "POST",
-      body: JSON.stringify({ seguradora: seguradoraId }),
+      body: JSON.stringify({ seguradora: seguradoraId, ...(parcelas ? { parcelas } : {}) }),
     }),
 
   /** Passo 2. `forcarUrl` traz o PDF mesmo com pendências — a Junto devolve o
@@ -497,6 +520,45 @@ export const emissaoApi = {
     apiRequest<EmissaoResponse>(`/cotacoes/${cotacaoId}/emissao/minuta`, {
       method: "POST",
       body: JSON.stringify({ seguradora: seguradoraId, forcar_url: forcarUrl }),
+    }),
+
+  /** Passo 3: documentos da análise. Obrigatório quando a minuta veio com
+   *  pendência — o backend recusa a emissão sem eles.
+   *
+   *  A resposta traz a lista **inteira** do que está anexado na seguradora, não
+   *  só o que subiu agora: reenviar um arquivo de mesmo nome sobrescreve lá. */
+  anexos: async (cotacaoId: number, seguradoraId: number, arquivos: File[]) => {
+    const form = new FormData();
+    form.append("seguradora", String(seguradoraId));
+    for (const arquivo of arquivos) form.append("arquivos", arquivo);
+
+    // Sem Content-Type manual: o browser define o boundary do multipart.
+    const response = await fetch(`/api/cotacoes/${cotacaoId}/emissao/anexos`, {
+      method: "POST",
+      body: form,
+    });
+    return handleApiResponse<EmissaoResponse>(response);
+  },
+
+  /** Passo 4. Dois desfechos, os dois normais: a seguradora emite na hora
+   *  (`etapa: "emitida"`, com `policy_number`) ou manda para análise humana
+   *  (`etapa: "aguardando"`). Leva de 20s a 40s. */
+  emitir: (cotacaoId: number, seguradoraId: number, condicoesAdicionais = "") =>
+    apiRequest<EmissaoResponse>(`/cotacoes/${cotacaoId}/emissao/emitir`, {
+      method: "POST",
+      body: JSON.stringify({
+        seguradora: seguradoraId,
+        condicoes_adicionais: condicoesAdicionais,
+      }),
+    }),
+
+  /** Relê o estado na seguradora. É o que tira uma emissão de "em análise":
+   *  a API da Junto não tem webhook, então ou alguém pergunta, ou a apólice
+   *  fica emitida lá e desconhecida aqui. */
+  sincronizar: (cotacaoId: number, seguradoraId: number) =>
+    apiRequest<EmissaoResponse>(`/cotacoes/${cotacaoId}/emissao/sincronizar`, {
+      method: "POST",
+      body: JSON.stringify({ seguradora: seguradoraId }),
     }),
 };
 
@@ -528,6 +590,12 @@ export interface ApoliceResponse {
   arquivo_apolice: string | null;
   arquivo_boleto: string | null;
   arquivo_proposta: string | null;
+  /** PDFs do lado da seguradora, quando a emissão foi integrada. Emissão
+   *  integrada não baixa arquivo, então os `arquivo_*` acima ficam vazios e é
+   *  por aqui que se chega no documento. Campos separados de propósito: um é
+   *  cópia nossa, o outro é link de terceiro, que pode expirar. */
+  url_apolice: string;
+  url_boleto: string;
   observacoes: string;
   status_pagamento_premio: string;
   status_pagamento_comissao: string;

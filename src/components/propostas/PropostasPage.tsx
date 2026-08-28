@@ -57,6 +57,9 @@ import {
 } from "@/services/api"
 import { toast } from "sonner"
 
+import { ModalEmitir } from "@/components/emissao/ModalEmitir"
+import { useEmissaoJobs } from "@/components/emissao/emissao-jobs"
+
 // Formata um decimal ("180.00") como moeda pt-BR. "—" quando não informado.
 function formatBRL(value: string | number | null | undefined): string {
   if (value === null || value === undefined || value === "") return "—"
@@ -97,8 +100,11 @@ function isoToBR(iso: string | null | undefined): string {
 export default function PropostasPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  // A emissão roda fora da tela: quem aperta "Emitir" não fica preso no
+  // spinner, e o resultado chega pelos ouvintes mais abaixo.
+  const { emitirApolice, aoConcluir, aoFalhar } = useEmissaoJobs()
   const [view, setView] = useState<"list" | "details">(() => {
-    if (searchParams?.get("abrirModal") === "true" || searchParams?.get("id")) return "details"
+    if (searchParams?.get("id")) return "details"
     if (typeof window !== "undefined") {
       const storedView = sessionStorage.getItem("propostas_view");
       if (storedView === "details") return "details";
@@ -126,11 +132,14 @@ export default function PropostasPage() {
     }
   }, [view, selected]);
 
-  const [showFormaEmissaoModal, setShowFormaEmissaoModal] = useState(false)
-  // Emissão integrada — passo 1 (cotar na seguradora).
+  // Estado da emissão integrada desta proposta, relido do backend.
   const [emissao, setEmissao] = useState<EmissaoResponse | null>(null)
-  const [cotandoNaSeguradora, setCotandoNaSeguradora] = useState(false)
-  const [showEmissaoModal, setShowEmissaoModal] = useState(false)
+  // Confirmação da emissão pela seguradora. Não é mais uma escolha feita na
+  // entrada da tela: quem aperta "Emitir" tenta a API, e o cadastro manual só
+  // aparece se ela não completar.
+  const [showEmitirIntegrada, setShowEmitirIntegrada] = useState(false)
+  const [emitindoIntegrada, setEmitindoIntegrada] = useState(false)
+  const [falhaEmissao, setFalhaEmissao] = useState<string | null>(null)
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
 
@@ -323,7 +332,6 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
   }, [])
 
   React.useEffect(() => {
-    const abrirModal = searchParams.get("abrirModal")
     const idParam = searchParams.get("id")
     if (idParam) {
       const numId = Number(idParam)
@@ -334,7 +342,6 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
           const stored = typeof window !== "undefined" ? localStorage.getItem(`seguradora_cotacao_${target.id}`) : null
           setSeguradoraEscolhidaId(stored ? Number(stored) : null)
           setView("details")
-          if (abrirModal === "true") setShowFormaEmissaoModal(true)
           router.replace("/dashboard/propostas", { scroll: false })
         }, 0)
       } else {
@@ -343,7 +350,6 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
           const stored = typeof window !== "undefined" ? localStorage.getItem(`seguradora_cotacao_${data.id}`) : null
           setSeguradoraEscolhidaId(stored ? Number(stored) : null)
           setView("details")
-          if (abrirModal === "true") setShowFormaEmissaoModal(true)
           router.replace("/dashboard/propostas", { scroll: false })
         }).catch(() => {})
       }
@@ -403,35 +409,6 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
     }
   }, [selected?.id, selected?.seguradora])
 
-  // Passo 1 da emissão integrada: manda a cotação para a seguradora e traz
-  // prêmio, taxa, comissão e parcelamento reais. Não emite nada ainda — a
-  // apólice só nasce nos passos seguintes do wizard.
-  //
-  // Chamar de novo é seguro: o backend vira PUT na seguradora em vez de criar
-  // uma segunda cotação lá.
-  const handleCotarNaSeguradora = async () => {
-    if (!selected?.seguradora) {
-      toast.error("Escolha a seguradora antes de cotar.")
-      return
-    }
-
-    setCotandoNaSeguradora(true)
-    try {
-      const resultado = await emissaoApi.cotar(selected.id, selected.seguradora)
-      setEmissao(resultado)
-      if (typeof window !== "undefined") {
-        localStorage.setItem(`forma_emissao_${selected.id}`, "api")
-      }
-      setShowFormaEmissaoModal(false)
-      setShowEmissaoModal(true)
-    } catch (err) {
-      // A mensagem vem da seguradora quando o erro é de negócio ("limite
-      // insuficiente", "tomador não cadastrado") — é o que o usuário precisa ler.
-      toast.error(err instanceof Error ? err.message : "Não foi possível cotar na seguradora.")
-    } finally {
-      setCotandoNaSeguradora(false)
-    }
-  }
 
   // Emite a apólice. Emitida, a proposta sai desta listagem (status vira
   // "Emitido") e vamos direto para os detalhes da apólice recém-criada,
@@ -467,6 +444,86 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
       setEmitindo(false)
     }
   }
+
+  /** Pré-preenche e abre o cadastro manual. É o caminho inteiro da seguradora
+   *  sem integração, e o fallback de quando a API não completa. */
+  const abrirManual = () => {
+    if (selected) {
+      const v = premioExibido
+      if (v != null) {
+        const num = Number(v)
+        if (!isNaN(num)) {
+          setValorSeguradoraEmissao(formatCurrency((num * 100).toFixed(0)))
+        }
+      }
+    }
+    setShowEmitirIntegrada(false)
+    setShowEmitirModal(true)
+  }
+
+  /** O "Emitir" da tela. Seguradora integrada abre a confirmação e tenta a
+   *  API; as outras vão direto para o cadastro manual, que é o caminho delas. */
+  const abrirEmissao = () => {
+    if (!seguradoraEscolhidaId) {
+      setShowSeguradoraAviso(true)
+      return
+    }
+    const seg = seguradoras.find(s => s.id === seguradoraEscolhidaId)
+    if (!seg?.integracao || !seg?.tem_credencial_api) {
+      abrirManual()
+      return
+    }
+    // Guarda de URL direta: o botão da cotação já impede chegar aqui sem
+    // minuta, mas /dashboard/propostas?id=X é alcançável na mão.
+    if (!emissao?.document_number) {
+      toast.error("Gere a minuta na tela de cotação antes de emitir.")
+      return
+    }
+    setFalhaEmissao(null)
+    setShowEmitirIntegrada(true)
+  }
+
+  const confirmarEmissaoIntegrada = (condicoes: string) => {
+    if (!selected || !emissao) return
+    setFalhaEmissao(null)
+    setEmitindoIntegrada(true)
+    emitirApolice(
+      {
+        cotacaoId: selected.id,
+        seguradoraId: emissao.seguradora,
+        cotacaoRotulo: `#${selected.id}`,
+        seguradoraNome: emissao.seguradora_nome,
+      },
+      condicoes
+    )
+  }
+
+  // O provider avisa quando a emissão termina. "Terminou" inclui ir para
+  // análise: o pedido chegou na seguradora, então a confirmação sai da tela.
+  React.useEffect(
+    () =>
+      aoConcluir(resultado => {
+        if (resultado.cotacaoId !== selected?.id) return
+        setEmissao(resultado.emissao)
+        if (resultado.tipo === "emissao") {
+          setEmitindoIntegrada(false)
+          setShowEmitirIntegrada(false)
+        }
+      }),
+    [aoConcluir, selected?.id]
+  )
+
+  // Não completou: o motivo fica no diálogo, ao lado do caminho manual. Sem
+  // isto a corretora só veria um toast que some em cinco segundos.
+  React.useEffect(
+    () =>
+      aoFalhar(falha => {
+        if (falha.cotacaoId !== selected?.id || falha.tipo !== "emissao") return
+        setEmitindoIntegrada(false)
+        setFalhaEmissao(falha.motivo)
+      }),
+    [aoFalhar, selected?.id]
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -803,18 +860,7 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                   Editar
                 </button>
                 <button 
-                  onClick={() => {
-                    if (selected) {
-                      const v = premioExibido
-                      if (v != null) {
-                        const num = Number(v)
-                        if (!isNaN(num)) {
-                          setValorSeguradoraEmissao(formatCurrency((num * 100).toFixed(0)))
-                        }
-                      }
-                    }
-                    setShowEmitirModal(true)
-                  }}
+                  onClick={abrirEmissao}
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-10.5 sm:px-6 rounded-xl bg-brand-red text-white hover:bg-brand-red/90 font-bold text-xs shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] cursor-pointer"
                 >
                   <CheckCircle2 className="size-4" />
@@ -1019,162 +1065,29 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
       </Dialog>
 
       {/* ──── MODAL FORMA DE EMISSÃO ──── */}
-      <Dialog open={showFormaEmissaoModal} onOpenChange={setShowFormaEmissaoModal}>
-        <DialogContent className="sm:max-w-md rounded-2xl p-6 text-center border-zinc-200 dark:border-zinc-800">
-          <DialogHeader className="flex flex-col items-center justify-center">
-            <div className="w-16 h-16 rounded-full border-2 border-dashed border-zinc-200 dark:border-zinc-700 flex items-center justify-center mx-auto mb-3 text-2xl font-light text-zinc-400">
-              ?
-            </div>
-            <DialogTitle className="text-lg font-bold text-zinc-900 dark:text-zinc-50 text-center">
-              Como deseja seguir?
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-1">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center">
-              Cotar na seguradora traz prêmio e parcelamento reais — a apólice
-              <span className="font-semibold"> não é emitida</span> nesse passo.
-              O cadastro manual registra uma apólice emitida fora do sistema.
-            </p>
-          </div>
-          <div className="flex items-center justify-center gap-3 mt-4">
-            {!emissao && (
-              <button
-                type="button"
-                onClick={handleCotarNaSeguradora}
-                disabled={cotandoNaSeguradora}
-                className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl text-xs font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-md shadow-green-600/20 transition-all active:scale-[0.98] cursor-pointer flex-1 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {cotandoNaSeguradora ? "Cotando…" : "Cotar na seguradora"}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                if (selected && typeof window !== "undefined") {
-                  localStorage.setItem(`forma_emissao_${selected.id}`, "manual")
-                }
-                setShowFormaEmissaoModal(false)
-              }}
-              className="inline-flex items-center justify-center gap-2 h-10.5 px-6 rounded-xl text-xs font-bold uppercase tracking-wide text-white bg-brand-red hover:bg-brand-red/90 shadow-md shadow-brand-red/10 transition-all active:scale-[0.98] cursor-pointer flex-1"
-            >
-              Cadastrar manualmente
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* ──── MODAL RESULTADO DA COTAÇÃO NA SEGURADORA ──── */}
-      <Dialog open={showEmissaoModal} onOpenChange={setShowEmissaoModal}>
-        <DialogContent className="sm:max-w-lg rounded-2xl p-6 border-zinc-200 dark:border-zinc-800">
-          <DialogHeader>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">
-              Passo 1 de 3 · Cotação
-            </p>
-            <DialogTitle className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
-              Cotação criada na {emissao?.seguradora_nome}
-            </DialogTitle>
-          </DialogHeader>
+      {/* ──── CONFIRMAÇÃO DA EMISSÃO PELA SEGURADORA ────
 
-          {emissao && (
-            <div className="space-y-4">
-              {emissao.ambiente === "sandbox" && (
-                <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 px-3 py-2">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400">
-                    Ambiente de testes (sandbox)
-                  </p>
-                  <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80 mt-0.5">
-                    Esta cotação não tem validade comercial.
-                  </p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">Prêmio total</p>
-                  <p className="text-base font-bold text-zinc-900 dark:text-zinc-50 mt-0.5">
-                    {formatBRL(emissao.premio_total)}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">Prêmio líquido</p>
-                  <p className="text-base font-bold text-zinc-900 dark:text-zinc-50 mt-0.5">
-                    {formatBRL(emissao.premio_liquido)}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">Taxa</p>
-                  <p className="text-sm font-bold text-zinc-900 dark:text-zinc-50 mt-0.5">
-                    {emissao.taxa ? `${Number(emissao.taxa).toLocaleString("pt-BR", { maximumFractionDigits: 6 })}%` : "—"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">Comissão</p>
-                  <p className="text-sm font-bold text-zinc-900 dark:text-zinc-50 mt-0.5">
-                    {emissao.comissao_percentual ? `${Number(emissao.comissao_percentual).toLocaleString("pt-BR")}%` : "—"}
-                    <span className="font-normal text-zinc-500"> · {formatBRL(emissao.comissao_valor)}</span>
-                  </p>
-                </div>
-              </div>
-
-              {emissao.opcoes_parcelamento.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-500 mb-1.5">
-                    Parcelamento
-                    {emissao.numero_max_parcelas ? ` (até ${emissao.numero_max_parcelas}x)` : ""}
-                  </p>
-                  <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800">
-                    {emissao.opcoes_parcelamento[0].parcelas.map((parcela) => (
-                      <div key={parcela.numero} className="flex items-center justify-between px-3 py-2">
-                        <span className="text-xs text-zinc-600 dark:text-zinc-400">
-                          {parcela.numero}ª parcela
-                          {parcela.vencimento ? ` · vence ${isoToBR(parcela.vencimento)}` : ""}
-                        </span>
-                        <span className="text-xs font-bold text-zinc-900 dark:text-zinc-50">
-                          {formatBRL(parcela.valor)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Sem isto o usuário fecha o modal achando que emitiu: ele veio
-                  de uma pergunta sobre como seguir e recebeu números de volta. */}
-              <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-2">
-                <p className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300">
-                  A apólice ainda não foi emitida.
-                </p>
-                <p className="text-[11px] text-zinc-500 mt-0.5">
-                  Faltam a minuta (passo 2) e a emissão (passo 3). Até lá, nada foi
-                  contratado na seguradora e esta cotação pode ser refeita.
-                </p>
-              </div>
-
-              <p className="text-[11px] text-zinc-500">
-                Identificador na seguradora: <span className="font-mono">{emissao.external_id}</span>
-              </p>
-            </div>
-          )}
-
-          <DialogFooter className="mt-2">
-            <div className="flex items-center justify-end gap-2 w-full">
-              {emissao?.url_cotacao && (
-                <a
-                  href={emissao.url_cotacao}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center h-10 px-5 rounded-xl text-xs font-bold uppercase tracking-wide border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all"
-                >
-                  Ver na seguradora
-                </a>
-              )}
-              <Button onClick={() => setShowEmissaoModal(false)} className="h-10 px-5 rounded-xl text-xs font-bold uppercase tracking-wide">
-                Continuar depois
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+           Um diálogo só, não dois: quem aperta "Emitir" está sempre
+           confirmando, e a pendência é conteúdo a mais dentro da mesma
+           confirmação. O cadastro manual aparece aqui dentro, e só depois de
+           uma tentativa que não completou. */}
+      {selected && emissao && (
+        <ModalEmitir
+          // Remonta a cada abertura para não herdar o rascunho da anterior.
+          key={`${selected.id}:${emissao.seguradora}:${showEmitirIntegrada}`}
+          aberto={showEmitirIntegrada}
+          aoFechar={() => setShowEmitirIntegrada(false)}
+          emissao={emissao}
+          cotacaoId={selected.id}
+          cotacaoRotulo={`#${selected.id}`}
+          aoAtualizar={setEmissao}
+          aoConfirmar={confirmarEmissaoIntegrada}
+          emitindo={emitindoIntegrada}
+          falha={falhaEmissao}
+          aoEmitirManual={abrirManual}
+        />
+      )}
 
     </div>
   )

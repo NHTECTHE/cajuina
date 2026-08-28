@@ -28,3 +28,18 @@ export function getMediaUrl(url: string | null | undefined): string {
   // Se for URL relativa (/media/...)
   return `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
 }
+
+// Formata um valor decimal (número ou string, ex.: "180.00") como moeda pt-BR
+// "R$ 180,00". Retorna "—" quando o valor não é informado.
+//
+// Mora aqui, e não na página, porque a emissão mostra dinheiro em duas telas:
+// os cards de seguradora e o modal de emissão. Duas cópias divergiriam.
+export function formatBRL(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === "") return "—"
+  const num = typeof value === "number" ? value : Number(value)
+  if (!Number.isFinite(num)) return "—"
+  return num.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  })
+}

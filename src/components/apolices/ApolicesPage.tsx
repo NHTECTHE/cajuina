@@ -512,8 +512,7 @@ Agradecemos a confiança!`
                         <button 
                           onClick={(e) => {
                             e.stopPropagation()
-                            if (a.arquivo_apolice) window.open(a.arquivo_apolice, "_blank")
-                            else toast.error("Arquivo da Apólice não anexado nesta cotação.")
+                            abrirDocumento(a.arquivo_apolice, a.url_apolice, "Arquivo da Apólice não anexado nesta cotação.")
                           }}
                           className="w-6 h-6 rounded border border-red-200 text-[#e85c5c] dark:text-[#e85c5c] flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title="Visualizar PDF Apólice">
                           <FileDown className="size-3.5" />
@@ -521,8 +520,7 @@ Agradecemos a confiança!`
                         <button 
                           onClick={(e) => {
                             e.stopPropagation()
-                            if (a.arquivo_boleto) window.open(a.arquivo_boleto, "_blank")
-                            else toast.error("Boleto/Financeiro não anexado nesta cotação.")
+                            abrirDocumento(a.arquivo_boleto, a.url_boleto, "Boleto/Financeiro não anexado nesta cotação.")
                           }}
                           className="w-6 h-6 rounded border border-zinc-200 text-zinc-500 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" title="Financeiro / Boleto">
                           <DollarSign className="size-3.5" />
@@ -538,8 +536,7 @@ Agradecemos a confiança!`
                           <button 
                             onClick={(e) => {
                               e.stopPropagation()
-                              if (a.arquivo_apolice) window.open(a.arquivo_apolice, "_blank")
-                              else toast.error("Arquivo da Apólice não anexado.")
+                              abrirDocumento(a.arquivo_apolice, a.url_apolice, "Arquivo da Apólice não anexado.")
                             }}
                             className="w-7 h-7 rounded border border-red-200 text-[#e85c5c] dark:text-[#cf7458] flex items-center justify-center bg-red-50/50 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title="Visualizar PDF Apólice" style={{backgroundColor:"transparent"}}>
                             <FileDown className="size-4" />
@@ -547,8 +544,7 @@ Agradecemos a confiança!`
                           <button 
                             onClick={(e) => {
                               e.stopPropagation()
-                              if (a.arquivo_boleto) window.open(a.arquivo_boleto, "_blank")
-                              else toast.error("Boleto não anexado.")
+                              abrirDocumento(a.arquivo_boleto, a.url_boleto, "Boleto não anexado.")
                             }}
                             className="w-7 h-7 rounded border border-zinc-200 text-zinc-500 flex items-center justify-center bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors" title="Financeiro / Boleto">
                             <DollarSign className="size-4" />
@@ -884,8 +880,7 @@ Agradecemos a confiança!`
                 <div className="w-32 flex justify-center">
                   <button 
                     onClick={() => {
-                      if (selected.arquivo_apolice) window.open(selected.arquivo_apolice, "_blank")
-                      else toast.error("Arquivo da Apólice não anexado.")
+                      abrirDocumento(selected.arquivo_apolice, selected.url_apolice, "Arquivo da Apólice não anexado.")
                     }} 
                     className="hover:scale-110 transition-transform"
                   >
@@ -899,8 +894,7 @@ Agradecemos a confiança!`
                 <div className="w-32 flex justify-center">
                   <button 
                     onClick={() => {
-                      if (selected.arquivo_boleto) window.open(selected.arquivo_boleto, "_blank")
-                      else toast.error("Arquivo do Boleto não anexado.")
+                      abrirDocumento(selected.arquivo_boleto, selected.url_boleto, "Arquivo do Boleto não anexado.")
                     }} 
                     className="hover:scale-110 transition-transform"
                   >
@@ -1254,6 +1248,28 @@ Agradecemos a confiança!`
 
     </div>
   )
+}
+
+/** Abre o documento da apólice, venha ele de onde vier.
+ *
+ *  Há duas origens possíveis, e nem toda apólice tem as duas. A emissão manual
+ *  guarda o PDF que alguém anexou (`arquivo_*`, cópia nossa). A emissão
+ *  integrada não baixa arquivo — foi decisão de projeto — e deixa só o link da
+ *  seguradora (`url_*`). Sem este fallback a apólice emitida pela integração
+ *  aparece na lista e o botão não leva a lugar nenhum.
+ *
+ *  A cópia nossa tem precedência: ela não expira, o link de terceiro pode. */
+function abrirDocumento(
+  arquivo: string | null | undefined,
+  urlSeguradora: string | null | undefined,
+  ausente: string
+) {
+  const destino = arquivo || urlSeguradora
+  if (!destino) {
+    toast.error(ausente)
+    return
+  }
+  window.open(destino, "_blank", "noopener,noreferrer")
 }
 
 export default function ApolicesPage() {

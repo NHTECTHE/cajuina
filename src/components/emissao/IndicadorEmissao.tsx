@@ -1,9 +1,9 @@
 "use client"
 
 import { Loader2 } from "lucide-react"
-import { chaveJob, useEmissaoJobs } from "./emissao-jobs"
+import { ROTULO_JOB, chaveJob, useEmissaoJobs } from "./emissao-jobs"
 
-/** Pílula fixa com o que está sendo gerado agora.
+/** Pílula fixa com o que está em curso agora — minuta ou emissão.
  *
  *  Fica no layout, e não na página, porque o ponto todo é continuar visível
  *  depois que o usuário sai de Cotações. Some sozinha quando não há job. */
@@ -21,7 +21,7 @@ export function IndicadorEmissao() {
           <Loader2 className="size-4 animate-spin text-brand-red dark:text-[#cf7458] shrink-0" />
           <div className="flex flex-col leading-tight">
             <span className="text-[12px] font-bold text-zinc-800 dark:text-zinc-100">
-              Gerando minuta · {job.seguradoraNome}
+              {ROTULO_JOB[job.tipo]} · {job.seguradoraNome}
             </span>
             <span className="text-[10.5px] text-zinc-500 dark:text-zinc-400">
               Cotação {job.cotacaoRotulo} · você pode continuar usando o sistema
