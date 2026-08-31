@@ -26,6 +26,7 @@ import { formatBRL } from "@/lib/utils"
 import { emissaoApi, type EmissaoResponse } from "@/services/api"
 
 import {
+  AvisoDesatualizada,
   EXTENSOES,
   ListaPendencias,
   Parcelamento,
@@ -90,6 +91,23 @@ export function ModalEmitir({
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Não foi possível trocar o parcelamento."
+      )
+    } finally {
+      setRecotando(false)
+    }
+  }
+
+  /** Mesmo caminho do painel: sem `parcelas`, o backend vira `PUT` na
+   *  seguradora. Existe aqui também porque é nesta tela que a emissão é
+   *  recusada por "a cotação mudou". */
+  const recotar = async () => {
+    setRecotando(true)
+    try {
+      aoAtualizar(await emissaoApi.cotar(cotacaoId, seguradoraId))
+      toast.success("Cotação atualizada na seguradora.")
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Não foi possível recotar na seguradora."
       )
     } finally {
       setRecotando(false)
@@ -169,6 +187,13 @@ export function ModalEmitir({
             </dd>
           </div>
         </dl>
+
+        <AvisoDesatualizada
+          emissao={emissao}
+          travado={travado}
+          recotando={recotando}
+          aoRecotar={recotar}
+        />
 
         {/* ─── Pendências, quando há ─── */}
         {temPendencia && (

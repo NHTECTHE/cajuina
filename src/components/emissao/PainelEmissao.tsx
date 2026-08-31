@@ -15,7 +15,12 @@ import { Button } from "@/components/ui/button"
 import { formatBRL } from "@/lib/utils"
 import { emissaoApi, type EmissaoResponse } from "@/services/api"
 
-import { ListaPendencias, Parcelamento, SeloEtapa } from "./emissao-comum"
+import {
+  AvisoDesatualizada,
+  ListaPendencias,
+  Parcelamento,
+  SeloEtapa,
+} from "./emissao-comum"
 import { useEmissaoJobs } from "./emissao-jobs"
 
 interface Props {
@@ -71,6 +76,23 @@ export function PainelEmissao({
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Não foi possível trocar o parcelamento."
+      )
+    } finally {
+      setRecotando(false)
+    }
+  }
+
+  /** Reenvia os dados atuais da cotação. É o mesmo endpoint do parcelamento,
+   *  sem `parcelas`: o backend transforma a segunda chamada em `PUT` lá dentro,
+   *  então não nasce cotação órfã contando contra o limite do tomador. */
+  const recotar = async () => {
+    setRecotando(true)
+    try {
+      aoAtualizar(await emissaoApi.cotar(cotacaoId, seguradoraId))
+      toast.success("Cotação atualizada na seguradora.")
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Não foi possível recotar na seguradora."
       )
     } finally {
       setRecotando(false)
@@ -140,6 +162,13 @@ export function PainelEmissao({
           </dd>
         </div>
       </dl>
+
+      <AvisoDesatualizada
+        emissao={emissao}
+        travado={travado}
+        recotando={recotando}
+        aoRecotar={recotar}
+      />
 
       {/* ─── Parcelamento ─── */}
       {emissao.opcoes_parcelamento.length > 0 && (

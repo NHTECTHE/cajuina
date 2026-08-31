@@ -494,6 +494,9 @@ export interface EmissaoResponse {
   url_apolice: string;
   url_boleto: string;
   tem_apolice: boolean;
+  /** A cotação foi editada depois de ir para a seguradora. Enquanto for `true`
+   *  o backend recusa a emissão — recotar é o caminho de volta. */
+  desatualizada: boolean;
   criado_em: string;
   atualizado_em: string;
 }

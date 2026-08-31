@@ -14,10 +14,11 @@ async function backendHeaders() {
 
 /** Passo 1: cria (ou recalcula) a cotação na seguradora integrada.
  *
- *  A chamada sai daqui para a seguradora e pode levar alguns segundos — o
- *  backend usa timeout de 30s, então este handler não pode ser mais curto que
- *  isso. `maxDuration` cobre o limite da plataforma serverless. */
-export const maxDuration = 60;
+ *  A chamada sai daqui para a seguradora e pode levar mais de um minuto: o
+ *  backend espera `TIMEOUT_COTACAO = 90s`, medido contra o sandbox. Cortar
+ *  antes disso é desistir de uma cotação que a Junto ainda está calculando.
+ *  `maxDuration` cobre o limite da plataforma serverless. */
+export const maxDuration = 120;
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

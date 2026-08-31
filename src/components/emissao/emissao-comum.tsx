@@ -1,7 +1,8 @@
 "use client"
 
-import { AlertTriangle, Loader2 } from "lucide-react"
+import { AlertTriangle, Loader2, RefreshCw } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
 import { NativeSelect } from "@/components/ui/native-select"
 import { cn, formatBRL } from "@/lib/utils"
 import type { EmissaoResponse, EtapaEmissao } from "@/services/api"
@@ -137,5 +138,70 @@ export function ListaPendencias({ emissao }: { emissao: EmissaoResponse }) {
         </div>
       ))}
     </div>
+  )
+}
+
+
+/** A cotação mudou depois de ter ido para a seguradora.
+ *
+ *  Sem isto o usuário só descobre na hora de emitir, com um erro que manda
+ *  "cote de novo" — e até 28/08/2026 não havia botão nenhum para isso: o ícone
+ *  de cotar vira indicador de estado assim que a emissão existe.
+ *
+ *  Vive aqui, e não em cada tela, porque os dois lugares precisam dele: o
+ *  painel da cotação, onde a pessoa edita, e o modal de emissão, onde o erro
+ *  aparece.
+ *
+ *  Recotar é um `PUT` do lado da Junto, na mesma cotação: o id lá dentro não
+ *  muda e nenhuma cotação órfã é criada contra o limite do tomador. */
+export function AvisoDesatualizada({
+  emissao,
+  travado,
+  recotando,
+  aoRecotar,
+}: {
+  emissao: EmissaoResponse
+  travado: boolean
+  recotando: boolean
+  aoRecotar: () => void
+}) {
+  // Depois de emitida a cotação virou apólice e o backend recusa recotar; em
+  // análise a proposta está com o time da seguradora. Nos dois casos o botão
+  // seria uma promessa falsa.
+  if (!emissao.desatualizada) return null
+  if (emissao.etapa === "emitida" || emissao.etapa === "aguardando") return null
+
+  return (
+    <section className="mt-4 rounded-xl border border-orange-300 dark:border-orange-500/25 bg-orange-50 dark:bg-orange-500/10 p-4">
+      <div className="flex items-start gap-2.5">
+        <AlertTriangle className="size-4 mt-0.5 shrink-0 text-orange-600 dark:text-orange-400" />
+        <div>
+          <div className="text-[13px] font-bold text-orange-800 dark:text-orange-300">
+            As informações foram editadas
+          </div>
+          <p className="mt-1 text-[11.5px] text-orange-700/90 dark:text-orange-400/90">
+            Recote para enviar os dados novos à seguradora.
+          </p>
+        </div>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={travado}
+        onClick={aoRecotar}
+        className="mt-3 h-8 rounded-lg text-[12px] font-semibold border-orange-300 dark:border-orange-500/30"
+      >
+        {recotando ? (
+          <>
+            <Loader2 className="size-3.5 animate-spin" /> Recotando...
+          </>
+        ) : (
+          <>
+            <RefreshCw className="size-3.5" /> Recotar na seguradora
+          </>
+        )}
+      </Button>
+    </section>
   )
 }

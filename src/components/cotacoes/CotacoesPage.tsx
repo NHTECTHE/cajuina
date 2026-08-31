@@ -348,7 +348,11 @@ export default function CotacoesPage() {
     return () => {
       ativo = false
     }
-  }, [selectedCotacao?.id])
+    // `atualizado_em` entra na lista de propósito: editar a cotação não muda o
+    // id, e sem isso o painel continuava mostrando o estado de antes da edição
+    // — inclusive `desatualizada: false`, que é justamente o aviso que precisa
+    // aparecer. Salvar carimba `atualizado_em` novo e o estado é relido.
+  }, [selectedCotacao?.id, selectedCotacao?.atualizado_em])
 
   // Fonte única do prêmio exibido. Antes esta conta estava escrita em três
   // lugares deste arquivo — card, PDF e WhatsApp — e agora todas passam aqui.
