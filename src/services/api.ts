@@ -648,6 +648,126 @@ export const apolicesApi = {
 };
 
 
+// ─── Importar apólice emitida na seguradora ──────────────────────────────────
+
+/** Cada vínculo da apólice com os nossos cadastros, do jeito que a prévia o vê.
+ *  `encontrado: false` não impede importar — impede importar *sem resolver*. */
+export interface VinculoImportacao {
+  encontrado: boolean;
+  id: number | null;
+  cnpj: string;
+  nome: string;
+}
+
+export interface VinculoSeguradoImportacao extends VinculoImportacao {
+  cidade: string;
+  uf: string;
+}
+
+export interface VinculoModalidadeImportacao {
+  encontrada: boolean;
+  id: number | null;
+  nome: string;
+  codigo_seguradora: string;
+  descricao_seguradora: string;
+}
+
+export interface PreviaImportacao {
+  numero_apolice: string;
+  document_number: string;
+  importancia_segurada: string;
+  premio_total: string;
+  premio_liquido: string;
+  taxa: string | null;
+  comissao_valor: string | null;
+  numero_parcelas: number | null;
+  data_inicio: string | null;
+  data_final: string | null;
+  prazo_dias: number | null;
+  emitida_em: string | null;
+  edital: string;
+  vencimento_primeira_parcela: string | null;
+  url_apolice: string;
+  url_boleto: string;
+  /** Cancelada ou baixada na seguradora. Não bloqueia: avisa. */
+  cancelada: boolean;
+  cancelada_em: string | null;
+  baixada_em: string | null;
+  ja_importada: boolean;
+  apolice_id: number | null;
+  /** Estado do botão: dá para importar agora, do jeito que está. */
+  pode_importar: boolean;
+  tomador: VinculoImportacao;
+  segurado: VinculoSeguradoImportacao;
+  modalidade: VinculoModalidadeImportacao;
+}
+
+/** Campos do tomador que a tela buscou pelo CNPJ.
+ *  A seguradora manda tomador sem endereço; quem completa é o `lookupCnpj`. */
+export interface NovoTomadorImportacao {
+  nome?: string;
+  nome_fantasia?: string;
+  email?: string;
+  telefone?: string;
+  cep?: string;
+  endereco?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  uf?: string;
+}
+
+export interface ImportarApolicePayload {
+  numero: string;
+  seguradora: number;
+  criar_segurado?: boolean;
+  criar_tomador?: NovoTomadorImportacao | null;
+  modalidade?: number | null;
+}
+
+/** Erro da importação que carrega o id da apólice que já está no sistema.
+ *  409 não é dado inválido, é estado — e a tela oferece o link em vez de
+ *  pedir correção. */
+export class ApoliceJaImportadaError extends Error {
+  apoliceId: number | null;
+
+  constructor(message: string, apoliceId: number | null) {
+    super(message);
+    this.name = "ApoliceJaImportadaError";
+    this.apoliceId = apoliceId;
+  }
+}
+
+export const importacaoApi = {
+  previa: (numero: string, seguradora: number) => {
+    const qs = new URLSearchParams({
+      numero,
+      seguradora: String(seguradora),
+    }).toString();
+    return apiRequest<PreviaImportacao>(`/apolices/importar/previa?${qs}`);
+  },
+
+  importar: async (data: ImportarApolicePayload): Promise<ApoliceResponse> => {
+    const response = await fetch("/api/apolices/importar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+
+    if (response.status === 409) {
+      const body = await response.json().catch(() => ({}));
+      throw new ApoliceJaImportadaError(
+        body?.detail ?? "Esta apólice já está no sistema.",
+        body?.apolice_id ?? null,
+      );
+    }
+
+    return handleApiResponse<ApoliceResponse>(response);
+  },
+};
+
+
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
 export type PeriodoDashboard = "dia" | "mes" | "ano";

@@ -162,7 +162,7 @@ export function FerramentasPage() {
                 <Box className="size-6" />
               </div>
               <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300 group-hover:text-cyan-500 transition-colors">Junto Seguros</span>
-              <span className="text-[10px] text-zinc-400 mt-1">Consulta por Nº da Proposta</span>
+              <span className="text-[10px] text-zinc-400 mt-1">Consulta por Nº da Apólice</span>
             </button>
 
             <button
