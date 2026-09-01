@@ -869,7 +869,12 @@ Agradecemos a confiança!`
               <div className="flex items-center p-3 text-xs text-zinc-500">
                 <div className="flex-1">Proposta</div>
                 <div className="w-32 flex justify-center">
-                  <button onClick={() => { if (selected.arquivo_proposta) window.open(selected.arquivo_proposta, "_blank"); else toast.error("Arquivo da Proposta não anexado.") }} className="hover:scale-110 transition-transform">
+                  <button
+                    onClick={() => {
+                      abrirDocumento(selected.arquivo_proposta, selected.url_minuta, "Proposta não disponível nesta apólice.")
+                    }}
+                    className="hover:scale-110 transition-transform"
+                  >
                     <FileDown className="size-4 text-[#e85c5c] dark:text-[#cf7458] cursor-pointer" />
                   </button>
                 </div>

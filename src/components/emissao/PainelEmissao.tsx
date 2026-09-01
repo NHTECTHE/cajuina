@@ -254,11 +254,6 @@ export function PainelEmissao({
               <div className="text-[13px] font-bold text-amber-800 dark:text-amber-300">
                 {emissao.mensagem || "Apólice em análise"}
               </div>
-              <p className="mt-1 text-[11.5px] text-amber-700/90 dark:text-amber-400/90">
-                A emissão foi pedida e agora depende do time técnico da
-                seguradora. A API dela não avisa quando termina — clique em
-                atualizar para perguntar.
-              </p>
             </div>
           </div>
           <Button

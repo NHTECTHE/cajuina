@@ -599,6 +599,8 @@ export interface ApoliceResponse {
    *  cópia nossa, o outro é link de terceiro, que pode expirar. */
   url_apolice: string;
   url_boleto: string;
+  /** A minuta gerada antes da emissão — é o que a tela chama de "Proposta". */
+  url_minuta: string;
   observacoes: string;
   status_pagamento_premio: string;
   status_pagamento_comissao: string;
