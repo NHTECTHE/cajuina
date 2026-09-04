@@ -448,7 +448,7 @@ export default function TomadorPage() {
                 const checkingToast = toast.loading("Verificando na Junto...")
                 const res = await fetch(`/api/tomadores/${created.id}/seguradoras/${seguradoraInicial}/junto/verificar/`, { method: "POST" })
                 let payload = null
-                try { payload = await res.json() } catch (_) { payload = null }
+                try { payload = await res.json() } catch { payload = null }
                 toast.dismiss(checkingToast)
                 if (!res.ok) {
                   toastErroJunto(res, payload, 'Não foi possível verificar o cadastro na Junto.')
@@ -463,7 +463,7 @@ export default function TomadorPage() {
                   setJuntoModalOpen(true)
                 }
               }
-            } catch (err) {
+            } catch {
               toast.error("Erro ao verificar cadastro na Junto.")
             }
           }
@@ -945,7 +945,7 @@ export default function TomadorPage() {
                   } else {
                     toastErroJunto(res, json, 'Não foi possível solicitar o cadastro na Junto.')
                   }
-                } catch (err) {
+                } catch {
                   setJuntoProcessing(false)
                   setJuntoModalOpen(false)
                   setJuntoModalContext(null)
@@ -1694,7 +1694,7 @@ export default function TomadorPage() {
                                   // estourariam o timeout de 30s do gunicorn.
                                   const res = await fetch(`/api/tomadores/${editingId}/seguradoras/${s.id}/junto/verificar/`, { method: "POST" })
                                   let json = null
-                                  try { json = await res.json() } catch (_) { json = null }
+                                  try { json = await res.json() } catch { json = null }
                                   if (!res.ok || !json?.data) {
                                     toastErroJunto(res, json, 'Não foi possível verificar o cadastro na Junto.')
                                     return
@@ -1747,7 +1747,7 @@ export default function TomadorPage() {
                                     setTaxasDraft(prev => ({ ...prev, [s.id]: { ...(prev[s.id] ?? draft), taxa_zero_aviso: true } }))
                                     toast.warning("A Junto devolveu taxa zero para este tomador.")
                                   }
-                                } catch (err) {
+                                } catch {
                                   toast.error('Erro ao atualizar na Junto.')
                                 } finally {
                                   setJuntoCheckingIds(prev => ({ ...prev, [s.id]: false }))

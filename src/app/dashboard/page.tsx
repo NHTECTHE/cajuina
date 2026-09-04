@@ -15,20 +15,23 @@ import { ListaUltimosTomadores } from "@/components/dashboard/ListaUltimosTomado
 export default function DashboardPage() {
   const [resumo, setResumo] = React.useState<DashboardResumo | null>(null)
   const [carregando, setCarregando] = React.useState(true)
-  const [dataAtual, setDataAtual] = React.useState("")
+  const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
-    setDataAtual(new Intl.DateTimeFormat('pt-BR', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
-    }).format(new Date()))
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true)
     setCarregando(true)
     getDashboardResumo("mes")
       .then(setResumo)
       .catch(console.error)
       .finally(() => setCarregando(false))
   }, [])
+
+  const dataAtual = mounted ? new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  }).format(new Date()) : ""
 
   return (
     <div className="flex flex-col gap-6 w-full">

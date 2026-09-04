@@ -192,7 +192,7 @@ export default function CotacoesPage() {
     if (typeof window !== "undefined") {
       const stored = sessionStorage.getItem("cotacoes_selected");
       if (stored) {
-        try { return JSON.parse(stored); } catch (e) {}
+        try { return JSON.parse(stored); } catch {}
       }
     }
     return null;

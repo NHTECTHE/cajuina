@@ -792,6 +792,7 @@ export interface DashboardResumo {
   tomadores: { periodo: number; total: number };
   cotacoes: { iniciadas: number; aprovadas: number; emitidas: number; recusadas?: number; };
   periodo: ResumoPeriodo;
+  usuario?: { nome: string };
 }
 
 export interface DashboardComissoes {
