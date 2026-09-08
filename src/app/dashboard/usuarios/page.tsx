@@ -4,7 +4,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import {
   ArrowLeft, Users, Plus, Search, Trash2,
-  Loader2, AlertCircle, CheckCircle2, X, ChevronDown,
+  Loader2, AlertCircle, CheckCircle2, X, ChevronDown, ShieldCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { TableSkeleton } from "@/components/ui/skeleton"
@@ -20,23 +20,13 @@ import {
 
 const CARGO_OPTIONS = [
   { value: "", label: "Selecione" },
-  { value: "administrador", label: "Administrador" },
-  { value: "financeiro", label: "Financeiro" },
+  { value: "admin", label: "Admin" },
   { value: "usuario", label: "Usuário" },
-  { value: "corretor", label: "Corretor" },
-  { value: "produtor", label: "Produtor" },
-  { value: "auto", label: "Auto" },
-  { value: "tomador", label: "Tomador" },
 ]
 
 const CARGO_COLORS: Record<string, string> = {
-  administrador: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
-  financeiro: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  admin: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
   usuario: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
-  corretor: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
-  produtor: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
-  auto: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
-  tomador: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
 }
 
 const EMPTY_FORM: Omit<Usuario, "id"> = {
@@ -92,7 +82,7 @@ function UsuarioModal({ usuario, onClose, onSaved, onDelete }: ModalProps) {
   const isEditing = !!usuario?.id
   const [form, setForm] = React.useState<Omit<Usuario, "id">>(
     usuario ? { first_name: usuario.first_name, email: usuario.email, cargo: usuario.cargo, password: "" }
-            : EMPTY_FORM
+      : EMPTY_FORM
   )
   const [loading, setLoading] = React.useState(false)
   const [feedback, setFeedback] = React.useState<{ type: "success" | "error"; message: string } | null>(null)
@@ -391,16 +381,25 @@ export default function UsuariosPage() {
           {/* Mobile Cards */}
           <div className="md:hidden flex flex-col gap-3">
             {usuarios.map(u => (
-              <div 
-                key={u.id} 
+              <div
+                key={u.id}
                 onClick={() => setModal({ open: true, usuario: u })}
                 className="cursor-pointer hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 flex flex-col p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 shadow-sm gap-3 transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-[14px] text-zinc-900 dark:text-zinc-100">{u.first_name}</span>
-                  <span className={cn("inline-block rounded-full px-2.5 py-0.5 text-[10px] font-semibold capitalize", CARGO_COLORS[u.cargo] ?? CARGO_COLORS.usuario)}>
-                    {CARGO_OPTIONS.find(o => o.value === u.cargo)?.label ?? u.cargo}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={cn("inline-block rounded-full px-2.5 py-0.5 text-[10px] font-semibold capitalize", CARGO_COLORS[u.cargo] ?? CARGO_COLORS.usuario)}>
+                      {CARGO_OPTIONS.find(o => o.value === u.cargo)?.label ?? u.cargo}
+                    </span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/usuarios/${u.id}/permissoes`); }}
+                      className="p-1.5 text-zinc-400 hover:text-brand-red hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm"
+                      title="Permissões"
+                    >
+                      <ShieldCheck className="size-3.5" />
+                    </button>
+                  </div>
                 </div>
                 <div className="flex flex-col gap-1 text-[12px] text-zinc-500 dark:text-zinc-400">
                   <p><span className="font-medium text-zinc-600 dark:text-zinc-300">Email:</span> {u.email}</p>
@@ -412,25 +411,34 @@ export default function UsuariosPage() {
           {/* Desktop Table */}
           <div className="hidden md:block rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
             {/* Table header */}
-            <div className="grid grid-cols-[2fr_2fr_1fr] bg-zinc-50 dark:bg-zinc-900/50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-800">
+            <div className="grid grid-cols-[2fr_2fr_1fr_80px] bg-zinc-50 dark:bg-zinc-900/50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-800">
               <span>Nome</span>
               <span>Email</span>
               <span>Cargo</span>
+              <span className="text-center">Ações</span>
             </div>
             {/* Table rows */}
             {usuarios.map(u => (
               <div
                 key={u.id}
-                onClick={() => setModal({ open: true, usuario: u })}
-                className="cursor-pointer grid grid-cols-[2fr_2fr_1fr] items-center px-4 py-3 border-b last:border-b-0 border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors"
+                className="grid grid-cols-[2fr_2fr_1fr_80px] items-center px-4 py-3 border-b last:border-b-0 border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors"
               >
-                <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 truncate">{u.first_name}</span>
-                <span className="text-sm text-zinc-500 dark:text-zinc-400 truncate">{u.email}</span>
-                <span>
+                <span onClick={() => setModal({ open: true, usuario: u })} className="cursor-pointer text-sm font-semibold text-zinc-900 dark:text-zinc-50 truncate">{u.first_name}</span>
+                <span onClick={() => setModal({ open: true, usuario: u })} className="cursor-pointer text-sm text-zinc-500 dark:text-zinc-400 truncate">{u.email}</span>
+                <span onClick={() => setModal({ open: true, usuario: u })} className="cursor-pointer">
                   <span className={cn("inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize", CARGO_COLORS[u.cargo] ?? CARGO_COLORS.usuario)}>
                     {CARGO_OPTIONS.find(o => o.value === u.cargo)?.label ?? u.cargo}
                   </span>
                 </span>
+                <div className="flex justify-center">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/usuarios/${u.id}/permissoes`); }}
+                    className="p-1.5 text-zinc-400 hover:text-brand-red hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm"
+                    title="Permissões"
+                  >
+                    <ShieldCheck className="size-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
