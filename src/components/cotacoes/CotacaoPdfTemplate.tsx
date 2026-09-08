@@ -1,5 +1,5 @@
 import React from "react"
-import { Phone, Globe, MapPin, Mail } from "lucide-react"
+import { Phone, MapPin, Mail } from "lucide-react"
 
 export interface SeguradoraPDFData {
   id: number
@@ -34,6 +34,7 @@ export const CotacaoPdfTemplate = React.forwardRef<HTMLDivElement, { data: Cotac
       >
         {/* CABEÇALHO - LOGO */}
         <div className="relative w-full h-[90px] mb-14">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img 
             src="/2 - 1.png" 
             alt="Cajuína Corretora de Seguros" 
@@ -119,11 +120,14 @@ export const CotacaoPdfTemplate = React.forwardRef<HTMLDivElement, { data: Cotac
                 
                 <div className="flex-1 w-full flex items-center justify-center mb-4">
                   {seg.logo ? (
-                    <img 
-                      src={seg.logo} 
-                      alt={seg.nome} 
-                      className="max-w-[85%] max-h-14 object-contain mix-blend-multiply" 
-                    />
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img 
+                        src={seg.logo} 
+                        alt={seg.nome} 
+                        className="max-w-[85%] max-h-14 object-contain mix-blend-multiply" 
+                      />
+                    </>
                   ) : (
                     <div className="text-3xl font-black text-[#cf7458]">
                       {seg.nome.substring(0, 1)}

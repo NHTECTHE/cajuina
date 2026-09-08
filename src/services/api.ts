@@ -1,6 +1,11 @@
 // Requests to /api/* go through Next.js Route Handlers which attach the httpOnly cookie token.
 async function handleApiResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== 'undefined') {
+      window.location.href = '/login';
+      return new Promise(() => {});
+    }
+
     const body = await response.json().catch(() => ({}));
     let errorMessage = body?.detail;
     if (!errorMessage && typeof body === 'object') {
@@ -785,8 +790,9 @@ export interface DashboardResumo {
   producao: string;
   apolices: number;
   tomadores: { periodo: number; total: number };
-  cotacoes: { iniciadas: number; aprovadas: number; emitidas: number };
+  cotacoes: { iniciadas: number; aprovadas: number; emitidas: number; recusadas?: number; };
   periodo: ResumoPeriodo;
+  usuario?: { nome: string };
 }
 
 export interface DashboardComissoes {

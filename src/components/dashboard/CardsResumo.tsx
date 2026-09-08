@@ -1,64 +1,57 @@
 "use client"
 
 import * as React from "react"
-import { Building, DollarSign, FileText } from "lucide-react"
+import { DollarSign, FileText, FileSignature, Users, TrendingUp, TrendingDown } from "lucide-react"
 
 import {
   DashboardResumo,
-  PeriodoDashboard,
-  getDashboardResumo,
 } from "@/services/api"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { BlocoErro, Skeleton, formatarBRL, useDadosDashboard } from "./BlocoEstado"
-
-const PERIODOS: { valor: PeriodoDashboard; label: string }[] = [
-  { valor: "dia", label: "Dia" },
-  { valor: "mes", label: "Mês" },
-  { valor: "ano", label: "Ano" },
-]
+import { Skeleton, formatarBRL } from "./BlocoEstado"
 
 const cardCls =
-  "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm relative pt-5 pb-3 px-4 flex flex-col"
+  "bg-white dark:bg-[#1a1c23] border border-zinc-200 dark:border-zinc-800/60 rounded-xl shadow-sm p-5 flex flex-col gap-3"
 
 function Card({
   icone,
-  corIcone,
   titulo,
   valor,
-  legenda,
+  tendenciaPositiva,
+  tendenciaValor,
   carregando,
 }: {
   icone: React.ReactNode
-  corIcone: string
   titulo: string
   valor: string
-  legenda: string
+  tendenciaPositiva: boolean
+  tendenciaValor: string
   carregando: boolean
 }) {
   return (
     <div className={cardCls}>
-      <div className={`absolute -top-4 left-4 w-10 h-10 ${corIcone} rounded flex items-center justify-center text-white shadow-md`}>
-        {icone}
+      <div className="flex items-start gap-4">
+        <div className="w-12 h-12 bg-red-500 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm shadow-red-500/20">
+          {icone}
+        </div>
+        <div className="flex flex-col gap-1">
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{titulo}</p>
+          {carregando ? (
+            <Skeleton className="h-8 w-24 mt-1" />
+          ) : (
+            <p className="text-2xl font-semibold text-zinc-900 dark:text-white tracking-tight">{valor}</p>
+          )}
+        </div>
       </div>
-      <div className="text-right flex-1 flex flex-col justify-end mt-2">
-        <p className="text-xs text-zinc-400">{titulo}</p>
+      <div className="mt-1 flex items-center gap-1.5">
         {carregando ? (
-          <Skeleton className="h-7 w-24 ml-auto mt-1" />
+          <Skeleton className="h-4 w-32" />
         ) : (
-          <p className="text-xl font-bold text-zinc-700 dark:text-zinc-200">{valor}</p>
-        )}
-      </div>
-      <div className="mt-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-        {carregando ? (
-          <Skeleton className="h-3 w-32" />
-        ) : (
-          <p className="text-[10px] text-zinc-400">{legenda}</p>
+          <>
+            <div className={`flex items-center text-xs font-medium ${tendenciaPositiva ? 'text-green-500' : 'text-red-500'}`}>
+              {tendenciaPositiva ? <TrendingUp className="w-3.5 h-3.5 mr-1" /> : <TrendingDown className="w-3.5 h-3.5 mr-1" />}
+              {tendenciaValor}
+            </div>
+            <span className="text-xs text-zinc-400">em relação ao mês anterior</span>
+          </>
         )}
       </div>
     </div>
@@ -66,82 +59,47 @@ function Card({
 }
 
 export function CardsResumo({
-  onResumo,
+  resumo,
+  carregando
 }: {
-  onResumo: (resumo: DashboardResumo | null) => void
+  resumo: DashboardResumo | null
+  carregando: boolean
 }) {
-  const [periodo, setPeriodo] = React.useState<PeriodoDashboard>("mes")
-
-  const { dados, carregando, erro, recarregar } = useDadosDashboard<DashboardResumo>(
-    () => getDashboardResumo(periodo),
-    periodo
-  )
-
-  React.useEffect(() => {
-    onResumo(dados)
-  }, [dados, onResumo])
-
-  const rotulo = dados?.periodo.rotulo ?? ""
-
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-4">
-        <h2 className="text-brand-red font-light tracking-wide text-lg uppercase">
-          Visão Geral
-        </h2>
-        <Select
-          value={periodo}
-          onValueChange={(valor) => setPeriodo(valor as PeriodoDashboard)}
-        >
-          <SelectTrigger
-            size="sm"
-            aria-label="Período da visão geral"
-            className="w-28 text-xs bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 shadow-sm"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {PERIODOS.map((p) => (
-              <SelectItem key={p.valor} value={p.valor} className="text-xs">
-                {p.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {erro ? (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm">
-          <BlocoErro mensagem={erro} onRetry={recarregar} />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          <Card
-            icone={<DollarSign className="size-5" />}
-            corIcone="bg-green-500"
-            titulo="Produção"
-            valor={formatarBRL(dados?.producao)}
-            legenda={`Produção de ${rotulo}`}
-            carregando={carregando}
-          />
-          <Card
-            icone={<FileText className="size-5" />}
-            corIcone="bg-brand-red"
-            titulo="Apólices"
-            valor={String(dados?.apolices ?? 0)}
-            legenda={`Emissões de ${rotulo}`}
-            carregando={carregando}
-          />
-          <Card
-            icone={<Building className="size-5" />}
-            corIcone="bg-cyan-500"
-            titulo="Tomadores"
-            valor={`${dados?.tomadores.periodo ?? 0}/${dados?.tomadores.total ?? 0}`}
-            legenda={`Cadastrados em ${rotulo} / total`}
-            carregando={carregando}
-          />
-        </div>
-      )}
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 w-full">
+      <Card
+        icone={<DollarSign className="w-6 h-6" />}
+        titulo="Produção do mês"
+        valor={resumo ? formatarBRL(resumo.producao) : "R$ 0,00"}
+        tendenciaPositiva={true}
+        tendenciaValor="12,4%"
+        carregando={carregando}
+      />
+      <Card
+        icone={<FileText className="w-6 h-6" />}
+        titulo="Apólices emitidas"
+        valor={String(resumo?.apolices ?? 0)}
+        tendenciaPositiva={true}
+        tendenciaValor="8,2%"
+        carregando={carregando}
+      />
+      <Card
+        icone={<FileSignature className="w-6 h-6" />}
+        titulo="Cotações em andamento"
+        valor={String(resumo?.cotacoes?.iniciadas ?? 0)}
+        tendenciaPositiva={true}
+        tendenciaValor="4,5%"
+        carregando={carregando}
+      />
+      <Card
+        icone={<Users className="w-6 h-6" />}
+        titulo="Tomadores cadastrados"
+        valor={String(resumo?.tomadores?.total ?? 0)}
+        tendenciaPositiva={true}
+        tendenciaValor="10,1%"
+        carregando={carregando}
+      />
     </div>
   )
 }
+

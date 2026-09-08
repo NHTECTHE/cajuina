@@ -5,7 +5,7 @@ import { TableSkeleton } from "@/components/ui/skeleton"
 import { useState, useMemo, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import {
-  ArrowLeft, FileText, Search, FileDown, DollarSign, Mail, Phone, FileDigit, Pencil, Trash2, Send, Ban, Copy, Check, Upload
+  ArrowLeft, FileText, Search, FileDown, DollarSign, Mail, Phone, FileDigit, Trash2, Send, Ban, Copy, Check, Upload
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 
@@ -73,7 +73,7 @@ function ApolicesPageContent() {
     if (typeof window !== "undefined" && initialView !== "details") {
       const stored = sessionStorage.getItem("apolices_selected");
       if (stored) {
-        try { return JSON.parse(stored); } catch(e) {}
+        try { return JSON.parse(stored); } catch {}
       }
     }
     if (initialView === "details" && searchParams.get("mock") === "1") {
@@ -140,14 +140,14 @@ function ApolicesPageContent() {
   const [editArquivoProposta, setEditArquivoProposta] = useState<File | null>(null)
   const [isSavingEdit, setIsSavingEdit] = useState(false)
 
-  const openEditModal = () => {
-    if (!selected) return
-    setEditStatusPremio(selected.status_pagamento_premio || "Pendente")
-    setEditStatusComissao(selected.status_pagamento_comissao || "A Receber")
-    setEditObservacoes(selected.observacoes || "")
-    setEditArquivoProposta(null)
-    setShowEditModal(true)
-  }
+  // const openEditModal = () => {
+  //   if (!selected) return
+  //   setEditStatusPremio(selected.status_pagamento_premio || "Pendente")
+  //   setEditStatusComissao(selected.status_pagamento_comissao || "A Receber")
+  //   setEditObservacoes(selected.observacoes || "")
+  //   setEditArquivoProposta(null)
+  //   setShowEditModal(true)
+  // }
 
   const handleSaveEdit = async () => {
     if (!selected) return
