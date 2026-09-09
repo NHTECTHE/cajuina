@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { logoutAction } from "@/app/actions/auth"
 import { getUserAction } from "@/app/actions/user"
+import { usePermissoes } from "@/lib/permissoes"
 
 interface SidebarNavProps {
   theme: "light" | "dark"
@@ -94,6 +95,17 @@ export default function SidebarNav({
       ]
     }
   ]
+
+  const { podeAbrir, carregando: carregandoPermissoes } = usePermissoes()
+
+  const menuGroupsVisiveis = carregandoPermissoes
+    ? []
+    : menuGroups
+        .map((grupo) => ({
+          ...grupo,
+          items: grupo.items.filter((item) => podeAbrir(item.href)),
+        }))
+        .filter((grupo) => grupo.items.length > 0)
 
   // Styles based on theme
   const sidebarStyles = {
@@ -183,7 +195,7 @@ export default function SidebarNav({
 
       {/* ──── NAVIGATION CONTENT ──── */}
       <div className="flex-1 overflow-y-auto no-scrollbar px-4 pt-4 pb-4 space-y-5">
-        {menuGroups.map((group, groupIdx) => (
+        {menuGroupsVisiveis.map((group, groupIdx) => (
           <div key={groupIdx} className="space-y-2">
             {(!isCollapsed || isMobileOpen) && (
               <h4 className={cn("px-3 mb-1", groupTitleStyles[theme])}>

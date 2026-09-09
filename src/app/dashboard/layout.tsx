@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils"
 import { Toaster } from "sonner"
 import { EmissaoJobsProvider } from "@/components/emissao/emissao-jobs"
 import { IndicadorEmissao } from "@/components/emissao/IndicadorEmissao"
+import { PermissoesProvider } from "@/lib/permissoes"
+import { GuardaDeRota } from "@/components/guarda-de-rota"
 
 export default function DashboardLayout({
   children,
@@ -78,6 +80,7 @@ export default function DashboardLayout({
   return (
     // O provider e o indicador ficam aqui, e não nas páginas: é o que faz o
     // aviso de "gerando minuta" sobreviver à troca de tela.
+    <PermissoesProvider>
     <EmissaoJobsProvider>
       <div className={cn(
         "min-h-screen w-full max-w-full flex gap-0 md:gap-4 transition-colors duration-300 overflow-hidden p-0 md:p-4 relative font-sans",
@@ -130,7 +133,7 @@ export default function DashboardLayout({
           />
 
           <div className="flex-1 p-6 md:p-8 flex flex-col overflow-y-auto no-scrollbar">
-            {children}
+            <GuardaDeRota>{children}</GuardaDeRota>
           </div>
          </div>
       </main>
@@ -139,5 +142,6 @@ export default function DashboardLayout({
       <IndicadorEmissao />
       </div>
     </EmissaoJobsProvider>
+    </PermissoesProvider>
   )
 }
