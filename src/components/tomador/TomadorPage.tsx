@@ -228,6 +228,21 @@ export default function TomadorPage() {
 
   // Load tomadores from API on mount
   React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (sessionStorage.getItem("tomador_action") === "new") {
+        sessionStorage.removeItem("tomador_action")
+        setFormData(initialFormState)
+        setEditingId(null)
+        setCadastroManual(false)
+        setCnpjNaoEncontrado(false)
+        setCnpjDuplicado(null)
+        setView("form")
+        setCurrentTab("dados")
+      }
+    }
+  }, [])
+
+  React.useEffect(() => {
     tomadoresApi.list()
       .then(setTomadores)
       .catch(() => toast.error("Erro ao carregar tomadores."))

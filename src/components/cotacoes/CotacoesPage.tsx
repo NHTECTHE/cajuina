@@ -201,6 +201,18 @@ export default function CotacoesPage() {
 
   React.useEffect(() => {
     if (typeof window !== "undefined") {
+      if (sessionStorage.getItem("cotacoes_action") === "new") {
+        sessionStorage.removeItem("cotacoes_action")
+        setFormMode("create")
+        setView("form")
+        // Como o form é resetado no useEffect de resetForm ou mount do form,
+        // apenas setar a view para form e mode para create é suficiente.
+      }
+    }
+  }, [])
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
       if (view === "details" || view === "list") {
         sessionStorage.setItem("cotacoes_view", view);
       } else {
@@ -1775,16 +1787,24 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
               <button
                 disabled={impedimentoProposta !== null}
                 title={impedimentoProposta ?? undefined}
-                onClick={() => {
+                onClick={async () => {
                   if (impedimentoProposta) {
                     toast.error(impedimentoProposta)
                     return
                   }
-                  if (selectedCotacao && typeof window !== "undefined") {
-                    localStorage.setItem(`seguradora_cotacao_${selectedCotacao.id}`, String(seguradoraEscolhidaId))
-                    localStorage.setItem(`enviado_proposta_${selectedCotacao.id}`, "true")
+                  if (selectedCotacao) {
+                    try {
+                      await cotacoesApi.update(selectedCotacao.id, { status: "Aprovado" })
+                    } catch (err) {
+                      toast.error("Erro ao aprovar cotação")
+                      return
+                    }
+                    if (typeof window !== "undefined") {
+                      localStorage.setItem(`seguradora_cotacao_${selectedCotacao.id}`, String(seguradoraEscolhidaId))
+                      localStorage.setItem(`enviado_proposta_${selectedCotacao.id}`, "true")
+                    }
+                    router.push(`/dashboard/propostas?id=${selectedCotacao?.id}`)
                   }
-                  router.push(`/dashboard/propostas?id=${selectedCotacao?.id}`)
                 }}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-10.5 sm:px-8 rounded-xl text-[12px] font-bold uppercase tracking-wide text-white bg-green-600 hover:bg-green-700 shadow-sm shadow-green-600/20 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600"
               >

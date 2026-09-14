@@ -69,7 +69,7 @@ export default function DashboardPage() {
             <GraficoCotacoesStatus resumo={resumo} />
           </div>
           <div className="bg-white dark:bg-[#1a1c23] border border-zinc-200 dark:border-zinc-800/60 rounded-xl shadow-sm p-6 flex flex-col h-fit min-w-0">
-            <Pendencias />
+            <Pendencias resumo={resumo} />
           </div>
         </div>
 
