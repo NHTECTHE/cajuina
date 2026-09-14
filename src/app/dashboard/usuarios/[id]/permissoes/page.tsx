@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter, useParams } from "next/navigation"
-import { ArrowLeft, ShieldCheck, Save, Loader2, ChevronDown, ChevronRight } from "lucide-react"
+import { ArrowLeft, ShieldCheck, Save, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 // Tipos para o Catálogo do Backend

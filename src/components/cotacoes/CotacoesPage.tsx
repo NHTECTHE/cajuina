@@ -203,10 +203,12 @@ export default function CotacoesPage() {
     if (typeof window !== "undefined") {
       if (sessionStorage.getItem("cotacoes_action") === "new") {
         sessionStorage.removeItem("cotacoes_action")
-        setFormMode("create")
-        setView("form")
-        // Como o form é resetado no useEffect de resetForm ou mount do form,
-        // apenas setar a view para form e mode para create é suficiente.
+        setTimeout(() => {
+          setFormMode("create")
+          setView("form")
+          // Como o form é resetado no useEffect de resetForm ou mount do form,
+          // apenas setar a view para form e mode para create é suficiente.
+        }, 0)
       }
     }
   }, [])
@@ -1795,7 +1797,7 @@ Em caso de dúvidas ou para prosseguir com a emissão, entre em contato com o no
                   if (selectedCotacao) {
                     try {
                       await cotacoesApi.update(selectedCotacao.id, { status: "Aprovado" })
-                    } catch (err) {
+                    } catch {
                       toast.error("Erro ao aprovar cotação")
                       return
                     }

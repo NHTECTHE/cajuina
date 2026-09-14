@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { DollarSign, FileText, FileSignature, Users, TrendingUp, TrendingDown } from "lucide-react"
+import { DollarSign, FileText, FileSignature, Users } from "lucide-react"
 
 import {
   DashboardResumo,

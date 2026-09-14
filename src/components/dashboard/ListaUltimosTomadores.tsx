@@ -51,7 +51,7 @@ export function ListaUltimosTomadores() {
               Nenhum tomador cadastrado recentemente.
             </div>
           ) : (
-            linhas.map((item: any) => (
+            linhas.map((item) => (
               <div key={item.id} className="flex items-center gap-4 py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors -mx-2 px-2 rounded-lg">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-white font-medium text-xs shadow-sm bg-red-500`}>
                   {getInitials(item.nome)}

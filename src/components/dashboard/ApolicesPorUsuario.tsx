@@ -4,13 +4,13 @@ import * as React from "react"
 import { ChevronDown, User } from "lucide-react"
 import { formatarBRL } from "./BlocoEstado"
 
-import { apolicesApi, seguradorasApi, type SeguradoraResponse } from "@/services/api"
+import { apolicesApi, seguradorasApi, type SeguradoraResponse, type ApoliceResponse } from "@/services/api"
 import { BlocoErro, Skeleton } from "./BlocoEstado"
 
 const COLORS = ['#0ea5e9', '#22c55e', '#eab308', '#a855f7', '#06b6d4', '#f97316', '#ef4444', '#14b8a6']
 
 export function ApolicesPorUsuario() {
-  const [todasApolices, setTodasApolices] = React.useState<any[]>([])
+  const [todasApolices, setTodasApolices] = React.useState<ApoliceResponse[]>([])
   const [seguradoras, setSeguradoras] = React.useState<SeguradoraResponse[]>([])
   const [carregando, setCarregando] = React.useState(true)
   const [erro, setErro] = React.useState<string | null>(null)
@@ -34,7 +34,7 @@ export function ApolicesPorUsuario() {
   }, [])
 
   React.useEffect(() => {
-    recarregar()
+    setTimeout(() => recarregar(), 0)
   }, [recarregar])
 
   const { data, seguradorasDisponiveis } = React.useMemo(() => {
@@ -87,7 +87,7 @@ export function ApolicesPorUsuario() {
       .slice(0, 8) // max 8 for dashboard
       
     return { data: sorted, seguradorasDisponiveis: segs }
-  }, [todasApolices, mesFilter, seguradoraFilter])
+  }, [todasApolices, mesFilter, seguradoraFilter, seguradoras])
 
   const max = data.length > 0 ? Math.max(...data.map(d => d.value)) : 0
 

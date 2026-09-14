@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+
 import "./not-found.css"; // kept empty to clear out old styles
 
 export default function NotFound() {

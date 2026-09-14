@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { TrendingUp } from "lucide-react"
+
 import {
   CartesianGrid,
   Line,
@@ -62,12 +62,19 @@ const formatCurrency = (value: number) => {
    COMPONENTE
    ========================================================= */
 
+type ChartDataPoint = Record<string, string | number> & {
+  month: string
+  _monthIndex: number
+  _year: number
+}
+
+
 export function GraficoPremioLinha() {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === "dark"
   const [period, setPeriod] = React.useState("12m")
 
-  const [chartData, setChartData] = React.useState<any[]>([])
+  const [chartData, setChartData] = React.useState<ChartDataPoint[]>([])
   const [chartConfig, setChartConfig] = React.useState<ChartConfig>({})
   const [carregando, setCarregando] = React.useState(true)
   const [erro, setErro] = React.useState<string | null>(null)
@@ -85,40 +92,40 @@ export function GraficoPremioLinha() {
           dynamicMonths.push({ index: m.getMonth(), name: MONTHS[m.getMonth()], year: m.getFullYear() })
         }
 
-        const monthsData: any[] = dynamicMonths.map(m => ({ month: m.name, _monthIndex: m.index, _year: m.year }))
+        const monthsData: ChartDataPoint[] = dynamicMonths.map(m => ({ month: m.name, _monthIndex: m.index, _year: m.year }))
         const seguradorasSet = new Set<string>()
-        
+
         for (const apolice of apolices) {
           if (!apolice.criado_em) continue
           const date = new Date(apolice.criado_em)
           const monthIndex = date.getMonth()
           const year = date.getFullYear()
-          
+
           const monthDataEntry = monthsData.find(m => m._monthIndex === monthIndex && m._year === year)
           if (!monthDataEntry) continue
 
           const segName = apolice.seguradora_nome || 'Outros'
           const val = Number(apolice.valor_seguradora) || 0
-          
+
           seguradorasSet.add(segName)
           const key = segName.toLowerCase().replace(/[^a-z0-9]/g, '')
-          
+
           if (!monthDataEntry[key]) {
             monthDataEntry[key] = 0
           }
-          monthDataEntry[key] += val
+          monthDataEntry[key] = (monthDataEntry[key] as number) + val
         }
 
         const seguradoras = Array.from(seguradorasSet)
         const config: ChartConfig = {}
-        
+
         seguradoras.forEach((seg, index) => {
           const key = seg.toLowerCase().replace(/[^a-z0-9]/g, '')
           config[key] = {
             label: seg,
             color: COLORS[index % COLORS.length]
           }
-          
+
           monthsData.forEach(m => {
             if (m[key] === undefined) m[key] = 0
           })
@@ -132,43 +139,36 @@ export function GraficoPremioLinha() {
   }, [])
 
   React.useEffect(() => {
-    recarregar()
+    // Evita o erro de cascading render / set-state-in-effect
+    setTimeout(() => recarregar(), 0)
   }, [recarregar])
 
-  const { filteredData, currentTotal, prevTotal } = React.useMemo(() => {
+  const { filteredData, currentTotal } = React.useMemo(() => {
     let current = chartData
-    let prev = []
-    
+
     if (period === "3m") {
       current = chartData.slice(-3)
-      prev = chartData.slice(-6, -3)
     } else if (period === "6m") {
       current = chartData.slice(-6)
-      prev = chartData.slice(-12, -6)
     } else if (period === "12m") {
       current = chartData.slice(-12)
-      prev = chartData.slice(-24, -12)
     }
-    
-    const sumData = (data: any[]) => data.reduce((total, item) => {
+
+    const sumData = (data: ChartDataPoint[]) => data.reduce((total, item) => {
       let sum = 0
       for (const k of Object.keys(chartConfig)) {
-        sum += (item[k] || 0)
+        sum += (Number(item[k]) || 0)
       }
       return total + sum
     }, 0)
-    
+
     return {
       filteredData: current,
-      currentTotal: sumData(current),
-      prevTotal: sumData(prev)
+      currentTotal: sumData(current)
     }
   }, [period, chartData, chartConfig])
 
-  const variation = React.useMemo(() => {
-    if (prevTotal === 0) return currentTotal > 0 ? 100 : 0
-    return ((currentTotal - prevTotal) / prevTotal) * 100
-  }, [currentTotal, prevTotal])
+
 
   /* -------------------------------------------------------
      RENDER
@@ -249,134 +249,134 @@ export function GraficoPremioLinha() {
             Nenhuma apólice registrada para o período.
           </div>
         ) : (
-        <ChartContainer
-          config={chartConfig}
-          className="h-[220px] w-full"
-        >
-          <LineChart
-            accessibilityLayer
-            data={filteredData}
-            margin={{
-              top: 15,
-              right: 20,
-              left: 10,
-              bottom: 10,
-            }}
+          <ChartContainer
+            config={chartConfig}
+            className="h-[220px] w-full"
           >
-            <defs>
-              {Object.keys(chartConfig).map((key) => (
-                <filter key={key} id={`glow-${key}`} x="-20%" y="-20%" width="140%" height="140%">
-                  <feDropShadow dx="0" dy="4" stdDeviation="5" floodColor={`var(--color-${key})`} floodOpacity="0.4" />
-                </filter>
-              ))}
-            </defs>
+            <LineChart
+              accessibilityLayer
+              data={filteredData}
+              margin={{
+                top: 15,
+                right: 20,
+                left: 10,
+                bottom: 10,
+              }}
+            >
+              <defs>
+                {Object.keys(chartConfig).map((key) => (
+                  <filter key={key} id={`glow-${key}`} x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="4" stdDeviation="5" floodColor={`var(--color-${key})`} floodOpacity="0.4" />
+                  </filter>
+                ))}
+              </defs>
 
-            {/* -------------------------------------------------
+              {/* -------------------------------------------------
                 GRADE
                 ------------------------------------------------- */}
 
-            <CartesianGrid
-              vertical={false}
-              strokeDasharray="4 4"
-              className="stroke-muted"
-            />
+              <CartesianGrid
+                vertical={false}
+                strokeDasharray="4 4"
+                className="stroke-muted"
+              />
 
-            {/* -------------------------------------------------
+              {/* -------------------------------------------------
                 EIXO X
                 ------------------------------------------------- */}
 
-            <XAxis
-              dataKey="month"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={10}
-              className="text-xs"
-            />
+              <XAxis
+                dataKey="month"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={10}
+                className="text-xs"
+              />
 
-            {/* -------------------------------------------------
+              {/* -------------------------------------------------
                 EIXO Y
                 ------------------------------------------------- */}
 
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              tickMargin={10}
-              width={70}
-              tickFormatter={(value) => {
-                if (value >= 1000000) {
-                  return `R$ ${(value / 1000000).toFixed(1)}M`
-                }
-                if (value >= 1000) {
-                  return `R$ ${(value / 1000).toFixed(0)}k`
-                }
-                return `R$ ${value}`
-              }}
-            />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tickMargin={10}
+                width={70}
+                tickFormatter={(value) => {
+                  if (value >= 1000000) {
+                    return `R$ ${(value / 1000000).toFixed(1)}M`
+                  }
+                  if (value >= 1000) {
+                    return `R$ ${(value / 1000).toFixed(0)}k`
+                  }
+                  return `R$ ${value}`
+                }}
+              />
 
-            {/* -------------------------------------------------
+              {/* -------------------------------------------------
                 TOOLTIP
                 ------------------------------------------------- */}
 
-            <ChartTooltip
-              cursor={{
-                stroke: "hsl(var(--border))",
-                strokeDasharray: "4 4",
-              }}
-              content={
-                <ChartTooltipContent
-                  indicator="line"
-                  formatter={(value, name) => {
-                    const label = chartConfig[name as keyof typeof chartConfig]?.label || name
-                    const color = chartConfig[name as keyof typeof chartConfig]?.color || "var(--color-bg)"
-                    
-                    return (
-                      <>
-                        <div
-                          className="h-2.5 w-2.5 shrink-0 rounded-[2px] mt-0.5"
-                          style={{ backgroundColor: color }}
-                        />
-                        <div className="flex flex-1 justify-between items-center gap-4 leading-none">
-                          <span className="text-zinc-500 dark:text-zinc-400">{label}</span>
-                          <span className="font-mono font-medium text-zinc-900 dark:text-zinc-50">
-                            {formatCurrency(Number(value))}
-                          </span>
-                        </div>
-                      </>
-                    )
-                  }}
-                />
-              }
-            />
+              <ChartTooltip
+                cursor={{
+                  stroke: "hsl(var(--border))",
+                  strokeDasharray: "4 4",
+                }}
+                content={
+                  <ChartTooltipContent
+                    indicator="line"
+                    formatter={(value, name) => {
+                      const label = chartConfig[name as keyof typeof chartConfig]?.label || name
+                      const color = chartConfig[name as keyof typeof chartConfig]?.color || "var(--color-bg)"
 
-            {/* =================================================
+                      return (
+                        <>
+                          <div
+                            className="h-2.5 w-2.5 shrink-0 rounded-[2px] mt-0.5"
+                            style={{ backgroundColor: color }}
+                          />
+                          <div className="flex flex-1 justify-between items-center gap-4 leading-none">
+                            <span className="text-zinc-500 dark:text-zinc-400">{label}</span>
+                            <span className="font-mono font-medium text-zinc-900 dark:text-zinc-50">
+                              {formatCurrency(Number(value))}
+                            </span>
+                          </div>
+                        </>
+                      )
+                    }}
+                  />
+                }
+              />
+
+              {/* =================================================
                 LINHAS DINÂMICAS
                 ================================================= */}
 
-            {Object.keys(chartConfig).map((key) => (
-              <Line
-                key={key}
-                filter={isDark ? `url(#glow-${key})` : undefined}
-                dataKey={key}
-                type="monotone"
-                stroke={`var(--color-${key})`}
-                strokeWidth={3}
-                dot={false}
-                activeDot={{
-                  r: 6,
-                  strokeWidth: 0,
-                }}
-              />
-            ))}
+              {Object.keys(chartConfig).map((key) => (
+                <Line
+                  key={key}
+                  filter={isDark ? `url(#glow-${key})` : undefined}
+                  dataKey={key}
+                  type="monotone"
+                  stroke={`var(--color-${key})`}
+                  strokeWidth={3}
+                  dot={false}
+                  activeDot={{
+                    r: 6,
+                    strokeWidth: 0,
+                  }}
+                />
+              ))}
 
-            {/* -------------------------------------------------
+              {/* -------------------------------------------------
                 LEGENDA
                 ------------------------------------------------- */}
 
-            <ChartLegend
-              content={<ChartLegendContent />}
-            />
-          </LineChart>
-        </ChartContainer>
+              <ChartLegend
+                content={<ChartLegendContent />}
+              />
+            </LineChart>
+          </ChartContainer>
         )}
       </CardContent>
     </Card>

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { FileText, FileSignature, FileKey, Users, ChevronRight, ArrowRight } from "lucide-react"
+import { FileText, FileSignature, FileKey, ChevronRight, ArrowRight } from "lucide-react"
 
 import { DashboardResumo } from "@/services/api"
 import Link from "next/link"
