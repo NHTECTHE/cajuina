@@ -6,12 +6,14 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
 import { DashboardResumo } from "@/services/api"
 
 export function GraficoCotacoesStatus({ resumo }: { resumo: DashboardResumo | null | undefined }) {
-  const chartData = [
-    { name: 'Em análise', value: resumo?.cotacoes?.iniciadas ?? 0, color: '#e63946' },
-    { name: 'Aprovadas', value: resumo?.cotacoes?.aprovadas ?? 0, color: '#22c55e' },
-    { name: 'Emitidas', value: resumo?.cotacoes?.emitidas ?? 0, color: '#8b5cf6' },
-    { name: 'Recusadas', value: resumo?.cotacoes?.recusadas ?? 0, color: '#f59e0b' },
+  const chartDataRaw = [
+    { name: 'Em análise', value: resumo?.cotacoes?.iniciadas ?? 0, color: '#ef4444' },
+    { name: 'Cotadas', value: resumo?.cotacoes?.aprovadas ?? 0, color: '#f59e0b' },
+    { name: 'Emitidas', value: resumo?.cotacoes?.emitidas ?? 0, color: '#22c55e' },
+    { name: 'Recusadas', value: resumo?.cotacoes?.recusadas ?? 0, color: '#455073' },
   ]
+  
+  const chartData = chartDataRaw.filter(item => item.value > 0)
   
   const total = chartData.reduce((acc, curr) => acc + curr.value, 0)
 

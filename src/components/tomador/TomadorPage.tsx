@@ -226,7 +226,7 @@ export default function TomadorPage() {
   const [newContact, setNewContact] = useState<ContactRow>({ nome: "", telefone: "", email: "" })
   const [newSocio, setNewSocio] = useState<SocioRow>({ nome: "", cpf: "", nascimento: "", qualificacao: "" })
 
-  // Load tomadores from API on mount
+  // (Removido daqui para baixo das declarações de estado)
   React.useEffect(() => {
     tomadoresApi.list()
       .then(setTomadores)
@@ -796,6 +796,25 @@ export default function TomadorPage() {
   const [cnpjNaoEncontrado, setCnpjNaoEncontrado] = React.useState(false)
   const [cnpjDuplicado, setCnpjDuplicado] = React.useState<TomadorResponse | null>(null)
   const [cadastroManual, setCadastroManual] = React.useState(false)
+
+  // Abrir form de "Novo Tomador" vindo do dashboard
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (sessionStorage.getItem("tomador_action") === "new") {
+        sessionStorage.removeItem("tomador_action")
+        setTimeout(() => {
+          setFormData(initialFormState)
+          setEditingId(null)
+          setCadastroManual(false)
+          setCnpjNaoEncontrado(false)
+          setCnpjDuplicado(null)
+          setView("form")
+          setCurrentTab("dados")
+        }, 0)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const fetchCompanyByCnpj = async (rawValue: string) => {
     const digits = rawValue.replace(/\D/g, '').slice(0, 14);

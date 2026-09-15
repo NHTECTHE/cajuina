@@ -332,6 +332,7 @@ export interface CotacaoPayload {
   data_final?: string | null;
   importancia_segurada?: string | null;
   observacoes?: string;
+  status?: string;
 }
 
 export type CotacaoStatus = "Iniciado" | "Aprovado" | "Emitido";

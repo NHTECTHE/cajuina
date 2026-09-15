@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { TrendingUp } from "lucide-react"
+
 import {
   CartesianGrid,
   Line,
@@ -40,152 +40,11 @@ import {
    DADOS DO GRÁFICO
    ========================================================= */
 
-const chartData = [
-  {
-    month: "Jan",
-    porto: 100000,
-    bradesco: 100000,
-    sulamerica: 100000,
-    mapfre: 100000,
-    allianz: 100000,
-    hdi: 100000,
-  },
-  {
-    month: "Fev",
-    porto: 340000,
-    bradesco: 250000,
-    sulamerica: 160000,
-    mapfre: 130000,
-    allianz: 100000,
-    hdi: 200000,
-  },
-  {
-    month: "Mar",
-    porto: 410000,
-    bradesco: 270000,
-    sulamerica: 210000,
-    mapfre: 150000,
-    allianz: 500000,
-    hdi: 90000,
-  },
-  {
-    month: "Abr",
-    porto: 360000,
-    bradesco: 420000,
-    sulamerica: 180000,
-    mapfre: 170000,
-    allianz: 280000,
-    hdi: 280000,
-  },
-  {
-    month: "Mai",
-    porto: 480000,
-    bradesco: 350000,
-    sulamerica: 220000,
-    mapfre: 160000,
-    allianz: 100000,
-    hdi: 80000,
-  },
-  {
-    month: "Jun",
-    porto: 440000,
-    bradesco: 390000,
-    sulamerica: 250000,
-    mapfre: 140000,
-    allianz: 300000,
-    hdi: 50000,
-  },
-  {
-    month: "Jul",
-    porto: 500000,
-    bradesco: 430000,
-    sulamerica: 290000,
-    mapfre: 250000,
-    allianz: 130000,
-    hdi: 90000,
-  },
-  {
-    month: "Ago",
-    porto: 600000,
-    bradesco: 400000,
-    sulamerica: 400000,
-    mapfre: 220000,
-    allianz: 150000,
-    hdi: 290000,
-  },
-  {
-    month: "Set",
-    porto: 300000,
-    bradesco: 350000,
-    sulamerica: 20000,
-    mapfre: 500000,
-    allianz: 130000,
-    hdi: 90000,
-  },
-  {
-    month: "Out",
-    porto: 600000,
-    bradesco: 370000,
-    sulamerica: 230000,
-    mapfre: 220000,
-    allianz: 140000,
-    hdi: 200000,
-  },
-  {
-    month: "Nov",
-    porto: 450000,
-    bradesco: 390000,
-    sulamerica: 400000,
-    mapfre: 250000,
-    allianz: 170000,
-    hdi: 110000,
-  },
-  {
-    month: "Dez",
-    porto: 550000,
-    bradesco: 480000,
-    sulamerica: 300000,
-    mapfre: 280000,
-    allianz: 190000,
-    hdi: 120000,
-  },
-]
+import { apolicesApi } from "@/services/api"
+import { BlocoErro, Skeleton } from "./BlocoEstado"
 
-/* =========================================================
-   CONFIGURAÇÃO DAS SEGURADORAS
-   ========================================================= */
-
-const chartConfig = {
-  porto: {
-    label: "Porto Seguro",
-    color: "#ef4444",
-  },
-
-  bradesco: {
-    label: "Bradesco Seguros",
-    color: "#3b82f6",
-  },
-
-  sulamerica: {
-    label: "SulAmérica",
-    color: "#22c55e",
-  },
-
-  mapfre: {
-    label: "Mapfre",
-    color: "#a855f7",
-  },
-
-  allianz: {
-    label: "Allianz",
-    color: "#f59e0b",
-  },
-
-  hdi: {
-    label: "HDI Seguros",
-    color: "#14b8a6",
-  },
-} satisfies ChartConfig
+const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#a855f7', '#f59e0b', '#14b8a6', '#0ea5e9']
+const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 
 /* =========================================================
    FORMATADOR DE MOEDA
@@ -203,44 +62,113 @@ const formatCurrency = (value: number) => {
    COMPONENTE
    ========================================================= */
 
+type ChartDataPoint = Record<string, string | number> & {
+  month: string
+  _monthIndex: number
+  _year: number
+}
+
+
 export function GraficoPremioLinha() {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === "dark"
   const [period, setPeriod] = React.useState("12m")
 
-  /* -------------------------------------------------------
-     FILTRO DE PERÍODO
-     ------------------------------------------------------- */
+  const [chartData, setChartData] = React.useState<ChartDataPoint[]>([])
+  const [chartConfig, setChartConfig] = React.useState<ChartConfig>({})
+  const [carregando, setCarregando] = React.useState(true)
+  const [erro, setErro] = React.useState<string | null>(null)
 
-  const filteredData = React.useMemo(() => {
+  const recarregar = React.useCallback(() => {
+    setCarregando(true)
+    setErro(null)
+    apolicesApi.list()
+      .then(apolices => {
+        const currentDate = new Date()
+        const currentMonth = currentDate.getMonth()
+        const dynamicMonths = []
+        for (let i = 23; i >= 0; i--) {
+          const m = new Date(currentDate.getFullYear(), currentMonth - i, 1)
+          dynamicMonths.push({ index: m.getMonth(), name: MONTHS[m.getMonth()], year: m.getFullYear() })
+        }
+
+        const monthsData: ChartDataPoint[] = dynamicMonths.map(m => ({ month: m.name, _monthIndex: m.index, _year: m.year }))
+        const seguradorasSet = new Set<string>()
+
+        for (const apolice of apolices) {
+          if (!apolice.criado_em) continue
+          const date = new Date(apolice.criado_em)
+          const monthIndex = date.getMonth()
+          const year = date.getFullYear()
+
+          const monthDataEntry = monthsData.find(m => m._monthIndex === monthIndex && m._year === year)
+          if (!monthDataEntry) continue
+
+          const segName = apolice.seguradora_nome || 'Outros'
+          const val = Number(apolice.valor_seguradora) || 0
+
+          seguradorasSet.add(segName)
+          const key = segName.toLowerCase().replace(/[^a-z0-9]/g, '')
+
+          if (!monthDataEntry[key]) {
+            monthDataEntry[key] = 0
+          }
+          monthDataEntry[key] = (monthDataEntry[key] as number) + val
+        }
+
+        const seguradoras = Array.from(seguradorasSet)
+        const config: ChartConfig = {}
+
+        seguradoras.forEach((seg, index) => {
+          const key = seg.toLowerCase().replace(/[^a-z0-9]/g, '')
+          config[key] = {
+            label: seg,
+            color: COLORS[index % COLORS.length]
+          }
+
+          monthsData.forEach(m => {
+            if (m[key] === undefined) m[key] = 0
+          })
+        })
+
+        setChartConfig(config)
+        setChartData(monthsData)
+      })
+      .catch(err => setErro(err.message || 'Erro ao carregar'))
+      .finally(() => setCarregando(false))
+  }, [])
+
+  React.useEffect(() => {
+    // Evita o erro de cascading render / set-state-in-effect
+    setTimeout(() => recarregar(), 0)
+  }, [recarregar])
+
+  const { filteredData, currentTotal } = React.useMemo(() => {
+    let current = chartData
+
     if (period === "3m") {
-      return chartData.slice(-3)
+      current = chartData.slice(-3)
+    } else if (period === "6m") {
+      current = chartData.slice(-6)
+    } else if (period === "12m") {
+      current = chartData.slice(-12)
     }
 
-    if (period === "6m") {
-      return chartData.slice(-6)
-    }
-
-    return chartData
-  }, [period])
-
-  /* -------------------------------------------------------
-     CALCULA O TOTAL DO PERÍODO
-     ------------------------------------------------------- */
-
-  const totalPremios = React.useMemo(() => {
-    return filteredData.reduce((total, item) => {
-      return (
-        total +
-        item.porto +
-        item.bradesco +
-        item.sulamerica +
-        item.mapfre +
-        item.allianz +
-        item.hdi
-      )
+    const sumData = (data: ChartDataPoint[]) => data.reduce((total, item) => {
+      let sum = 0
+      for (const k of Object.keys(chartConfig)) {
+        sum += (Number(item[k]) || 0)
+      }
+      return total + sum
     }, 0)
-  }, [filteredData])
+
+    return {
+      filteredData: current,
+      currentTotal: sumData(current)
+    }
+  }, [period, chartData, chartConfig])
+
+
 
   /* -------------------------------------------------------
      RENDER
@@ -256,31 +184,22 @@ export function GraficoPremioLinha() {
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           {/* TÍTULO + TOTAL */}
 
-          <div className="space-y-2">
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-500 text-white">
-                R$
-              </span>
-
-              Prêmios das Seguradoras
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-3 text-xl">
+              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/20">
+                <span className="relative z-10 text-sm font-bold">R$</span>
+                <div className="absolute inset-0 rounded-xl bg-white/20 opacity-0 transition-opacity hover:opacity-100" />
+              </div>
+              <span className="font-semibold text-zinc-800 dark:text-zinc-100">Prêmios das Seguradoras</span>
             </CardTitle>
 
-            <CardDescription>
+            <CardDescription className="ml-13 text-sm text-zinc-500 dark:text-zinc-400">
               Evolução dos prêmios das seguradoras
             </CardDescription>
 
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <span className="text-3xl font-bold tracking-tight">
-                {formatCurrency(totalPremios)}
-              </span>
-
-              <span className="flex items-center gap-1 rounded-md bg-green-500/10 px-2.5 py-1 text-sm font-medium text-green-500">
-                <TrendingUp className="h-4 w-4" />
-                50%
-              </span>
-
-              <span className="text-sm text-muted-foreground">
-                em relação a 12 meses atrás
+            <div className="ml-13 flex flex-wrap items-center gap-3 pt-3 pb-2">
+              <span className="text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-br from-zinc-800 to-zinc-500 dark:from-white dark:to-zinc-400">
+                {formatCurrency(currentTotal)}
               </span>
             </div>
           </div>
@@ -319,214 +238,146 @@ export function GraficoPremioLinha() {
           ===================================================== */}
 
       <CardContent className="pt-6">
-        <ChartContainer
-          config={chartConfig}
-          className="h-[220px] w-full"
-        >
-          <LineChart
-            accessibilityLayer
-            data={filteredData}
-            margin={{
-              top: 15,
-              right: 20,
-              left: 10,
-              bottom: 10,
-            }}
+        {erro ? (
+          <BlocoErro mensagem={erro} onRetry={recarregar} />
+        ) : carregando ? (
+          <div className="h-[220px] w-full flex items-center justify-center">
+            <Skeleton className="h-full w-full rounded-md" />
+          </div>
+        ) : chartData.length === 0 || currentTotal === 0 ? (
+          <div className="h-[220px] w-full flex items-center justify-center text-sm text-zinc-500">
+            Nenhuma apólice registrada para o período.
+          </div>
+        ) : (
+          <ChartContainer
+            config={chartConfig}
+            className="h-[220px] w-full"
           >
-            <defs>
-              {["porto", "bradesco", "sulamerica", "mapfre", "allianz", "hdi"].map((key) => (
-                <filter key={key} id={`glow-${key}`} x="-20%" y="-20%" width="140%" height="140%">
-                  <feDropShadow dx="0" dy="4" stdDeviation="5" floodColor={`var(--color-${key})`} floodOpacity="0.4" />
-                </filter>
-              ))}
-            </defs>
+            <LineChart
+              accessibilityLayer
+              data={filteredData}
+              margin={{
+                top: 15,
+                right: 20,
+                left: 10,
+                bottom: 10,
+              }}
+            >
+              <defs>
+                {Object.keys(chartConfig).map((key) => (
+                  <filter key={key} id={`glow-${key}`} x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="4" stdDeviation="5" floodColor={`var(--color-${key})`} floodOpacity="0.4" />
+                  </filter>
+                ))}
+              </defs>
 
-            {/* -------------------------------------------------
+              {/* -------------------------------------------------
                 GRADE
                 ------------------------------------------------- */}
 
-            <CartesianGrid
-              vertical={false}
-              strokeDasharray="4 4"
-              className="stroke-muted"
-            />
+              <CartesianGrid
+                vertical={false}
+                strokeDasharray="4 4"
+                className="stroke-muted"
+              />
 
-            {/* -------------------------------------------------
+              {/* -------------------------------------------------
                 EIXO X
                 ------------------------------------------------- */}
 
-            <XAxis
-              dataKey="month"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={10}
-              className="text-xs"
-            />
+              <XAxis
+                dataKey="month"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={10}
+                className="text-xs"
+              />
 
-            {/* -------------------------------------------------
+              {/* -------------------------------------------------
                 EIXO Y
                 ------------------------------------------------- */}
 
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              tickMargin={10}
-              width={70}
-              tickFormatter={(value) => {
-                if (value >= 1000000) {
-                  return `R$ ${(value / 1000000).toFixed(1)}M`
-                }
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tickMargin={10}
+                width={70}
+                tickFormatter={(value) => {
+                  if (value >= 1000000) {
+                    return `R$ ${(value / 1000000).toFixed(1)}M`
+                  }
+                  if (value >= 1000) {
+                    return `R$ ${(value / 1000).toFixed(0)}k`
+                  }
+                  return `R$ ${value}`
+                }}
+              />
 
-                return `R$ ${(value / 1000).toFixed(0)}k`
-              }}
-            />
-
-            {/* -------------------------------------------------
+              {/* -------------------------------------------------
                 TOOLTIP
                 ------------------------------------------------- */}
 
-            <ChartTooltip
-              cursor={{
-                stroke: "hsl(var(--border))",
-                strokeDasharray: "4 4",
-              }}
-              content={
-                <ChartTooltipContent
-                  indicator="line"
-                  formatter={(value, name) => {
-                    const label = chartConfig[name as keyof typeof chartConfig]?.label || name
-                    const color = chartConfig[name as keyof typeof chartConfig]?.color || "var(--color-bg)"
-                    
-                    return (
-                      <>
-                        <div
-                          className="h-2.5 w-2.5 shrink-0 rounded-[2px] mt-0.5"
-                          style={{ backgroundColor: color }}
-                        />
-                        <div className="flex flex-1 justify-between items-center gap-4 leading-none">
-                          <span className="text-zinc-500 dark:text-zinc-400">{label}</span>
-                          <span className="font-mono font-medium text-zinc-900 dark:text-zinc-50">
-                            {formatCurrency(Number(value))}
-                          </span>
-                        </div>
-                      </>
-                    )
+              <ChartTooltip
+                cursor={{
+                  stroke: "hsl(var(--border))",
+                  strokeDasharray: "4 4",
+                }}
+                content={
+                  <ChartTooltipContent
+                    indicator="line"
+                    formatter={(value, name) => {
+                      const label = chartConfig[name as keyof typeof chartConfig]?.label || name
+                      const color = chartConfig[name as keyof typeof chartConfig]?.color || "var(--color-bg)"
+
+                      return (
+                        <>
+                          <div
+                            className="h-2.5 w-2.5 shrink-0 rounded-[2px] mt-0.5"
+                            style={{ backgroundColor: color }}
+                          />
+                          <div className="flex flex-1 justify-between items-center gap-4 leading-none">
+                            <span className="text-zinc-500 dark:text-zinc-400">{label}</span>
+                            <span className="font-mono font-medium text-zinc-900 dark:text-zinc-50">
+                              {formatCurrency(Number(value))}
+                            </span>
+                          </div>
+                        </>
+                      )
+                    }}
+                  />
+                }
+              />
+
+              {/* =================================================
+                LINHAS DINÂMICAS
+                ================================================= */}
+
+              {Object.keys(chartConfig).map((key) => (
+                <Line
+                  key={key}
+                  filter={isDark ? `url(#glow-${key})` : undefined}
+                  dataKey={key}
+                  type="monotone"
+                  stroke={`var(--color-${key})`}
+                  strokeWidth={3}
+                  dot={false}
+                  activeDot={{
+                    r: 6,
+                    strokeWidth: 0,
                   }}
                 />
-              }
-            />
+              ))}
 
-            {/* =================================================
-                PORTO SEGURO
-                ================================================= */}
-
-            <Line
-              filter={isDark ? "url(#glow-porto)" : undefined}
-              dataKey="porto"
-              type="linear"
-              stroke="var(--color-porto)"
-              strokeWidth={2.5}
-              dot={false}
-              activeDot={{
-                r: 5,
-                strokeWidth: 2,
-              }}
-            />
-
-            {/* =================================================
-                BRADESCO
-                ================================================= */}
-
-            <Line
-              filter={isDark ? "url(#glow-bradesco)" : undefined}
-              dataKey="bradesco"
-              type="linear"
-              stroke="var(--color-bradesco)"
-              strokeWidth={2.5}
-              dot={false}
-              activeDot={{
-                r: 5,
-                strokeWidth: 2,
-              }}
-            />
-
-            {/* =================================================
-                SULAMÉRICA
-                ================================================= */}
-
-            <Line
-              filter={isDark ? "url(#glow-sulamerica)" : undefined}
-              dataKey="sulamerica"
-              type="linear"
-              stroke="var(--color-sulamerica)"
-              strokeWidth={2.5}
-              dot={false}
-              activeDot={{
-                r: 5,
-                strokeWidth: 2,
-              }}
-            />
-
-            {/* =================================================
-                MAPFRE
-                ================================================= */}
-
-            <Line
-              filter={isDark ? "url(#glow-mapfre)" : undefined}
-              dataKey="mapfre"
-              type="linear"
-              stroke="var(--color-mapfre)"
-              strokeWidth={2.5}
-              dot={false}
-              activeDot={{
-                r: 5,
-                strokeWidth: 2,
-              }}
-            />
-
-            {/* =================================================
-                ALLIANZ
-                ================================================= */}
-
-            <Line
-              filter={isDark ? "url(#glow-allianz)" : undefined}
-              dataKey="allianz"
-              type="linear"
-              stroke="var(--color-allianz)"
-              strokeWidth={2.5}
-              dot={false}
-              activeDot={{
-                r: 5,
-                strokeWidth: 2,
-              }}
-            />
-
-            {/* =================================================
-                HDI
-                ================================================= */}
-
-            <Line
-              filter={isDark ? "url(#glow-hdi)" : undefined}
-              dataKey="hdi"
-              type="linear"
-              stroke="var(--color-hdi)"
-              strokeWidth={2.5}
-              dot={false}
-              activeDot={{
-                r: 5,
-                strokeWidth: 2,
-              }}
-            />
-
-            {/* -------------------------------------------------
+              {/* -------------------------------------------------
                 LEGENDA
                 ------------------------------------------------- */}
 
-            <ChartLegend
-              content={<ChartLegendContent />}
-            />
-          </LineChart>
-        </ChartContainer>
+              <ChartLegend
+                content={<ChartLegendContent />}
+              />
+            </LineChart>
+          </ChartContainer>
+        )}
       </CardContent>
     </Card>
   )
